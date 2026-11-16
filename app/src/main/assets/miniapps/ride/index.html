@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nahua Ride</title>
+<style>
+  :root { color-scheme: light; --brand: #FF6B4A; --ink: #10161C; --muted: #5D6A78; --line: #E4E8F0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #F5F6FA; color: var(--ink); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 8px; }
+  .brand { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand); }
+  .ghost { border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px; }
+  main { padding: 4px 20px 28px; }
+  h1 { font-size: 24px; margin: 8px 0 4px; letter-spacing: -0.4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+  .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 9px 14px; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .fare { display: flex; align-items: baseline; justify-content: space-between; }
+  .fare strong { font-size: 30px; letter-spacing: -0.6px; }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+  .row span:last-child { font-weight: 600; }
+  .map { height: 120px; border-radius: 18px; margin-bottom: 14px; background:
+      radial-gradient(circle at 20% 30%, #FFE2DB 0, transparent 45%),
+      radial-gradient(circle at 80% 70%, #D7F1E9 0, transparent 45%),
+      repeating-linear-gradient(45deg, #EEF1F7 0 12px, #F7F8FC 12px 24px); position: relative; overflow: hidden; }
+  .pin { position: absolute; left: 18%; top: 45%; width: 16px; height: 16px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 8px rgba(255,107,74,0.18); }
+  .pin.end { left: auto; right: 16%; top: 28%; background: #0E7C66; box-shadow: 0 0 0 8px rgba(14,124,102,0.16); }
+  button.primary { width: 100%; border: 0; border-radius: 16px; padding: 16px; background: var(--brand); color: #fff; font-size: 16px; font-weight: 700; }
+  button.primary:disabled { opacity: 0.6; }
+  .success { text-align: center; padding: 24px 8px; }
+  .success .check { width: 64px; height: 64px; border-radius: 50%; background: #D7F1E9; color: #0E7C66; display: grid; place-items: center; font-size: 30px; margin: 0 auto 14px; }
+  .success h2 { margin: 0 0 6px; font-size: 22px; }
+  .success p { color: var(--muted); font-size: 14px; margin: 4px 0; }
+  .error { color: #C2410C; font-size: 13px; margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span> Nahua Ride</div>
+  <button class="ghost" onclick="Nahua.close()">Cerrar</button>
+</header>
+<main id="app">
+  <h1>¿A dónde vamos?</h1>
+  <p class="sub" id="greeting">Tu viaje, sin filas y sin efectivo.</p>
+
+  <div class="map"><span class="pin"></span><span class="pin end"></span></div>
+
+  <div class="card">
+    <div class="label">Destino</div>
+    <div class="chips" id="destinations"></div>
+  </div>
+
+  <div class="card">
+    <div class="fare">
+      <div>
+        <div class="label">Tarifa estimada</div>
+        <strong id="fare">$0.00</strong>
+      </div>
+      <div style="text-align:right">
+        <div class="label">Llegada</div>
+        <div id="eta" style="font-weight:600">4 min</div>
+      </div>
+    </div>
+    <div class="row"><span>Distancia</span><span id="distance">0 km</span></div>
+    <div class="row"><span>Pago</span><span>Nahua Wallet</span></div>
+  </div>
+
+  <button class="primary" id="request" disabled>Elige un destino</button>
+  <div class="error" id="error"></div>
+</main>
+
+<script src="../nahua-sdk.js"></script>
+<script>
+  var DESTINATIONS = [
+    { id: 'centro', label: 'Centro', km: 3.2, minutes: 11, price: 58 },
+    { id: 'aeropuerto', label: 'Aeropuerto', km: 18.4, minutes: 34, price: 210 },
+    { id: 'universidad', label: 'Universidad', km: 7.1, minutes: 19, price: 96 }
+  ];
+
+  var selected = null;
+  var requesting = false;
+
+  function money(value) {
+    return '$' + value.toFixed(2);
+  }
+
+  function renderChips() {
+    var container = document.getElementById('destinations');
+    container.innerHTML = '';
+    DESTINATIONS.forEach(function (destination) {
+      var button = document.createElement('button');
+      button.className = 'chip' + (selected && selected.id === destination.id ? ' active' : '');
+      button.textContent = destination.label;
+      button.onclick = function () { select(destination); };
+      container.appendChild(button);
+    });
+  }
+
+  function select(destination) {
+    selected = destination;
+    document.getElementById('fare').textContent = money(destination.price);
+    document.getElementById('distance').textContent = destination.km.toFixed(1) + ' km';
+    document.getElementById('eta').textContent = destination.minutes + ' min';
+    var request = document.getElementById('request');
+    request.disabled = false;
+    request.textContent = 'Pedir viaje · ' + money(destination.price);
+    document.getElementById('error').textContent = '';
+    renderChips();
+  }
+
+  function showSuccess(result, amount) {
+    document.getElementById('app').innerHTML =
+      '<div class="success">' +
+      '<div class="check">✓</div>' +
+      '<h2>Viaje confirmado</h2>' +
+      '<p>Tu conductor va en camino a ' + selected.label + '.</p>' +
+      '<p><strong>' + money(amount) + '</strong> pagados con Nahua Wallet</p>' +
+      '<p style="font-size:12px;color:#9AA7B6">ID ' + result.transactionId + '</p>' +
+      '<button class="primary" style="margin-top:18px" onclick="Nahua.close()">Listo</button>' +
+      '</div>';
+  }
+
+  document.getElementById('request').onclick = function () {
+    if (!selected || requesting) return;
+    requesting = true;
+    var button = document.getElementById('request');
+    button.disabled = true;
+    button.textContent = 'Confirmando…';
+    Nahua.pay({
+      amount: selected.price,
+      concept: 'Viaje a ' + selected.label,
+      merchant: 'Nahua Ride'
+    }).then(function (result) {
+      showSuccess(result, selected.price);
+    }).catch(function (error) {
+      requesting = false;
+      button.disabled = false;
+      button.textContent = 'Pedir viaje · ' + money(selected.price);
+      var messages = {
+        insufficient_funds: 'Saldo insuficiente. Recarga tu cartera e intenta de nuevo.',
+        cancelled: 'Pago cancelado.',
+        invalid_amount: 'Monto inválido.'
+      };
+      document.getElementById('error').textContent = messages[error.error] || 'No pudimos completar el pago.';
+    });
+  };
+
+  var user = Nahua.user();
+  if (user.name) {
+    document.getElementById('greeting').textContent = 'Hola ' + user.name.split(' ')[0] + ', ¿a dónde vamos hoy?';
+  }
+  renderChips();
+</script>
+</body>
+</html>

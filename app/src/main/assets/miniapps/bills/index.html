@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pagar servicios</title>
+<style>
+  :root { color-scheme: light; --brand: #2F6BFF; --ink: #10161C; --muted: #5D6A78; --line: #E4E8F0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #F5F6FA; color: var(--ink); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 8px; }
+  .brand { font-weight: 700; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand); }
+  .ghost { border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 8px; }
+  main { padding: 4px 20px 120px; }
+  h1 { font-size: 24px; margin: 8px 0 4px; letter-spacing: -0.4px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 16px; margin-bottom: 14px; }
+  .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
+  .row + .row { border-top: 1px solid #F0F2F7; }
+  .row strong { font-size: 15px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .price { font-weight: 700; font-size: 15px; }
+  .add { border: 1px solid var(--line); background: #fff; border-radius: 12px; width: 34px; height: 34px; font-size: 18px; font-weight: 600; color: var(--brand); }
+  .add:active { transform: scale(0.96); }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab { flex: 1; border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 12px 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .total-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 14px 20px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(16,22,28,0.06); }
+  .total-bar .line { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+  .total-bar strong { font-size: 20px; }
+  button.primary { width: 100%; border: 0; border-radius: 16px; padding: 15px; background: var(--brand); color: #fff; font-size: 16px; font-weight: 700; }
+  button.primary:disabled { opacity: 0.45; }
+  .success { text-align: center; padding: 28px 8px; }
+  .success .check { width: 64px; height: 64px; border-radius: 50%; background: #E7F7F1; color: #0E7C66; display: grid; place-items: center; font-size: 30px; margin: 0 auto 14px; }
+  .success h2 { margin: 0 0 6px; font-size: 22px; }
+  .success p { color: var(--muted); font-size: 14px; margin: 4px 0; }
+  .error { color: #C2410C; font-size: 13px; margin-top: 10px; text-align: center; }
+  .bill { display: flex; align-items: center; gap: 14px; }
+  .bill .icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 20px; background: #EEF2FF; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="dot"></span> Pagar servicios</div>
+  <button class="ghost" onclick="Nahua.close()">Cerrar</button>
+</header>
+<main id="app">
+  <h1>Recibos del mes</h1>
+  <p class="sub">Paga en segundos, sin comisiones.</p>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="card" id="billCard"></div>
+  <div class="error" id="error"></div>
+</main>
+
+<script src="../nahua-sdk.js"></script>
+<script>
+  var BILLS = [
+    { id: 'cfe', label: 'Luz', name: 'CFE · Suministro 8842', detail: 'Vence el 30 de noviembre', amount: 342.5, icon: '⚡' },
+    { id: 'agua', label: 'Agua', name: 'SACMEX · Cuenta 1187', detail: 'Vence el 28 de noviembre', amount: 186, icon: '💧' },
+    { id: 'internet', label: 'Internet', name: 'Nahua Fibra · 300 Mbps', detail: 'Corte el 2 de diciembre', amount: 599, icon: '🛜' }
+  ];
+
+  var current = BILLS[0];
+  var paying = false;
+
+  function money(value) { return '$' + value.toFixed(2); }
+
+  function renderTabs() {
+    var tabs = document.getElementById('tabs');
+    tabs.innerHTML = '';
+    BILLS.forEach(function (bill) {
+      var button = document.createElement('button');
+      button.className = 'tab' + (bill.id === current.id ? ' active' : '');
+      button.textContent = bill.label;
+      button.onclick = function () { current = bill; render(); };
+      tabs.appendChild(button);
+    });
+  }
+
+  function render() {
+    renderTabs();
+    var card = document.getElementById('billCard');
+    card.innerHTML =
+      '<div class="bill">' +
+      '<div class="icon">' + current.icon + '</div>' +
+      '<div style="flex:1"><strong>' + current.name + '</strong><div class="muted">' + current.detail + '</div></div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 6px">' +
+      '<span class="label">Total a pagar</span><strong style="font-size:30px;letter-spacing:-0.6px">' + money(current.amount) + '</strong>' +
+      '</div>' +
+      '<button class="primary" id="payBill">Pagar recibo</button>';
+
+    document.getElementById('payBill').onclick = payCurrent;
+    document.getElementById('error').textContent = '';
+  }
+
+  function payCurrent() {
+    if (paying) return;
+    paying = true;
+    var button = document.getElementById('payBill');
+    button.disabled = true;
+    button.textContent = 'Confirmando…';
+    Nahua.pay({
+      amount: current.amount,
+      concept: 'Recibo de ' + current.label.toLowerCase(),
+      merchant: current.name
+    }).then(function (result) {
+      document.getElementById('app').innerHTML =
+        '<div class="success">' +
+        '<div class="check">✓</div>' +
+        '<h2>Recibo pagado</h2>' +
+        '<p>' + current.name + '</p>' +
+        '<p><strong>' + money(current.amount) + '</strong> · comprobante enviado a tus avisos</p>' +
+        '<p style="font-size:12px;color:#9AA7B6">ID ' + result.transactionId + '</p>' +
+        '<button class="primary" style="margin-top:18px" onclick="Nahua.close()">Listo</button>' +
+        '</div>';
+    }).catch(function (error) {
+      paying = false;
+      button.disabled = false;
+      button.textContent = 'Pagar recibo';
+      var messages = {
+        insufficient_funds: 'Saldo insuficiente. Recarga tu cartera e intenta de nuevo.',
+        cancelled: 'Pago cancelado.',
+        invalid_amount: 'Monto inválido.'
+      };
+      document.getElementById('error').textContent = messages[error.error] || 'No pudimos completar el pago.';
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Gradle
+.gradle/
+.gradle-home/
+.android-home/
+build-log.txt
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+*.hprof
+.DS_Store
+
+# Tooling sandbox (local JDK / probes)
+.tools/
+_probe/
+
+# Signing material
+*.jks
+*.keystore
+keystore.properties
+
+# Logs
+*.log

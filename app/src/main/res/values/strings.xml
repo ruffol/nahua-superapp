@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nahua</string>
+    <string name="app_tagline">Todo en una sola app</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_services">Servicios</string>
+    <string name="nav_wallet">Cartera</string>
+    <string name="nav_profile">Perfil</string>
+    <string name="action_scan">Escanear</string>
+</resources>
