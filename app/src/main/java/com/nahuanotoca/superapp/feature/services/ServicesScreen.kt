@@ -234,13 +234,13 @@ private fun ServicePixelTile(
             modifier = Modifier
                 .size(46.dp)
                 .clip(PixelCutShape(4.dp))
-                .background(accent.copy(alpha = 0.30f))
-                .border(2.dp, accent.copy(alpha = 0.90f), PixelCutShape(4.dp)),
+                .background(accent.copy(alpha = 0.48f))
+                .border(2.dp, accent, PixelCutShape(4.dp)),
             contentAlignment = Alignment.Center,
         ) {
             PixelGlyph(
                 rows = PixelAppGlyphs.forService(service),
-                color = lerp(accent, Color.White, 0.68f),
+                color = lerp(accent, Color.White, 0.75f),
                 size = 24.dp,
             )
             if (service.badge != null) {

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nahuanotoca.superapp.R
+import com.nahuanotoca.superapp.core.design.Clay
 import com.nahuanotoca.superapp.core.design.PixelAppGlyphs
 import com.nahuanotoca.superapp.core.design.PixelBodyText
 import com.nahuanotoca.superapp.core.design.PixelBorder
@@ -211,7 +212,7 @@ private fun BalancePanel(
                 .clip(PixelCutShape(9.dp))
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color(0xFF4B2A9E), Color(0xFF2A1460)),
+                        listOf(Clay, Color(0xFF3A2117)),
                     ),
                 ),
         ) {

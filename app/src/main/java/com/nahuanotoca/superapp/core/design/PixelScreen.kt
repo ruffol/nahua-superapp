@@ -157,8 +157,8 @@ fun PixelRow(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(PixelCutShape(3.dp))
-                    .background(accent.copy(alpha = 0.18f))
-                    .border(2.dp, accent.copy(alpha = 0.55f), PixelCutShape(3.dp)),
+                    .background(accent.copy(alpha = 0.32f))
+                    .border(2.dp, accent.copy(alpha = 0.8f), PixelCutShape(3.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 PixelGlyph(glyph, color = lerp(accent, Color.White, 0.65f), size = 19.dp)

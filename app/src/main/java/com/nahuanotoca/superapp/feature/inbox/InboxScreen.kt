@@ -115,8 +115,8 @@ private fun NoticeCard(notice: Notice, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(38.dp)
                     .clip(PixelCutShape(3.dp))
-                    .background(accent.copy(alpha = 0.18f))
-                    .border(2.dp, accent.copy(alpha = 0.5f), PixelCutShape(3.dp)),
+                    .background(accent.copy(alpha = 0.34f))
+                    .border(2.dp, accent.copy(alpha = 0.75f), PixelCutShape(3.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 PixelGlyph(glyph, color = lerp(accent, Color.White, 0.6f), size = 19.dp)

@@ -25,12 +25,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nahuanotoca.superapp.R
+import com.nahuanotoca.superapp.core.design.Clay
 import com.nahuanotoca.superapp.core.design.PixelBgDeep
 import com.nahuanotoca.superapp.core.design.PixelBorder
 import com.nahuanotoca.superapp.core.design.PixelCream
 import com.nahuanotoca.superapp.core.design.PixelCutShape
 import com.nahuanotoca.superapp.core.design.PixelInk
 import com.nahuanotoca.superapp.core.design.PixelLabel
+import com.nahuanotoca.superapp.core.design.PixelMuted
 import com.nahuanotoca.superapp.core.design.PixelSpriteImage
 import com.nahuanotoca.superapp.core.design.PixelViolet
 import com.nahuanotoca.superapp.core.navigation.Routes
@@ -135,7 +137,7 @@ private fun PetButton(selected: Boolean, onClick: () -> Unit, modifier: Modifier
                 .clip(CircleShape)
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color(0xFF7B45E0), Color(0xFF3B1E72)),
+                        listOf(Clay, Color(0xFF3A2117)),
                     ),
                 )
                 .border(3.dp, if (selected) PixelCream else PixelBorder, CircleShape)

@@ -126,7 +126,6 @@ fun NahuaApp(container: AppContainer) {
                     onSeeAllServices = { navigateTab(Routes.SERVICES) },
                     onOpenWallet = { navigateTab(Routes.WALLET) },
                     onOpenInbox = { navController.navigate(Routes.INBOX) },
-                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onScan = { navController.navigate(Routes.SCAN) },
                     onMessage = showMessage,
                 )

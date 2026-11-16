@@ -22,6 +22,14 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ### Cambiado
 
+- **Inicio de barro**: el mapa offline real ocupa el 33 % de la pantalla (como en la 0.5.1) y
+  desaparecen el buscador y el tip; se mantienen el saludo y el carrusel de aplicaciones.
+- **Paleta regional de Colima**: café de olla, teja, ocre y cal sustituyen al morado neón en toda
+  la app, con un fondo de rombos de talavera dibujado en `PixelBackdrop`.
+- **Mapa offline real**: se regeneró el paquete de teselas (Natural Earth + calles OSM del área
+  metropolitana) porque el anterior eran 2 151 copias de la imagen «403 Access blocked» de
+  OpenStreetMap. Las teselas ahora son un mapa de papel cálido con carreteras, pueblos y el
+  Volcán de Colima, y la mini app ya no pide teselas a los servidores públicos de OSM.
 - **Toda la app en pixel art**: Servicios, Cartera, Perfil, Avisos, Buscador, Escáner QR, la hoja
   de actualizaciones y el marco de las mini-apps usan la misma dirección visual que el inicio.
   Las piezas compartidas (cabecera con regreso, filas, interruptores, estado vacío y aviso

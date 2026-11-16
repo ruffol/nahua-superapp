@@ -18,8 +18,8 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 ## Lo que incluye
 
-- **Mapa offline de Colima** con teselas empaquetadas (z9–13 estatal, z14–15 metropolitano) y
-  **GPS** para centrarte; teselas en línea de OpenStreetMap como respaldo.
+- **Mapa offline de Colima** con teselas propias empaquetadas (z9–13, Natural Earth + calles de
+  OSM del área metropolitana), estilo de papel cálido, y **GPS** para centrarte.
 - **Tianguis de Colima**: productores de Colima, Villa de Álvarez, Comala, Tecomán, Manzanillo y
   Armería, con canasta y pago desde la cartera.
 - **Nahuanotoka (mesas de estudio)**: crea una mesa por materia, agrega varios PDFs, pide resumen,
@@ -45,8 +45,10 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 ## Mapa offline de Colima
 
-- Teselas `{z}/{x}/{y}.png` empaquetadas en `assets/miniapps/mapa/tiles` (2,151 teselas, ~14 MB).
-- Cobertura: estado de Colima en z9–13; zona metropolitana Colima–Villa de Álvarez–Comala en z14–15.
+- Teselas `{z}/{x}/{y}.png` empaquetadas en `assets/miniapps/mapa/tiles` (1,380 teselas, ~0.8 MB),
+  generadas con `.tmp/render_v2.py` a partir de Natural Earth (costa, fronteras, carreteras) y de
+  las calles de OpenStreetMap del área metropolitana, en una paleta de barro.
+- Cobertura: estado de Colima en z9–13 (z14–15 se escalan desde z13 para no dejar huecos).
 - Si falta una tesela (o alejas el mapa fuera de la cobertura), Leaflet usa OpenStreetMap en línea.
 - Botón **📍 Mi ubicación**: pide permiso de ubicación la primera vez y dibuja tu posición con su
   precisión.

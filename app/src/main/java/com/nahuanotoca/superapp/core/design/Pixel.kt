@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -68,23 +69,34 @@ import com.nahuanotoca.superapp.R
 
 // --- Paleta ----------------------------------------------------------------
 
-val PixelBg = Color(0xFF160C2B)
-val PixelBgDeep = Color(0xFF0E071E)
-val PixelPanel = Color(0xFF241545)
-val PixelPanelAlt = Color(0xFF2E1B58)
-val PixelPanelSoft = Color(0xFF3A2470)
-val PixelBorder = Color(0xFF7C5CFF)
-val PixelBorderSoft = Color(0xFF4A3380)
-val PixelInk = Color(0xFFF2ECFF)
-val PixelMuted = Color(0xFFB6A6E4)
-val PixelGreen = Color(0xFF5BE49B)
-val PixelGreenDeep = Color(0xFF1F8A5B)
-val PixelPink = Color(0xFFFF7AB6)
-val PixelYellow = Color(0xFFFFD166)
-val PixelCyan = Color(0xFF6FE7F2)
-val PixelRed = Color(0xFFFF5D6C)
-val PixelPurple = Color(0xFF8A6FE8)
-val PixelShadow = Color(0xFF0A0518)
+// Paleta de barro y volcán: café de olla, teja, ocre y cal de Comala.
+val PixelBg = Color(0xFF231610)
+val PixelBgDeep = Color(0xFF170D09)
+val PixelPanel = Color(0xFF472A1C)
+val PixelPanelAlt = Color(0xFF5A3524)
+val PixelPanelSoft = Color(0xFF6D422C)
+val PixelBorder = Color(0xFFC98B4B)
+val PixelBorderSoft = Color(0xFF7B5233)
+val PixelInk = Color(0xFFF7E9CF)
+val PixelMuted = Color(0xFFCBB08C)
+val PixelGreen = Color(0xFF93C46A)
+val PixelGreenDeep = Color(0xFF3F6B33)
+val PixelPink = Color(0xFFE58498)
+val PixelYellow = Color(0xFFE9B54F)
+val PixelCyan = Color(0xFF87C6C9)
+val PixelRed = Color(0xFFCC5B45)
+val PixelPurple = Color(0xFFB5643F)
+val PixelShadow = Color(0xFF0F0805)
+
+// Tonos de la artesanía colimense
+val Clay = Color(0xFF8C4A2F)
+val ClayDeep = Color(0xFF5F3120)
+val Ochre = Color(0xFFD79A45)
+val Maize = Color(0xFFE9B54F)
+val Forest = Color(0xFF5C8A46)
+val Bougainvillea = Color(0xFFC94F74)
+val VolcanicAsh = Color(0xFFA99C8C)
+val Lime = Color(0xFFF1E3C4)
 
 // --- Tipografía ------------------------------------------------------------
 
@@ -167,22 +179,31 @@ class PixelCutShape(private val cut: Dp = 6.dp) : Shape {
 
 @Composable
 fun PixelBackdrop(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(modifier = modifier.fillMaxSize().background(PixelBg)) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(PixelBg, PixelBgDeep))),
+    ) {
+        // Motivo de talavera: pequeños rombos de barro que dan textura de tejido al fondo.
         Canvas(Modifier.fillMaxSize()) {
-            val step = 26.dp.toPx()
-            val dot = 2.dp.toPx()
-            var x = 0f
-            while (x < size.width) {
-                var y = 0f
-                while (y < size.height) {
-                    drawRect(
-                        color = PixelBorderSoft.copy(alpha = 0.18f),
-                        topLeft = Offset(x, y),
-                        size = Size(dot, dot),
-                    )
-                    y += step
+            val step = 38.dp.toPx()
+            val pixel = 2.dp.toPx()
+            val mote = Ochre.copy(alpha = 0.09f)
+            val moteCore = Ochre.copy(alpha = 0.16f)
+            var row = 0
+            var y = step / 2f
+            while (y < size.height + step) {
+                var x = if (row % 2 == 0) step / 2f else step
+                while (x < size.width + step) {
+                    drawRect(mote, Offset(x, y - pixel * 2), Size(pixel, pixel))
+                    drawRect(mote, Offset(x, y + pixel * 2), Size(pixel, pixel))
+                    drawRect(mote, Offset(x - pixel * 2, y), Size(pixel, pixel))
+                    drawRect(mote, Offset(x + pixel * 2, y), Size(pixel, pixel))
+                    drawRect(moteCore, Offset(x, y), Size(pixel, pixel))
+                    x += step
                 }
-                x += step
+                y += step
+                row++
             }
         }
         content()

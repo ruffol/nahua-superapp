@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -28,14 +29,14 @@ import androidx.compose.ui.unit.dp
 
 // --- Paleta del inicio -------------------------------------------------------
 
-val PixelCream = Color(0xFFFBDDA6)
-val PixelCreamEdge = Color(0xFF6B3D12)
-val PixelCreamInk = Color(0xFF4B2A0C)
-val PixelDeep = Color(0xFF1B0B3A)
-val PixelViolet = Color(0xFF822BEF)
-val PixelVioletDeep = Color(0xFF3B1E72)
-val PixelPanelDeep = Color(0xFF2A0F52)
-val PixelSun = Color(0xFFFFE066)
+val PixelCream = Color(0xFFF5E2BB)
+val PixelCreamEdge = Color(0xFF5E3A1E)
+val PixelCreamInk = Color(0xFF3B2412)
+val PixelDeep = Color(0xFF1B1009)
+val PixelViolet = Color(0xFFB5643F)
+val PixelVioletDeep = Color(0xFF5F3120)
+val PixelPanelDeep = Color(0xFF3A2117)
+val PixelSun = Color(0xFFF0C05A)
 
 // Escena del mapa
 val MapSkyTop = Color(0xFF2C4BB8)
@@ -67,12 +68,14 @@ fun PixelSpriteImage(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
     contentScale: ContentScale = ContentScale.Fit,
+    tint: Color? = null,
 ) {
     Image(
         painter = painterResource(res),
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,
+        colorFilter = tint?.let { ColorFilter.tint(it) },
     )
 }
 

@@ -53,7 +53,7 @@ fun MiniAppWebView(
                 settings.domStorageEnabled = true
                 settings.allowContentAccess = false
                 settings.allowFileAccess = false
-                settings.cacheMode = WebSettings.LOAD_DEFAULT
+                settings.cacheMode = WebSettings.LOAD_NO_CACHE
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
                 webViewClient = object : WebViewClientCompat() {

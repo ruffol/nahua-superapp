@@ -6,41 +6,47 @@
 <title>Mapas de Colima</title>
 <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
 <style>
-  html, body { height: 100%; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #10161C; background: #E8EDF4; overflow: hidden; }
-  #map { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; background: #E8EDF4; }
+  html, body { height: 100%; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #3B2412; background: #EFE3CC; overflow: hidden; }
+  #map { position: fixed; inset: 0; z-index: 0; width: 100%; height: 100%; background: #E8EDF4; }
   .top { position: absolute; z-index: 10; top: 0; left: 0; right: 0; padding: calc(10px + env(safe-area-inset-top)) 12px 0; }
-  .card { background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-radius: 20px; box-shadow: 0 8px 24px rgba(16,22,28,0.14); }
+  .card { background: rgba(58,33,23,0.94); border: 1.5px solid rgba(201,139,75,0.85); backdrop-filter: blur(12px); border-radius: 18px; box-shadow: 0 8px 24px rgba(15,8,5,0.35); }
   .head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
-  .brand { font-weight: 700; font-size: 15px; flex: 1; }
-  .brand small { display: block; font-weight: 500; font-size: 11px; color: #5D6A78; margin-top: 1px; }
-  .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; color: #0E7C66; background: #D7F1E9; border-radius: 999px; padding: 4px 8px; }
-  .close { border: 0; background: #F0F2F7; color: #10161C; border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .brand { font-weight: 700; font-size: 15px; flex: 1; color: #F7E9CF; letter-spacing: 0.2px; }
+  .brand small { display: block; font-weight: 500; font-size: 11px; color: #CBB08C; margin-top: 1px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: #2A1508; background: #E9B54F; border-radius: 6px; padding: 4px 8px; }
+  .close { border: 1.5px solid rgba(201,139,75,0.75); background: #5A3524; color: #F7E9CF; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
   .cities { display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 10px; scrollbar-width: none; }
   .cities::-webkit-scrollbar { display: none; }
-  .city { border: 1px solid #E4E8F0; background: #fff; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 600; white-space: nowrap; color: #10161C; cursor: pointer; }
-  .city.active { background: #0E7C66; border-color: #0E7C66; color: #fff; }
+  .city { border: 1.5px solid rgba(201,139,75,0.65); background: rgba(90,53,36,0.92); border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600; white-space: nowrap; color: #F7E9CF; cursor: pointer; }
+  .city.active { background: #D79A45; border-color: #D79A45; color: #2A1508; }
   .bottom { position: absolute; z-index: 10; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); }
-  .sheet { padding: 12px 14px; max-height: 38vh; overflow-y: auto; }
+  .sheet { padding: 12px 14px; max-height: 38vh; overflow-y: auto; color: #F7E9CF; }
   .row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-  .row + .row { border-top: 1px solid #F0F2F7; }
-  .pin { width: 36px; height: 36px; border-radius: 12px; background: #E2EAFF; display: grid; place-items: center; font-size: 17px; flex: none; }
-  .row strong { font-size: 13px; display: block; }
-  .row span { font-size: 11px; color: #5D6A78; }
-  .go { margin-left: auto; border: 0; background: #0E7C66; color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 11px; font-weight: 700; cursor: pointer; }
-  .locate { position: absolute; right: 14px; z-index: 11; bottom: calc(42vh + 12px + env(safe-area-inset-bottom)); width: 48px; height: 48px; border-radius: 16px; border: 0; background: #fff; box-shadow: 0 6px 18px rgba(16,22,28,0.22); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .row + .row { border-top: 1px solid rgba(201,139,75,0.28); }
+  .pin { width: 36px; height: 36px; border-radius: 6px; background: rgba(215,154,69,0.22); display: grid; place-items: center; font-size: 17px; flex: none; }
+  .row strong { font-size: 13px; display: block; color: #F7E9CF; }
+  .row span { font-size: 11px; color: #CBB08C; }
+  .go { margin-left: auto; border: 0; background: #D79A45; color: #2A1508; border-radius: 5px; padding: 6px 10px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .locate { position: absolute; right: 14px; z-index: 11; bottom: calc(42vh + 12px + env(safe-area-inset-bottom)); width: 48px; height: 48px; border-radius: 6px; border: 2px solid rgba(201,139,75,0.9); background: #D79A45; color: #2A1508; box-shadow: 0 6px 18px rgba(15,8,5,0.35); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .locate:active { transform: scale(0.94); }
-  .note { margin: 6px 2px 0; font-size: 10px; color: #5D6A78; text-align: center; }
-  .leaflet-control-attribution { font-size: 9px; }
-  .user-dot { width: 16px; height: 16px; border-radius: 50%; background: #2F6BFF; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(47,107,255,0.28); }
+  .note { margin: 6px 2px 0; font-size: 10px; color: #CBB08C; text-align: center; }
+  .leaflet-control-attribution { font-size: 9px; background: rgba(58,33,23,0.82); color: #E9D6B4; padding: 2px 6px; border-radius: 4px 0 0 0; }
+  .leaflet-control-attribution a { color: #F0C05A; }
+  .user-dot { width: 16px; height: 16px; border-radius: 50%; background: #B5643F; border: 3px solid #FFF3DE; box-shadow: 0 0 0 6px rgba(181,100,63,0.28); }
 
   /* Modo compacto para la pantalla principal (HomeScreen) */
   body.compact-mode .top .head .brand small { display: none; }
   body.compact-mode .top .head .close { display: none; }
   body.compact-mode .bottom .sheet { display: none; }
   body.compact-mode .bottom .note { display: none; }
-  body.compact-mode .locate { bottom: 14px; right: 14px; }
+  body.compact-mode .locate { bottom: 40px; right: 12px; width: 42px; height: 42px; font-size: 18px; }
   body.compact-mode .top { padding-top: 8px; }
-  body.compact-mode .card { background: rgba(255,255,255,0.92); }
+  body.compact-mode .card { background: rgba(58,33,23,0.92); }
+  body.compact-mode .head { padding: 7px 10px; }
+  body.compact-mode .brand { font-size: 13px; }
+  body.compact-mode .badge { font-size: 9px; padding: 3px 6px; }
+  body.compact-mode .cities { padding: 0 8px 8px; gap: 6px; }
+  body.compact-mode .city { padding: 5px 9px; font-size: 11px; }
 </style>
 </head>
 <body>
@@ -111,23 +117,15 @@
   // Capa offline principal
   var offline = L.tileLayer(OFFLINE_TILE, {
     minZoom: 9,
-    maxNativeZoom: 15,
+    maxNativeZoom: 13,
     maxZoom: 18,
     errorTileUrl: TRANSPARENT,
     keepBuffer: 6,
     attribution: 'Colima offline'
   }).addTo(map);
 
-  // Capa online de respaldo si hay conexión
-  var online = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
-  });
-
-  if (window.navigator && window.navigator.onLine) {
-    online.addTo(map);
-    offline.bringToFront();
-  }
+  // Sin capa online: la app es offline y no debe golpear los servidores públicos de OSM
+  // (su política de uso bloquea las apps que consumen teselas en bloque).
 
   L.control.scale({ imperial: false }).addTo(map);
 
@@ -139,11 +137,11 @@
 
   function icon(market, active) {
     var size = active ? 42 : 36;
-    var background = active ? '#0E7C66' : '#FFFFFF';
-    var border = active ? '#0E7C66' : '#E4E8F0';
-    var html = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:12px;display:grid;' +
-      'place-items:center;font-size:' + (active ? 20 : 17) + 'px;background:' + background + ';' +
-      'box-shadow:0 4px 14px rgba(16,22,28,0.22);border:2px solid ' + border + ';">' +
+    var background = active ? '#D79A45' : '#F7E9CF';
+    var border = active ? '#B5643F' : '#C98B4B';
+    var html = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:5px;display:grid;' +
+      'place-items:center;font-size:' + (active ? 19 : 16) + 'px;background:' + background + ';' +
+      'box-shadow:0 3px 0 rgba(15,8,5,0.35);border:2px solid ' + border + ';">' +
       market.emoji + '</div>';
     return L.divIcon({ className: '', html: html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
   }
