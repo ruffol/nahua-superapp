@@ -121,6 +121,7 @@ fun PixelBodyText(
     color: Color = PixelInk,
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Ellipsis,
+    align: TextAlign = TextAlign.Start,
 ) {
     Text(
         text = text,
@@ -128,6 +129,7 @@ fun PixelBodyText(
         color = color,
         maxLines = maxLines,
         overflow = overflow,
+        textAlign = align,
         style = TextStyle(fontFamily = PixelBody, fontSize = size, lineHeight = size * 1.05f),
     )
 }
@@ -233,6 +235,7 @@ fun PixelButton(
     expand: Boolean = false,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -269,6 +272,10 @@ fun PixelButton(
                 Spacer(Modifier.width(6.dp))
             }
             PixelLabel(text = text, size = fontSize, color = if (enabled) textColor else PixelMuted)
+            if (trailing != null) {
+                Spacer(Modifier.width(6.dp))
+                trailing()
+            }
         }
     }
 }

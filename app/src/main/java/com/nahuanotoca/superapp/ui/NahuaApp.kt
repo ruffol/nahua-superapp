@@ -1,56 +1,33 @@
 package com.nahuanotoca.superapp.ui
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.navigation.NavType
 import com.nahuanotoca.superapp.core.AppContainer
-import com.nahuanotoca.superapp.core.design.Jade
 import com.nahuanotoca.superapp.core.model.Service
 import com.nahuanotoca.superapp.core.model.ServiceTarget
 import com.nahuanotoca.superapp.core.navigation.Routes
@@ -61,9 +38,9 @@ import com.nahuanotoca.superapp.feature.inbox.InboxViewModel
 import com.nahuanotoca.superapp.feature.miniapp.MiniAppScreen
 import com.nahuanotoca.superapp.feature.miniapp.MiniAppViewModel
 import com.nahuanotoca.superapp.feature.profile.ProfileScreen
+import com.nahuanotoca.superapp.feature.profile.ProfileViewModel
 import com.nahuanotoca.superapp.feature.rag.StudioScreen
 import com.nahuanotoca.superapp.feature.rag.StudioViewModel
-import com.nahuanotoca.superapp.feature.profile.ProfileViewModel
 import com.nahuanotoca.superapp.feature.scan.ScanScreen
 import com.nahuanotoca.superapp.feature.scan.ScanViewModel
 import com.nahuanotoca.superapp.feature.search.SearchScreen
@@ -87,6 +64,17 @@ fun NahuaApp(container: AppContainer) {
 
     val chromeless = currentRoute == Routes.SCAN || currentRoute?.startsWith("miniapp/") == true
 
+    // El inicio es oscuro: los iconos del sistema tienen que ser claros ahí y oscuros en el resto.
+    val view = LocalView.current
+    val context = LocalContext.current
+    val darkBackground = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    LaunchedEffect(currentRoute, chromeless, darkBackground) {
+        val activity = context.findActivity() ?: return@LaunchedEffect
+        val controller = WindowCompat.getInsetsController(activity.window, view)
+        controller.isAppearanceLightStatusBars = currentRoute != Routes.HOME && !darkBackground
+        controller.isAppearanceLightNavigationBars = !chromeless && !darkBackground
+    }
+
     fun openService(service: Service) {
         when (val target = service.target) {
             is ServiceTarget.MiniApp -> navController.navigate(Routes.miniApp(target.appId))
@@ -109,15 +97,15 @@ fun NahuaApp(container: AppContainer) {
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.padding(bottom = if (chromeless) 24.dp else 88.dp),
+                modifier = Modifier.padding(bottom = if (chromeless) 24.dp else 104.dp),
             )
         },
         bottomBar = {
             if (!chromeless) {
-                NahuaBottomBar(
+                PixelBottomBar(
                     currentRoute = currentRoute,
                     onNavigate = ::navigateTab,
-                    onScan = { navController.navigate(Routes.SCAN) },
+                    onOpenPet = { navController.navigate(Routes.miniApp("tamagochi")) },
                 )
             }
         },
@@ -217,103 +205,11 @@ fun NahuaApp(container: AppContainer) {
     }
 }
 
-private data class BottomDestination(
-    val route: String,
-    val label: String,
-    val icon: ImageVector,
-)
-
-private val bottomDestinations = listOf(
-    BottomDestination(Routes.HOME, "Inicio", Icons.Outlined.Home),
-    BottomDestination(Routes.SERVICES, "Servicios", Icons.Outlined.GridView),
-    BottomDestination(Routes.WALLET, "Cartera", Icons.Outlined.AccountBalanceWallet),
-    BottomDestination(Routes.PROFILE, "Perfil", Icons.Outlined.Person),
-)
-
-@Composable
-private fun NahuaBottomBar(
-    currentRoute: String?,
-    onNavigate: (String) -> Unit,
-    onScan: () -> Unit,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 6.dp,
-        shadowElevation = 16.dp,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .height(66.dp)
-                .padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            BottomBarItem(bottomDestinations[0], currentRoute, onNavigate, Modifier.weight(1f))
-            BottomBarItem(bottomDestinations[1], currentRoute, onNavigate, Modifier.weight(1f))
-            ScanButton(onScan, Modifier.weight(1f))
-            BottomBarItem(bottomDestinations[2], currentRoute, onNavigate, Modifier.weight(1f))
-            BottomBarItem(bottomDestinations[3], currentRoute, onNavigate, Modifier.weight(1f))
-        }
+private fun Context.findActivity(): Activity? {
+    var current: Context? = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
     }
-}
-
-@Composable
-private fun BottomBarItem(
-    destination: BottomDestination,
-    currentRoute: String?,
-    onNavigate: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val selected = currentRoute == destination.route
-    val tint = if (selected) Jade else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable { onNavigate(destination.route) }
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        Icon(
-            imageVector = destination.icon,
-            contentDescription = destination.label,
-            tint = tint,
-            modifier = Modifier.size(23.dp),
-        )
-        Text(
-            text = destination.label,
-            style = MaterialTheme.typography.labelSmall,
-            color = tint,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-        )
-    }
-}
-
-@Composable
-private fun ScanButton(onScan: () -> Unit, modifier: Modifier = Modifier) {
-    val scale by animateFloatAsState(targetValue = 1f, animationSpec = tween(200), label = "scanScale")
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(y = (-10).dp)
-                .scale(scale)
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(Jade)
-                .clickable(onClick = onScan),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.QrCodeScanner,
-                contentDescription = "Escanear",
-                tint = Color.White,
-                modifier = Modifier.size(27.dp),
-            )
-        }
-    }
+    return null
 }

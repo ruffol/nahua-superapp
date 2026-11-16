@@ -3,6 +3,24 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [No publicado]
+
+### Cambiado
+
+- **Inicio rediseñado en pixel art**: mapa de Colima dibujado en `Canvas`, saludo con el
+  Tlalchichi, carrusel de aplicaciones, tarjetas de resumen y tip del día. Los paneles con
+  esquinas escalonadas y los glifos 9×9 viven en `core/design/PixelHome.kt`, la ilustración del
+  mapa en `feature/home/HomePixelArt.kt` y los sprites en `res/drawable-nodpi`.
+- **Barra inferior pixel art** (`ui/PixelBottomBar.kt`): Inicio, Aplicaciones, Actividad y Perfil,
+  con el Tlalchichi como botón central de la mascota.
+- Los iconos de la barra de estado se aclaran en el inicio (fondo oscuro) y vuelven a oscuro en
+  las pantallas claras.
+
+### Eliminado
+
+- `RotaryAppDial` y `HomeOfflineMapCard`, sustituidos por el nuevo encabezado. El mapa offline
+  sigue disponible desde el botón de expandir del mapa y desde el catálogo de servicios.
+
 ## [0.5.0] — 2026-11-16
 
 ### Añadido
