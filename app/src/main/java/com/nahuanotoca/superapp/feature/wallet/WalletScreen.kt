@@ -12,30 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.CreditCard
-import androidx.compose.material.icons.rounded.MoreHoriz
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,16 +25,41 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nahuanotoca.superapp.core.design.HeroGradientEnd
-import com.nahuanotoca.superapp.core.design.Jade
-import com.nahuanotoca.superapp.core.design.JadeSoft
-import com.nahuanotoca.superapp.core.design.NahuaCard
-import com.nahuanotoca.superapp.core.design.TransactionRow
+import com.nahuanotoca.superapp.R
+import com.nahuanotoca.superapp.core.design.PixelAppGlyphs
+import com.nahuanotoca.superapp.core.design.PixelBodyText
+import com.nahuanotoca.superapp.core.design.PixelBorder
+import com.nahuanotoca.superapp.core.design.PixelBorderSoft
+import com.nahuanotoca.superapp.core.design.PixelButton
+import com.nahuanotoca.superapp.core.design.PixelChip
+import com.nahuanotoca.superapp.core.design.PixelCutShape
+import com.nahuanotoca.superapp.core.design.PixelDivider
+import com.nahuanotoca.superapp.core.design.PixelEmptyState
+import com.nahuanotoca.superapp.core.design.PixelFrame
+import com.nahuanotoca.superapp.core.design.PixelGlyph
+import com.nahuanotoca.superapp.core.design.PixelIconButton
+import com.nahuanotoca.superapp.core.design.PixelInk
+import com.nahuanotoca.superapp.core.design.PixelLabel
+import com.nahuanotoca.superapp.core.design.PixelMuted
+import com.nahuanotoca.superapp.core.design.PixelPanel
+import com.nahuanotoca.superapp.core.design.PixelPanelDeep
+import com.nahuanotoca.superapp.core.design.PixelRed
+import com.nahuanotoca.superapp.core.design.PixelScreen
+import com.nahuanotoca.superapp.core.design.PixelSectionHeader
+import com.nahuanotoca.superapp.core.design.PixelSpriteImage
+import com.nahuanotoca.superapp.core.design.PixelSurface
+import com.nahuanotoca.superapp.core.design.PixelTitle
+import com.nahuanotoca.superapp.core.design.PixelUiGlyphs
+import com.nahuanotoca.superapp.core.design.PixelViolet
+import com.nahuanotoca.superapp.core.design.PixelVioletDeep
+import com.nahuanotoca.superapp.core.design.PixelGreen
 import com.nahuanotoca.superapp.core.model.Money
 import com.nahuanotoca.superapp.core.model.WalletTransaction
+import com.nahuanotoca.superapp.core.util.formatRelativeTime
 
 private enum class MovementFilter(val label: String) {
     ALL("Todos"),
@@ -63,7 +67,9 @@ private enum class MovementFilter(val label: String) {
     EXPENSES("Gastos"),
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Cartera en pixel art: saldo, acciones rápidas y libro de movimientos con filtros.
+ */
 @Composable
 fun WalletScreen(
     viewModel: WalletViewModel,
@@ -81,279 +87,309 @@ fun WalletScreen(
         }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    PixelScreen(
+        title = "Cartera",
+        subtitle = "Tu dinero, en un solo lugar",
+        actions = {
+            PixelIconButton(
+                onClick = { onMessage("Detalles de tarjeta próximamente") },
+                modifier = Modifier.size(38.dp),
+            ) {
+                PixelGlyph(PixelAppGlyphs.card, color = PixelInk, size = 16.dp)
+            }
+        },
     ) {
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Cartera",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = "Tu dinero, en un solo lugar",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = { onMessage("Detalles de tarjeta próximamente") }) {
-                    Icon(Icons.Rounded.MoreHoriz, contentDescription = "Más opciones")
-                }
-            }
-        }
-
-        item {
-            BalanceCard(
-                balanceCents = state.balanceCents,
-                onTopUp = { showTopUp = true },
-                onSend = { onMessage("Transferencias llegan en la próxima versión") },
-                onCollect = { onMessage("Cobros con QR disponibles desde Escanear") },
-            )
-        }
-
-        item {
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                MovementFilter.entries.forEach { option ->
-                    FilterChip(
-                        selected = filter == option,
-                        onClick = { filter = option },
-                        label = { Text(option.label, style = MaterialTheme.typography.labelMedium) },
-                        shape = RoundedCornerShape(50),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                    )
-                }
-            }
-        }
-
-        item {
-            Text(
-                text = "Movimientos",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-        }
-
-        if (visibleTransactions.isEmpty()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             item {
-                NahuaCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    Text(
-                        text = "Sin movimientos en este filtro",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                BalancePanel(
+                    balanceCents = state.balanceCents,
+                    onTopUp = { showTopUp = true },
+                    onSend = { onMessage("Transferencias llegan en la próxima versión") },
+                    onCollect = { onMessage("Cobros con QR disponibles desde Escanear") },
+                )
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    MovementFilter.entries.forEach { option ->
+                        PixelChip(
+                            text = option.label,
+                            selected = filter == option,
+                            onClick = { filter = option },
+                        )
+                    }
                 }
             }
-        } else {
-            items(visibleTransactions, key = { it.id }) { transaction ->
-                Surface(
+
+            item { PixelSectionHeader(title = "Movimientos", count = visibleTransactions.size) }
+
+            item {
+                PixelFrame(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth(),
+                    fill = PixelPanel,
+                    border = PixelBorder,
+                    borderWidth = 2.dp,
+                    cut = 8.dp,
+                    shadow = 3.dp,
+                ) {
+                    Column {
+                        if (visibleTransactions.isEmpty()) {
+                            Box(modifier = Modifier.padding(vertical = 10.dp)) {
+                                PixelEmptyState(
+                                    title = "Sin movimientos",
+                                    message = "Cuando pagues o recibas dinero verás aquí cada movimiento.",
+                                )
+                            }
+                        } else {
+                            visibleTransactions.forEachIndexed { index, transaction ->
+                                TransactionPixelRow(transaction)
+                                if (index != visibleTransactions.lastIndex) {
+                                    PixelDivider()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                PixelBodyText(
+                    text = "Nahua · tarjeta terminación 4821",
+                    size = 15.sp,
+                    color = PixelMuted,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                    ),
-                ) {
-                    TransactionRow(transaction)
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.CreditCard,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = "Nahua · tarjeta terminación 4821",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        .padding(horizontal = 16.dp),
                 )
             }
         }
     }
 
     if (showTopUp) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showTopUp = false },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            TopUpSheet(
-                onDismiss = { showTopUp = false },
-                onTopUp = { amount ->
-                    viewModel.topUp(amount) { message ->
-                        onMessage(message)
-                        showTopUp = false
-                    }
-                },
-            )
-        }
+        TopUpDialog(
+            onDismiss = { showTopUp = false },
+            onTopUp = { amount ->
+                viewModel.topUp(amount) { message ->
+                    onMessage(message)
+                    showTopUp = false
+                }
+            },
+        )
     }
 }
 
 @Composable
-private fun BalanceCard(
+private fun BalancePanel(
     balanceCents: Long,
     onTopUp: () -> Unit,
     onSend: () -> Unit,
     onCollect: () -> Unit,
 ) {
-    Column(
+    PixelFrame(
         modifier = Modifier
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(Brush.linearGradient(listOf(Jade, HeroGradientEnd)))
-            .padding(22.dp),
+            .height(172.dp),
+        fill = PixelVioletDeep,
+        border = PixelBorder,
+        borderWidth = 3.dp,
+        cut = 10.dp,
+        shadow = 4.dp,
     ) {
-        Text(
-            text = "Saldo disponible",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.78f),
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = Money.format(balanceCents),
-            style = MaterialTheme.typography.displaySmall,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = "Nahua Balance · •••• 4821",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.7f),
-        )
-        Spacer(Modifier.height(18.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(
-                onClick = onTopUp,
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Jade,
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(PixelCutShape(9.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF4B2A9E), Color(0xFF2A1460)),
+                    ),
                 ),
-                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
-            ) {
-                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Recargar", style = MaterialTheme.typography.labelLarge)
-            }
-            OutlinedAction(label = "Enviar", icon = Icons.Rounded.ArrowUpward, onClick = onSend)
-            OutlinedAction(label = "Cobrar", icon = Icons.Rounded.ArrowDownward, onClick = onCollect)
-        }
-    }
-}
-
-@Composable
-private fun OutlinedAction(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(50),
-        color = Color.White.copy(alpha = 0.16f),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(5.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, color = Color.White)
+            PixelSpriteImage(
+                res = R.drawable.px_icon_coins,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 12.dp, end = 12.dp)
+                    .size(56.dp),
+            )
+            Column(modifier = Modifier.padding(14.dp)) {
+                PixelBodyText(
+                    text = "Saldo disponible",
+                    size = 16.sp,
+                    color = PixelMuted,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.height(2.dp))
+                PixelBodyText(
+                    text = Money.format(balanceCents),
+                    size = 42.sp,
+                    color = PixelInk,
+                    maxLines = 1,
+                )
+                PixelBodyText(
+                    text = "Nahua Balance · •••• 4821",
+                    size = 14.sp,
+                    color = PixelMuted,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BalanceAction(
+                        label = "Recargar",
+                        fill = PixelGreen,
+                        labelColor = Color(0xFF042B12),
+                        onClick = onTopUp,
+                        modifier = Modifier.weight(1f),
+                    )
+                    BalanceAction(
+                        label = "Enviar",
+                        fill = PixelPanelDeep,
+                        labelColor = PixelInk,
+                        onClick = onSend,
+                        modifier = Modifier.weight(1f),
+                    )
+                    BalanceAction(
+                        label = "Cobrar",
+                        fill = PixelPanelDeep,
+                        labelColor = PixelInk,
+                        onClick = onCollect,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun TopUpSheet(
+private fun BalanceAction(
+    label: String,
+    fill: Color,
+    labelColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    PixelSurface(
+        modifier = modifier.height(36.dp),
+        fill = fill,
+        border = PixelBorderSoft,
+        borderWidth = 2.dp,
+        cut = 4.dp,
+        onClick = onClick,
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            PixelLabel(text = label, size = 5.4.sp, color = labelColor)
+        }
+    }
+}
+
+@Composable
+private fun TransactionPixelRow(transaction: WalletTransaction) {
+    val credit = !transaction.isDebit
+    val accent = if (credit) PixelGreen else PixelRed
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(PixelCutShape(3.dp))
+                .background(accent.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            PixelGlyph(
+                rows = if (transaction.isDebit) PixelUiGlyphs.arrowUp else PixelUiGlyphs.arrowDown,
+                color = accent,
+                size = 16.dp,
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            PixelBodyText(text = transaction.concept, size = 19.sp, maxLines = 1)
+            Spacer(Modifier.height(2.dp))
+            PixelBodyText(
+                text = transaction.merchant + " · " + formatRelativeTime(transaction.timestamp),
+                size = 14.sp,
+                color = PixelMuted,
+                maxLines = 1,
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        PixelBodyText(
+            text = Money.formatSigned(transaction.amountCents),
+            size = 20.sp,
+            color = if (credit) PixelGreen else PixelInk,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun TopUpDialog(
     onDismiss: () -> Unit,
     onTopUp: (Long) -> Unit,
 ) {
     val amounts = listOf(10_000L, 20_000L, 50_000L, 100_000L)
 
-    Column(modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp)) {
-        Text(
-            text = "Recargar saldo",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = "Elige un monto. En producción esta pantalla abriría la pasarela de pago.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(18.dp))
-        amounts.chunked(2).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                row.forEach { amount ->
-                    Surface(
-                        onClick = { onTopUp(amount) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(18.dp),
-                        color = JadeSoft,
-                    ) {
-                        Text(
+    Dialog(onDismissRequest = onDismiss) {
+        PixelPanel(
+            modifier = Modifier.fillMaxWidth(),
+            fill = PixelPanelDeep,
+            border = PixelBorder,
+            borderWidth = 3.dp,
+            cut = 8.dp,
+            contentPadding = PaddingValues(16.dp),
+        ) {
+            PixelTitle(text = "Recargar saldo", size = 10.sp)
+            Spacer(Modifier.height(6.dp))
+            PixelBodyText(
+                text = "Elige un monto. En producción esta pantalla abriría la pasarela de pago.",
+                size = 16.sp,
+                color = PixelMuted,
+                maxLines = 3,
+            )
+            Spacer(Modifier.height(14.dp))
+            amounts.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    row.forEach { amount ->
+                        PixelButton(
                             text = Money.format(amount),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = Jade,
-                            modifier = Modifier.padding(vertical = 18.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            onClick = { onTopUp(amount) },
+                            modifier = Modifier.weight(1f),
+                            color = PixelViolet,
+                            fontSize = 5.6.sp,
+                            contentPadding = PaddingValues(vertical = 12.dp),
                         )
                     }
                 }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
+            PixelButton(
+                text = "Cancelar",
+                onClick = onDismiss,
+                expand = true,
+                color = PixelPanel,
+                borderColor = PixelBorderSoft,
+                fontSize = 5.6.sp,
+                contentPadding = PaddingValues(vertical = 10.dp),
+            )
         }
-        Spacer(Modifier.height(6.dp))
-        Button(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
-        ) {
-            Text("Cancelar", style = MaterialTheme.typography.labelLarge)
-        }
-        Spacer(Modifier.height(20.dp))
     }
 }

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,50 +20,51 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nahuanotoca.superapp.core.design.CoralSoft
-import com.nahuanotoca.superapp.core.design.Jade
-import com.nahuanotoca.superapp.core.design.JadeSoft
-import com.nahuanotoca.superapp.core.design.NahuaCard
+import com.nahuanotoca.superapp.core.design.PixelAppGlyphs
+import com.nahuanotoca.superapp.core.design.PixelBg
+import com.nahuanotoca.superapp.core.design.PixelBodyText
+import com.nahuanotoca.superapp.core.design.PixelBorder
+import com.nahuanotoca.superapp.core.design.PixelBorderSoft
+import com.nahuanotoca.superapp.core.design.PixelButton
+import com.nahuanotoca.superapp.core.design.PixelCutShape
+import com.nahuanotoca.superapp.core.design.PixelGlyph
+import com.nahuanotoca.superapp.core.design.PixelGreen
+import com.nahuanotoca.superapp.core.design.PixelIconButton
+import com.nahuanotoca.superapp.core.design.PixelIcons
+import com.nahuanotoca.superapp.core.design.PixelInk
+import com.nahuanotoca.superapp.core.design.PixelMuted
+import com.nahuanotoca.superapp.core.design.PixelPanel
+import com.nahuanotoca.superapp.core.design.PixelPanelAlt
+import com.nahuanotoca.superapp.core.design.PixelPanelDeep
+import com.nahuanotoca.superapp.core.design.PixelRed
+import com.nahuanotoca.superapp.core.design.PixelTitle
+import com.nahuanotoca.superapp.core.design.PixelViolet
 import com.nahuanotoca.superapp.core.miniapp.MiniAppBridge
 import com.nahuanotoca.superapp.core.miniapp.PayRequest
 import com.nahuanotoca.superapp.core.model.Money
 import com.nahuanotoca.superapp.core.model.PaymentResult
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Contenedor de mini-apps con el marco en pixel art. El contenido sigue siendo HTML dentro del
+ * WebView aislado; aquí sólo se rediseña la cabecera, la barra de saldo y el diálogo de pago.
+ */
 @Composable
 fun MiniAppScreen(
     viewModel: MiniAppViewModel,
@@ -128,39 +130,44 @@ fun MiniAppScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(PixelBg)
             .navigationBarsPadding(),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Rounded.Close, contentDescription = "Cerrar mini app")
+            PixelIconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+                PixelGlyph(PixelIcons.close, color = PixelInk, size = 14.dp)
             }
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = manifest.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
+                PixelTitle(text = manifest.name, size = 9.sp)
+                Spacer(Modifier.height(3.dp))
+                PixelBodyText(
                     text = "Mini app · v" + manifest.version,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    size = 14.sp,
+                    color = PixelMuted,
+                    maxLines = 1,
                 )
             }
-            IconButton(onClick = { reloadSignal += 1 }) {
-                Icon(Icons.Rounded.Refresh, contentDescription = "Recargar")
+            PixelIconButton(
+                onClick = { reloadSignal += 1 },
+                modifier = Modifier.size(36.dp),
+            ) {
+                PixelGlyph(PixelAppGlyphs.refresh, color = PixelInk, size = 16.dp)
             }
         }
 
-        if (loading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .background(if (loading) PixelViolet else PixelBorderSoft.copy(alpha = 0.4f)),
+        )
 
         Box(modifier = Modifier.weight(1f)) {
             MiniAppWebView(
@@ -172,182 +179,182 @@ fun MiniAppScreen(
             )
         }
 
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(PixelPanelDeep)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Shield,
-                    contentDescription = null,
-                    tint = Jade,
-                    modifier = Modifier.size(14.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = "Pagos protegidos por Nahua · saldo " + Money.format(wallet.balanceCents),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            PixelGlyph(PixelAppGlyphs.shield, color = PixelGreen, size = 13.dp)
+            Spacer(Modifier.width(8.dp))
+            PixelBodyText(
+                text = "Pagos protegidos por Nahua · saldo " + Money.format(wallet.balanceCents),
+                size = 14.sp,
+                color = PixelMuted,
+                maxLines = 1,
+            )
         }
     }
 
     val request = pendingPayment
     if (request != null) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = {
+        PaymentDialog(
+            request = request,
+            balanceCents = wallet.balanceCents,
+            onConfirm = {
+                scope.launch {
+                    val result = viewModel.pay(request)
+                    pendingPayment = null
+                    when (result) {
+                        is PaymentResult.Success -> {
+                            bridge.resolvePay(
+                                requestId = request.requestId,
+                                success = true,
+                                transactionId = result.transaction.id,
+                                balanceCents = result.balanceCents,
+                            )
+                            onMessage("Pago aprobado · " + Money.format(request.amountCents))
+                        }
+
+                        PaymentResult.InsufficientFunds -> {
+                            bridge.resolvePay(request.requestId, success = false, error = "insufficient_funds")
+                            onMessage("Saldo insuficiente")
+                        }
+
+                        PaymentResult.InvalidAmount -> {
+                            bridge.resolvePay(request.requestId, success = false, error = "invalid_amount")
+                            onMessage("Monto inválido")
+                        }
+                    }
+                }
+            },
+            onCancel = {
                 bridge.resolvePay(request.requestId, success = false, error = "cancelled")
                 pendingPayment = null
             },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            PaymentSheetContent(
-                request = request,
-                balanceCents = wallet.balanceCents,
-                onConfirm = {
-                    scope.launch {
-                        val result = viewModel.pay(request)
-                        pendingPayment = null
-                        when (result) {
-                            is PaymentResult.Success -> {
-                                bridge.resolvePay(
-                                    requestId = request.requestId,
-                                    success = true,
-                                    transactionId = result.transaction.id,
-                                    balanceCents = result.balanceCents,
-                                )
-                                onMessage("Pago aprobado · " + Money.format(request.amountCents))
-                            }
-
-                            PaymentResult.InsufficientFunds -> {
-                                bridge.resolvePay(request.requestId, success = false, error = "insufficient_funds")
-                                onMessage("Saldo insuficiente")
-                            }
-
-                            PaymentResult.InvalidAmount -> {
-                                bridge.resolvePay(request.requestId, success = false, error = "invalid_amount")
-                                onMessage("Monto inválido")
-                            }
-                        }
-                    }
-                },
-                onCancel = {
-                    bridge.resolvePay(request.requestId, success = false, error = "cancelled")
-                    pendingPayment = null
-                },
-            )
-        }
+        )
     }
 }
 
 @Composable
-private fun PaymentSheetContent(
+private fun PaymentDialog(
     request: PayRequest,
     balanceCents: Long,
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val hasFunds = request.amountCents <= balanceCents
-    Column(
-        modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = "Confirmar pago",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(Modifier.height(16.dp))
-        NahuaCard(contentPadding = PaddingValues(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = request.merchant,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = request.concept,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+    Dialog(onDismissRequest = onCancel) {
+        com.nahuanotoca.superapp.core.design.PixelPanel(
+            modifier = Modifier.fillMaxWidth(),
+            fill = PixelPanelDeep,
+            border = PixelBorder,
+            borderWidth = 3.dp,
+            cut = 8.dp,
+            contentPadding = PaddingValues(16.dp),
+        ) {
+            PixelTitle(text = "Confirmar pago", size = 10.sp)
+            Spacer(Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(PixelCutShape(4.dp))
+                    .background(PixelPanelAlt)
+                    .border(2.dp, PixelBorderSoft, PixelCutShape(4.dp))
+                    .padding(12.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        PixelBodyText(text = request.merchant, size = 19.sp, maxLines = 1)
+                        Spacer(Modifier.height(2.dp))
+                        PixelBodyText(
+                            text = request.concept,
+                            size = 14.sp,
+                            color = PixelMuted,
+                            maxLines = 2,
+                        )
+                    }
+                    PixelBodyText(
+                        text = Money.format(request.amountCents),
+                        size = 26.sp,
+                        color = PixelInk,
+                        maxLines = 1,
                     )
                 }
-                Text(
-                    text = Money.format(request.amountCents),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
+            }
+            Spacer(Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(PixelCutShape(3.dp))
+                    .background(if (hasFunds) PixelGreen.copy(alpha = 0.16f) else PixelRed.copy(alpha = 0.18f))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            ) {
+                PixelBodyText(
+                    text = if (hasFunds) {
+                        "Se descontará de tu saldo Nahua"
+                    } else {
+                        "Saldo insuficiente para completar el pago"
+                    },
+                    size = 15.sp,
+                    color = if (hasFunds) PixelGreen else PixelRed,
+                    maxLines = 2,
                 )
             }
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(if (hasFunds) JadeSoft else CoralSoft)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = if (hasFunds) {
-                    "Se descontará de tu saldo Nahua"
-                } else {
-                    "Saldo insuficiente para completar el pago"
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = if (hasFunds) Jade else Color(0xFFC2410C),
+            Spacer(Modifier.height(12.dp))
+            PixelButton(
+                text = "Pagar " + Money.format(request.amountCents),
+                onClick = onConfirm,
+                enabled = hasFunds,
+                expand = true,
+                color = PixelGreen,
+                textColor = Color(0xFF04240F),
+                fontSize = 6.sp,
+                contentPadding = PaddingValues(vertical = 11.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            PixelButton(
+                text = "Cancelar",
+                onClick = onCancel,
+                expand = true,
+                color = PixelPanel,
+                borderColor = PixelBorderSoft,
+                fontSize = 5.6.sp,
+                contentPadding = PaddingValues(vertical = 9.dp),
             )
         }
-        Spacer(Modifier.height(18.dp))
-        Button(
-            onClick = onConfirm,
-            enabled = hasFunds,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = Jade),
-        ) {
-            Text("Pagar " + Money.format(request.amountCents), style = MaterialTheme.typography.labelLarge)
-        }
-        TextButton(
-            onClick = onCancel,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Cancelar")
-        }
-        Spacer(Modifier.height(10.dp))
     }
 }
 
 @Composable
 private fun MiniAppNotFound(appId: String, onClose: () -> Unit) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(PixelBg)
             .statusBarsPadding()
             .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+        contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = "Mini app no encontrada",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "No existe un manifiesto con id \"" + appId + "\" en assets/miniapps/index.json.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = onClose) { Text("Volver") }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            PixelTitle(text = "Mini app no encontrada", size = 9.sp)
+            Spacer(Modifier.height(10.dp))
+            PixelBodyText(
+                text = "No existe un manifiesto con id \"" + appId + "\" en assets/miniapps/index.json.",
+                size = 16.sp,
+                color = PixelMuted,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(16.dp))
+            PixelButton(
+                text = "Volver",
+                onClick = onClose,
+                color = PixelViolet,
+                fontSize = 6.sp,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
     }
 }

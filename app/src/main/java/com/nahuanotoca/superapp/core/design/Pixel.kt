@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -337,9 +340,14 @@ fun PixelTextField(
     minLines: Int = 1,
     maxLines: Int = 4,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
+    focusRequester: FocusRequester? = null,
+    onFocusChanged: ((Boolean) -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val internalRequester = remember { FocusRequester() }
+    val effectiveRequester = focusRequester ?: internalRequester
     Row(
         modifier = modifier
             .clip(PixelCutShape(4.dp))
@@ -348,6 +356,10 @@ fun PixelTextField(
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.width(8.dp))
+        }
         Box(Modifier.weight(1f)) {
             if (value.isEmpty()) {
                 PixelBodyText(placeholder, size = 18.sp, color = PixelMuted.copy(alpha = 0.8f))
@@ -360,10 +372,15 @@ fun PixelTextField(
                 visualTransformation = visualTransformation,
                 minLines = minLines,
                 maxLines = maxLines,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .focusRequester(effectiveRequester)
+                    .onFocusChanged { state ->
+                        focused = state.isFocused
+                        onFocusChanged?.invoke(state.isFocused)
+                    }
                     .clickable { focused = true },
             )
         }

@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -114,26 +116,26 @@ fun PixelFrame(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val shape = PixelCutShape(cut)
-    Box(modifier = modifier) {
-        if (shadow > 0.dp) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .offset(y = shadow)
-                    .clip(shape)
-                    .background(PixelShadow),
-            )
+    var surface = modifier
+    if (shadow > 0.dp) {
+        // La sombra se dibuja detrás del panel desplazada hacia abajo, sin exigir tamaño fijo:
+        // así el mismo componente sirve para tarjetas de altura fija y para listas que crecen.
+        surface = surface.drawBehind {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val path = (outline as androidx.compose.ui.graphics.Outline.Generic).path
+            translate(top = shadow.toPx()) {
+                drawPath(path, PixelShadow)
+            }
         }
-        var surface = Modifier
-            .matchParentSize()
-            .clip(shape)
-            .background(fill)
-            .border(borderWidth, border, shape)
-        if (onClick != null) {
-            surface = surface.clickable(onClick = onClick)
-        }
-        Box(modifier = surface, content = content)
     }
+    surface = surface
+        .clip(shape)
+        .background(fill)
+        .border(borderWidth, border, shape)
+    if (onClick != null) {
+        surface = surface.clickable(onClick = onClick)
+    }
+    Box(modifier = surface, content = content)
 }
 
 // --- Glifos ----------------------------------------------------------------
@@ -207,6 +209,36 @@ object PixelUiGlyphs {
         "..XX...",
         ".XX....",
         "XX.....",
+    )
+
+    val arrowUp = rows(
+        "...X...",
+        "..XXX..",
+        ".XXXXX.",
+        "XXXXXXX",
+        ".......",
+        ".......",
+        ".......",
+    )
+
+    val arrowDown = rows(
+        ".......",
+        ".......",
+        ".......",
+        "XXXXXXX",
+        ".XXXXX.",
+        "..XXX..",
+        "...X...",
+    )
+
+    val chevronLeft = rows(
+        ".....XX",
+        "....XX.",
+        "...XX..",
+        "..XX...",
+        "...XX..",
+        "....XX.",
+        ".....XX",
     )
 
     val sparkle = rows(

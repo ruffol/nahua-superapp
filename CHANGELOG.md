@@ -20,6 +20,19 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 - **Progreso de indexación**: libro N de M, páginas procesadas y barra pixel en la mesa.
 - 11 tests nuevos (limpieza, chunking por palabras, EPUB y búsqueda balanceada); 72 en total.
 
+### Cambiado
+
+- **Toda la app en pixel art**: Servicios, Cartera, Perfil, Avisos, Buscador, Escáner QR, la hoja
+  de actualizaciones y el marco de las mini-apps usan la misma dirección visual que el inicio.
+  Las piezas compartidas (cabecera con regreso, filas, interruptores, estado vacío y aviso
+  flotante) viven en `core/design/PixelScreen.kt` y los glifos 9×9 de cada servicio en
+  `PixelAppGlyphs.kt`.
+- La barra de estado usa iconos claros en toda la app y el fondo del `Scaffold` es `PixelBgDeep`.
+- Las mini-apps conservan su HTML: sólo cambia el marco (cabecera, barra de saldo y confirmación
+  de pago, que pasa de `ModalBottomSheet` a diálogo pixel).
+- Se retiró el selector de tema del Perfil: la interfaz pixel es oscura y el conmutador ya no
+  cambiaba nada visible. La preferencia sigue guardada para el futuro.
+
 ### Pendiente (documentado en docs/RAG.md)
 
 - Embeddings locales (ONNX/MediaPipe) y base vectorial con HNSW: requieren dependencias y un modelo

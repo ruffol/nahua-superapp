@@ -28,6 +28,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nahuanotoca.superapp.core.AppContainer
+import com.nahuanotoca.superapp.core.design.PixelBgDeep
+import com.nahuanotoca.superapp.core.design.PixelSnackbar
 import com.nahuanotoca.superapp.core.model.Service
 import com.nahuanotoca.superapp.core.model.ServiceTarget
 import com.nahuanotoca.superapp.core.navigation.Routes
@@ -64,15 +66,14 @@ fun NahuaApp(container: AppContainer) {
 
     val chromeless = currentRoute == Routes.SCAN || currentRoute?.startsWith("miniapp/") == true
 
-    // El inicio es oscuro: los iconos del sistema tienen que ser claros ahí y oscuros en el resto.
+    // Toda la app es oscura en pixel art, así que los iconos del sistema van siempre en claro.
     val view = LocalView.current
     val context = LocalContext.current
-    val darkBackground = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    LaunchedEffect(currentRoute, chromeless, darkBackground) {
+    LaunchedEffect(Unit) {
         val activity = context.findActivity() ?: return@LaunchedEffect
         val controller = WindowCompat.getInsetsController(activity.window, view)
-        controller.isAppearanceLightStatusBars = currentRoute != Routes.HOME && !darkBackground
-        controller.isAppearanceLightNavigationBars = !chromeless && !darkBackground
+        controller.isAppearanceLightStatusBars = false
+        controller.isAppearanceLightNavigationBars = false
     }
 
     fun openService(service: Service) {
@@ -92,13 +93,15 @@ fun NahuaApp(container: AppContainer) {
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = PixelBgDeep,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier.padding(bottom = if (chromeless) 24.dp else 104.dp),
-            )
+            ) { data ->
+                PixelSnackbar(text = data.visuals.message)
+            }
         },
         bottomBar = {
             if (!chromeless) {
@@ -134,6 +137,7 @@ fun NahuaApp(container: AppContainer) {
                 ServicesScreen(
                     viewModel = viewModel,
                     onOpenService = ::openService,
+                    onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onMessage = showMessage,
                 )
             }
