@@ -10,6 +10,9 @@ concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
 jobs:
   build:
     name: Build & test
@@ -26,11 +29,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      # The runner image ships an Android SDK, but not always the exact platform/build-tools
+      # this project targets, so install them explicitly (and accept licenses).
+      - name: Install Android SDK packages
+        run: |
+          set -euo pipefail
+          CMDLINE_TOOLS="$(ls -d "$ANDROID_SDK_ROOT"/cmdline-tools/* | head -n 1)"
+          SDKMANAGER="$CMDLINE_TOOLS/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
