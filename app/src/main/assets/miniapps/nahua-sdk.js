@@ -1,14 +1,20 @@
 /*
- * Nahua Mini App SDK (v1)
+ * Nahua Mini App SDK (v1.1)
  * -------------------------------------------------------------
  * The host injects window.NahuaNative (addJavascriptInterface). This script turns the raw
- * bridge into a small promise-based API. Keep the surface tiny: session, payments, toast, close.
+ * bridge into a small promise-based API: session, payments, one-shot and live location,
+ * external directions, clipboard, toast and close.
+ *
+ * Location in the browser (dev) falls back to navigator.geolocation, so the map can be
+ * tested outside the APK.
  */
 (function () {
   'use strict';
 
   var pending = Object.create(null);
   var sequence = 0;
+  var listeners = { location: [], locationError: [] };
+  var browserWatchId = null;
 
   function post(method, payload) {
     return new Promise(function (resolve, reject) {
@@ -23,17 +29,20 @@
     });
   }
 
+  function parsePayload(raw) {
+    if (raw && typeof raw === 'object') return raw;
+    try {
+      return typeof raw === 'string' ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
   function resolve(requestId, rawPayload) {
     var entry = pending[requestId];
     if (!entry) return;
     delete pending[requestId];
-    var data;
-    try {
-      data = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
-    } catch (error) {
-      entry.reject({ status: 'error', error: 'bad_payload' });
-      return;
-    }
+    var data = parsePayload(rawPayload);
     if (data && data.status === 'ok') {
       entry.resolve(data);
     } else {
@@ -41,9 +50,59 @@
     }
   }
 
+  function emit(event, rawPayload) {
+    var data = parsePayload(rawPayload);
+    var list = listeners[event] || [];
+    list.slice().forEach(function (handler) {
+      try {
+        handler(data);
+      } catch (error) {
+        // Un listener roto no debe tumbar el resto de la página.
+        if (window.console) console.error('Nahua listener', event, error);
+      }
+    });
+  }
+
+  function startBrowserWatch() {
+    if (browserWatchId !== null) return;
+    if (!navigator.geolocation) {
+      emit('locationError', { status: 'error', error: 'unavailable' });
+      return;
+    }
+    browserWatchId = navigator.geolocation.watchPosition(
+      function (position) {
+        emit('location', {
+          status: 'ok',
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          speed: position.coords.speed,
+          bearing: position.coords.heading,
+          altitude: position.coords.altitude,
+          timestamp: position.timestamp
+        });
+      },
+      function (error) {
+        emit('locationError', {
+          status: 'error',
+          error: error && error.code === 1 ? 'permission_denied' : 'unavailable'
+        });
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+    );
+  }
+
+  function stopBrowserWatch() {
+    if (browserWatchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(browserWatchId);
+    }
+    browserWatchId = null;
+  }
+
   window.Nahua = {
-    version: '1.0.0',
+    version: '1.1.0',
     _resolve: resolve,
+    _emit: emit,
 
     /** Profile of the signed-in user, provided by the host session. */
     user: function () {
@@ -56,20 +115,119 @@
 
     /** Native toast / snackbar. */
     toast: function (message) {
-      window.NahuaNative.toast(String(message));
+      try {
+        window.NahuaNative.toast(String(message));
+      } catch (error) {
+        if (window.console) console.log('Nahua:', message);
+      }
     },
 
     /**
-     * Requests the device location (permission handled by the host).
+     * Requests one device location (permission handled by the host).
      * @returns {Promise<{status: string, lat: number, lng: number, accuracy: number}>}
      */
     location: function () {
       return post('requestLocation', {});
     },
 
+    /**
+     * Starts live GPS updates. The returned function stops this watcher.
+     *
+     * @param {(fix: {lat: number, lng: number, accuracy: number, speed?: number,
+     *                bearing?: number, altitude?: number, timestamp: number}) => void} handler
+     * @param {{intervalMs?: number}} [options]
+     * @returns {() => void}
+     */
+    watchLocation: function (handler, options) {
+      if (typeof handler !== 'function') {
+        throw new TypeError('watchLocation necesita una función');
+      }
+      var interval = Math.max(500, Math.min(15000, Number(options && options.intervalMs) || 1500));
+      listeners.location.push(handler);
+      if (listeners.location.length === 1) {
+        if (window.NahuaNative && window.NahuaNative.startLocationUpdates) {
+          window.NahuaNative.startLocationUpdates(interval);
+        } else {
+          startBrowserWatch(interval);
+        }
+      }
+      var active = true;
+      return function stop() {
+        if (!active) return;
+        active = false;
+        var index = listeners.location.indexOf(handler);
+        if (index >= 0) listeners.location.splice(index, 1);
+        if (listeners.location.length === 0) {
+          if (window.NahuaNative && window.NahuaNative.stopLocationUpdates) {
+            window.NahuaNative.stopLocationUpdates();
+          } else {
+            stopBrowserWatch();
+          }
+        }
+      };
+    },
+
+    /** Listens for watcher errors (permission denied, GPS off, no provider). */
+    onLocationError: function (handler) {
+      if (typeof handler !== 'function') return function () {};
+      listeners.locationError.push(handler);
+      return function () {
+        var index = listeners.locationError.indexOf(handler);
+        if (index >= 0) listeners.locationError.splice(index, 1);
+      };
+    },
+
+    /** Stops every live watcher started from this page. */
+    stopLocation: function () {
+      listeners.location.length = 0;
+      if (window.NahuaNative && window.NahuaNative.stopLocationUpdates) {
+        window.NahuaNative.stopLocationUpdates();
+      } else {
+        stopBrowserWatch();
+      }
+    },
+
+    /**
+     * Opens the platform maps app with driving directions to the destination.
+     * @param {number} lat
+     * @param {number} lng
+     * @param {string} [label]
+     */
+    openDirections: function (lat, lng, label) {
+      var payload = { lat: Number(lat), lng: Number(lng), label: String(label || 'Destino') };
+      if (!isFinite(payload.lat) || !isFinite(payload.lng)) return;
+      if (window.NahuaNative && window.NahuaNative.openDirections) {
+        window.NahuaNative.openDirections(JSON.stringify(payload));
+        return;
+      }
+      var url = 'https://www.google.com/maps/dir/?api=1&destination=' + payload.lat + ',' + payload.lng;
+      window.open(url, '_blank');
+    },
+
+    /** Copies text to the system clipboard through the host (fallback: navigator.clipboard). */
+    copy: function (text) {
+      var value = String(text == null ? '' : text);
+      try {
+        if (window.NahuaNative && window.NahuaNative.copy) {
+          window.NahuaNative.copy(value);
+          return Promise.resolve(true);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(value).then(function () { return true; });
+        }
+      } catch (error) {
+        // cae al catch del llamador
+      }
+      return Promise.reject(new Error('clipboard_unavailable'));
+    },
+
     /** Closes the mini app and returns to the Nahua home. */
     close: function () {
-      window.NahuaNative.close();
+      try {
+        window.NahuaNative.close();
+      } catch (error) {
+        window.history.back();
+      }
     },
 
     /**

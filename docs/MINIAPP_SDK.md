@@ -1,8 +1,8 @@
-# Nahua Mini App SDK (v1)
+# Nahua Mini App SDK (v1.1)
 
 Una mini app es un bundle web (HTML/CSS/JS) que vive en `app/src/main/assets/miniapps/<id>/` y se
 declara en `app/src/main/assets/miniapps/index.json`. La app anfitriona la carga en un WebView
-aislado y le expone una API pequeña para identidad, pagos y navegación.
+aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo y navegación.
 
 ## Manifiesto
 
@@ -65,16 +65,61 @@ Nahua.pay({
 
 ### `Nahua.location()`
 
-Pide la ubicación del dispositivo. El host se encarga del permiso la primera vez.
+Pide una ubicación puntual. El host se encarga del permiso la primera vez.
 
 ```js
 Nahua.location()
   .then(pos => {
-    console.log(pos.lat, pos.lng, pos.accuracy);
+    console.log(pos.lat, pos.lng, pos.accuracy, pos.speed, pos.bearing, pos.altitude);
   })
   .catch(error => {
     // error.error: permission_denied | unavailable
   });
+```
+
+### `Nahua.watchLocation(handler, options)`
+
+Inicia un flujo continuo de GPS. Devuelve una función para detener **ese** watcher. El host
+mantiene el `LocationManager` activo solo mientras haya listeners; al cerrar la mini app o
+pausarla, el seguimiento se cancela.
+
+```js
+const stop = Nahua.watchLocation(fix => {
+  console.log(fix.lat, fix.lng, fix.accuracy, fix.speed, fix.bearing, fix.altitude);
+}, { intervalMs: 1500 });
+
+const offError = Nahua.onLocationError(error => {
+  // permission_denied | unavailable
+});
+
+// más tarde
+stop();
+offError();
+Nahua.stopLocation(); // detiene todos los watchers de la página
+```
+
+Campos del fix: `lat`, `lng`, `accuracy` (m), `speed` (m/s), `bearing` (grados desde el norte),
+`altitude` (m), `timestamp` (ms) y `provider`. Los campos de velocidad, rumbo y altitud pueden
+faltar si el proveedor no los reporta.
+
+### `Nahua.openDirections(lat, lng, label)`
+
+Abre la app de mapas del sistema con el destino puesto. En Android usa un intent `geo:`; si no hay
+ninguna app instalada, el host muestra un aviso. La ruta giro a giro la dibuja esa app: la mini app
+solo calcula distancia, rumbo y ETA aproximados.
+
+```js
+Nahua.openDirections(19.2436, -103.7246, 'Jardín Libertad');
+```
+
+### `Nahua.copy(text)`
+
+Copia al portapapeles del sistema y devuelve una promesa. Úsalo para “copiar coordenadas”.
+
+```js
+Nahua.copy('19.243600, -103.725000')
+  .then(() => Nahua.toast('Coordenadas copiadas'))
+  .catch(() => Nahua.toast('No se pudo copiar'));
 ```
 
 ### `Nahua.toast(message)`
@@ -106,6 +151,17 @@ Reglas:
 - Sin confirmación explícita no hay débito.
 - El historial guarda concepto, comercio, monto y timestamp; el `transactionId` es estable.
 - El puente **no** expone el saldo ni datos de otros usuarios a la página.
+
+## Ubicación y privacidad
+
+- `requestLocation` y `startLocationUpdates` comprueban el permiso en el host; la página nunca
+  recibe datos de otras apps ni puede activar el GPS sin que el usuario lo autorice.
+- El flujo se detiene al cerrar la mini app, al ocultar la pantalla o cuando la página llama a
+  `stopLocation`; no hay servicios en segundo plano.
+- La posición se queda en el teléfono. Solo se comparte el destino cuando el usuario pulsa
+  explícitamente **Navegar**.
+- En el manifiesto, `location` y `map.tiles` son scopes declarativos; el puente no concede permisos
+  adicionales por declararlos.
 
 ## Seguridad
 

@@ -8,6 +8,7 @@ import com.nahuanotoca.superapp.core.miniapp.MiniAppManifest
 import com.nahuanotoca.superapp.core.miniapp.PayRequest
 import com.nahuanotoca.superapp.core.model.PaymentResult
 import com.nahuanotoca.superapp.core.model.WalletState
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -31,6 +32,9 @@ class MiniAppViewModel(
     fun hasLocationPermission(): Boolean = container.locationProvider.hasPermission()
 
     suspend fun currentLocation(): LocationFix? = container.locationProvider.currentFix()
+
+    fun locationUpdates(intervalMillis: Long): Flow<LocationFix> =
+        container.locationProvider.locationUpdates(intervalMillis)
 
     suspend fun pay(request: PayRequest): PaymentResult = container.wallet.pay(
         amountCents = request.amountCents,

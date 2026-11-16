@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import com.nahuanotoca.superapp.core.design.Ochre
@@ -43,7 +42,6 @@ import com.nahuanotoca.superapp.core.design.PixelGlyph
 import com.nahuanotoca.superapp.core.design.PixelPanelDeep
 import com.nahuanotoca.superapp.core.design.PixelUiGlyphs
 import com.nahuanotoca.superapp.core.miniapp.MiniAppBridge
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -61,8 +59,6 @@ fun HomeMapHero(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val locationFix by viewModel.currentLocation.collectAsStateWithLifecycle()
-    var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var pendingLocationRequest by remember { mutableStateOf<String?>(null) }
 
     val bridge = remember {
@@ -80,15 +76,10 @@ fun HomeMapHero(
         val requestId = pendingLocationRequest
         pendingLocationRequest = null
         if (requestId == null) return@rememberLauncherForActivityResult
-        if (granted) {
-            viewModel.refreshLocation()
+        if (granted || viewModel.hasLocationPermission()) {
             scope.launch {
-                delay(700)
-                bridge.resolveLocation(requestId, viewModel.currentLocation.value, null)
-                webViewRef?.evaluateJavascript(
-                    "if (typeof locateUser === 'function') locateUser();",
-                    null,
-                )
+                val fix = viewModel.locationNow()
+                bridge.resolveLocation(requestId, fix, if (fix == null) "unavailable" else null)
             }
         } else {
             bridge.resolveLocation(requestId, null, "permission_denied")
@@ -98,7 +89,10 @@ fun HomeMapHero(
 
     bridge.onLocationRequest = { requestId ->
         if (viewModel.hasLocationPermission()) {
-            bridge.resolveLocation(requestId, locationFix, null)
+            scope.launch {
+                val fix = viewModel.locationNow()
+                bridge.resolveLocation(requestId, fix, if (fix == null) "unavailable" else null)
+            }
         } else {
             pendingLocationRequest = requestId
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -130,9 +124,18 @@ fun HomeMapHero(
                         settings.domStorageEnabled = true
                         settings.allowContentAccess = false
                         settings.allowFileAccess = false
-                        // El mapa y sus teselas son assets: sin caché HTTP para que un update del APK
-                        // no deje servida la versión anterior del bundle.
-                        settings.cacheMode = WebSettings.LOAD_NO_CACHE
+                        settings.allowFileAccessFromFileURLs = false
+                        settings.allowUniversalAccessFromFileURLs = false
+                        settings.setGeolocationEnabled(false)
+                        // Los assets van versionados con el APK; la caché de WebView acelera el
+                        // rezoomy del mapa sin dejar HTML viejo entre actualizaciones.
+                        settings.cacheMode = WebSettings.LOAD_DEFAULT
+                        settings.setSupportZoom(false)
+                        settings.builtInZoomControls = false
+                        settings.displayZoomControls = false
+                        settings.textZoom = 100
+                        settings.mediaPlaybackRequiresUserGesture = true
+                        settings.offscreenPreRaster = true
                         setBackgroundColor(android.graphics.Color.parseColor("#EFE3CC"))
 
                         webViewClient = object : WebViewClientCompat() {
@@ -157,7 +160,6 @@ fun HomeMapHero(
                         bridge.sendToWeb = { script -> post { evaluateJavascript(script, null) } }
 
                         loadUrl("https://appassets.androidplatform.net/assets/miniapps/mapa/index.html?mode=compact")
-                        webViewRef = this
                     }
                 },
             )

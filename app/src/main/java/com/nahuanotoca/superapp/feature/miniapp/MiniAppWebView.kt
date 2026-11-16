@@ -53,7 +53,18 @@ fun MiniAppWebView(
                 settings.domStorageEnabled = true
                 settings.allowContentAccess = false
                 settings.allowFileAccess = false
-                settings.cacheMode = WebSettings.LOAD_NO_CACHE
+                settings.allowFileAccessFromFileURLs = false
+                settings.allowUniversalAccessFromFileURLs = false
+                settings.setGeolocationEnabled(false)
+                // Las teselas y el HTML son assets versionados con el APK: la caché de WebView
+                // acelera el rezoomy y el reentrar a la mini app sin arriesgar datos viejos.
+                settings.cacheMode = WebSettings.LOAD_DEFAULT
+                settings.setSupportZoom(false)
+                settings.builtInZoomControls = false
+                settings.displayZoomControls = false
+                settings.textZoom = 100
+                settings.mediaPlaybackRequiresUserGesture = true
+                settings.offscreenPreRaster = true
                 setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
                 webViewClient = object : WebViewClientCompat() {
@@ -68,6 +79,10 @@ fun MiniAppWebView(
 
                     override fun onPageFinished(view: WebView, url: String) {
                         onLoadingChanged(false)
+                        view.evaluateJavascript(
+                            "if (typeof triggerResize === 'function') triggerResize();",
+                            null,
+                        )
                     }
 
                     override fun shouldOverrideUrlLoading(

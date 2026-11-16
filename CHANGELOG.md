@@ -3,6 +3,49 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.7.0] — 2026-11-16
+
+### Añadido
+
+- **GPS en vivo en el mapa**: `LocationProvider.locationUpdates()` emite un flujo continuo con
+  latitud, longitud, precisión, velocidad, rumbo y altitud usando `LocationManager` (sin Google
+  Play Services). El marcador tiene pulso, círculo de precisión y cono de rumbo, y el mapa puede
+  seguirte o dejarte mover libremente.
+- **Panel de coordenadas**: la barra superior muestra lat/lng y precisión en tiempo real; la
+  pestaña **GPS** añade velocidad, altitud, rumbo, antigüedad de la lectura, fuente y un botón para
+  copiar las coordenadas al portapapeles.
+- **Ir a un destino**: búsqueda de tianguis, plazas, hospitales, municipios o coordenadas
+  (`19.2433, -103.7250`), ruta directa en el mapa con distancia, rumbo y ETA a pie y en auto, y
+  **Navegar** para abrir la app de mapas del sistema con el destino puesto.
+- **Zoom con detalle real z14–16**: nueva pirámide de teselas del área metropolitana con calles,
+  edificios, parques, arroyos, ferrocarril y etiquetas de calles y colonias, renderizada a 2× y
+  reducida con LANCZOS. Las capas de detalle se activan a z14 y z16 en lugar de estirar z13.
+- **SDK 1.1**: `Nahua.watchLocation`, `Nahua.onLocationError`, `Nahua.stopLocation`,
+  `Nahua.openDirections` y `Nahua.copy`; los fixes incluyen velocidad, rumbo, altitud y timestamp.
+- Test de cobertura z16 y de tamaño real de las nuevas teselas.
+
+### Cambiado
+
+- El paquete offline pasa de 1,380 a **2,489 teselas (~8.1 MB)** y de z9–13 a **z9–16**; se genera con
+  `.tmp/render_v3.py` (Natural Earth + calles, edificios y áreas de OSM).
+- La mini app del mapa se reescribió con hoja de pestañas (Lugares / Ruta / GPS), búsqueda con
+  sugerencias, controles de zoom, modo seguir, barra de estado GPS y tarjeta de ruta.
+- El WebView usa caché (`LOAD_DEFAULT`), prerasterizado fuera de pantalla, zoom nativo desactivado
+  y texto al 100 % para acelerar el rezoomy y evitar que el zoom del sistema compita con Leaflet.
+- El inicio ya no inventa una posición en Colima Centro: `currentFix()` devuelve `null` cuando no
+  hay permiso o lectura reciente y el mapa lo explica.
+- El seguimiento se pausa al ocultar la app y se reanuda al volver, salvo que el usuario lo haya
+  detenido o haya negado el permiso.
+
+### Corregido
+
+- Las teselas z14–15 se veían borrosas porque se escalaban desde z13; ahora hay detalle urbano
+  nativo y la capa de barrio llega a z16.
+- El mapa afirmaba “Estás aquí” con una posición de relleno aunque el GPS no tuviera señal.
+- El primer fix cancelaba el `flyTo` inicial y el mapa se quedaba en z13.
+- La hoja inferior y las sugerencias desaparecían en Android porque las unidades `vh` del WebView
+  se resolvían a 0; ahora el alto se calcula en píxeles con `window.innerHeight`.
+
 ## [0.6.0] — 2026-11-16
 
 ### Añadido

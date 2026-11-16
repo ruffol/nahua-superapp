@@ -39,9 +39,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             initialValue = 0,
         )
 
-    private val _currentLocation = MutableStateFlow<LocationFix?>(
-        LocationFix(latitude = 19.2433, longitude = -103.7250, accuracyMeters = 35f)
-    )
+    // null = todavía no hay una lectura real; no inventamos Colima Centro (el mapa lo avisa).
+    private val _currentLocation = MutableStateFlow<LocationFix?>(null)
     val currentLocation: StateFlow<LocationFix?> = _currentLocation.asStateFlow()
 
     init {
@@ -57,5 +56,14 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 _currentLocation.value = fix
             }
         }
+    }
+
+    /** Espera una lectura real (caché reciente o GPS) para responder a "Mi ubicación". */
+    suspend fun locationNow(): LocationFix? {
+        val fix = container.locationProvider.currentFix()
+        if (fix != null) {
+            _currentLocation.value = fix
+        }
+        return fix
     }
 }

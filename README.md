@@ -12,14 +12,15 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.6.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.7.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
 ## Lo que incluye
 
-- **Mapa offline de Colima** con teselas propias empaquetadas (z9–13, Natural Earth + calles de
-  OSM del área metropolitana), estilo de papel cálido, y **GPS** para centrarte.
+- **Mapa offline de Colima** con teselas propias (z9–16, Natural Earth + calles, edificios y
+  parques de OSM), estilo de papel cálido, **GPS en vivo** con coordenadas, velocidad y rumbo, y
+  ruta directa con navegación al destino en la app de mapas del teléfono.
 - **Tianguis de Colima**: productores de Colima, Villa de Álvarez, Comala, Tecomán, Manzanillo y
   Armería, con canasta y pago desde la cartera.
 - **Nahuanotoka (mesas de estudio)**: crea una mesa por materia, agrega varios PDFs, pide resumen,
@@ -28,13 +29,13 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **72 tests unitarios** y CI en GitHub Actions.
+- **74 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
 | App | Tipo | Qué hace | Integración |
 | --- | --- | --- | --- |
-| **Mapas** | mini-app | mapa offline de Colima, tianguis por municipio y “mi ubicación” | Leaflet + GPS |
+| **Mapas** | mini-app | mapa offline z9–16, GPS en vivo, coordenadas y rutas a tianguis | Leaflet + GPS |
 | **Tianguis** | mini-app | productores colimenses de seis municipios | `Nahua.pay` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
@@ -45,13 +46,26 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 ## Mapa offline de Colima
 
-- Teselas `{z}/{x}/{y}.png` empaquetadas en `assets/miniapps/mapa/tiles` (1,380 teselas, ~0.8 MB),
-  generadas con `.tmp/render_v2.py` a partir de Natural Earth (costa, fronteras, carreteras) y de
-  las calles de OpenStreetMap del área metropolitana, en una paleta de barro.
-- Cobertura: estado de Colima en z9–13 (z14–15 se escalan desde z13 para no dejar huecos).
-- Si falta una tesela (o alejas el mapa fuera de la cobertura), Leaflet usa OpenStreetMap en línea.
-- Botón **📍 Mi ubicación**: pide permiso de ubicación la primera vez y dibuja tu posición con su
-  precisión.
+- **Teselas propias** `{z}/{x}/{y}.png` en `assets/miniapps/mapa/tiles`: 2,489 teselas, ~8.1 MB.
+  Las genera `.tmp/render_v3.py` a partir de Natural Earth (costa, carreteras, fronteras) y de
+  OpenStreetMap (calles, edificios, parques, agua, ferrocarril y puntos de interés) en una paleta de
+  barro. Se renderizan a 2× y se reducen con LANCZOS para que calles y etiquetas no salgan dentadas.
+- **Cobertura por zoom**: z9–13 para todo el estado; z14–15 para el área metropolitana y z16 nativo
+  para el núcleo Colima–Villa de Álvarez. La capa urbana se activa al llegar a z14 y la de barrio a
+  z16, así que al acercarte aparecen edificios, parques, arroyos y nombres de calles y colonias en
+  lugar de una imagen z13 estirada. z17 escala z16 ×2.
+- **GPS en vivo**: `LocationProvider` usa `LocationManager` (sin Google Play Services) y emite un
+  flujo con latitud, longitud, precisión, velocidad, rumbo y altitud. El mapa dibuja tu posición con
+  pulso, círculo de precisión y cono de rumbo; puedes seguirte o moverte libremente por el mapa.
+  El seguimiento se pausa al ocultar la app para no gastar batería.
+- **Coordenadas**: la barra superior muestra lat/lng y precisión en tiempo real; la pestaña **GPS**
+  añade velocidad, altitud, rumbo, antigüedad de la lectura y un botón para copiar las coordenadas.
+- **Ir a un lugar**: busca un tianguis, una plaza, un hospital o escribe coordenadas
+  (`19.2433, -103.7250`). El mapa traza la distancia directa con rumbo y ETA a pie y en auto, y
+  **Navegar** abre la app de mapas del sistema con el destino ya puesto (`geo:`).
+- **Rendimiento**: la capa base y las capas de detalle usan `maxNativeZoom`, `keepBuffer` y caché
+  de WebView; no hay peticiones de red para el mapa. Si una tesela falta, el hueco es transparente y
+  se ve la capa inferior, nunca un error 403.
 - Atribución a OpenStreetMap en el mapa y en el pie.
 
 ## Nahuanotoka (mesas de trabajo)
@@ -119,8 +133,8 @@ app/
    │  ├─ data/            cartera, sesión, avisos, preferencias
    │  ├─ data/catalog/    catálogo de servicios
    │  ├─ design/          tema y componentes
-   │  ├─ location/        LocationManager + permisos (GPS de las mini-apps)
-   │  ├─ miniapp/         manifiestos, registro y puente JS (pago, ubicación)
+   │  ├─ location/        LocationManager, fix puntual y flujo GPS en vivo
+   │  ├─ miniapp/         manifiestos, registro y puente JS (pago, GPS, rutas, portapapeles)
    │  ├─ model/           modelos + WalletLedger (aritmética pura)
    │  ├─ navigation/      rutas
    │  ├─ rag/             PDF (texto y figuras), índice, contexto, LLM, PDF de salida
@@ -167,7 +181,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 72 tests
+./gradlew testDebugUnitTest    # 74 tests
 ./gradlew installDebug
 ```
 
@@ -178,7 +192,9 @@ El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
 ## Privacidad
 
 - Los PDFs se procesan en el dispositivo; solo se envían pregunta y fragmentos a tu API.
-- La ubicación se usa únicamente cuando tocas “Mi ubicación” dentro del mapa.
+- La ubicación se usa únicamente mientras el mapa está abierto (o al tocar “Mi ubicación” en el
+  inicio) y nunca se envía a un servidor. Al pulsar **Navegar**, el destino se comparte con la app
+  de mapas que elijas.
 - La API key se guarda en el almacenamiento privado de la app (Keystore recomendado en producción).
 
 ---

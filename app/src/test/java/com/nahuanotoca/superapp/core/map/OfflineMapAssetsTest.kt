@@ -8,8 +8,8 @@ import java.io.File
 
 /**
  * Guards the offline map contract: the mini-app ships real tiles for Colima so the map still works
- * without connectivity. El paquete se genera con `.tmp/render_v2.py` (Natural Earth + calles OSM)
- * para los zooms 9–13; la mini app escala el resto con `maxNativeZoom`.
+ * without connectivity. El paquete se genera con `.tmp/render_v3.py` (Natural Earth + calles,
+ * edificios y áreas de OSM): z9–13 para todo el estado y z14–16 para el área metropolitana.
  */
 class OfflineMapAssetsTest {
 
@@ -35,10 +35,34 @@ class OfflineMapAssetsTest {
 
         assertTrue("zoom 9 (estado) missing in " + zooms, 9 in zooms)
         assertTrue("zoom 13 (detalle metropolitano) missing in " + zooms, 13 in zooms)
+        assertTrue("zoom 14 (detalle urbano) missing in " + zooms, 14 in zooms)
+        assertTrue("zoom 15 (detalle urbano) missing in " + zooms, 15 in zooms)
+        assertTrue("zoom 16 (detalle de barrio) missing in " + zooms, 16 in zooms)
         assertTrue(
-            "el paquete no debe pasar de zoom 13 (maxNativeZoom): " + zooms,
-            zooms.all { it <= 13 },
+            "el paquete no debe pasar de zoom 16 (maxNativeZoom): " + zooms,
+            zooms.all { it <= 16 },
         )
+    }
+
+    @Test
+    fun detailTilesCoverColimaCentro() {
+        val (x, y) = tileAt(19.2433, -103.7250, 16)
+        val detail = File(tiles, "16/$x/$y.png")
+
+        assertTrue("falta la tesela z16 de Colima Centro: " + detail.path, detail.isFile)
+        val size = pngSize(detail)
+        assertNotNull("la tesela z16 no es un PNG legible", size)
+        assertEquals(256, size!!.first)
+        assertEquals(256, size.second)
+        assertTrue("la tesela z16 está vacía", detail.length() > 2_000)
+    }
+
+    private fun tileAt(lat: Double, lon: Double, zoom: Int): Pair<Int, Int> {
+        val scale = 256.0 * (1 shl zoom)
+        val x = ((lon + 180.0) / 360.0 * scale / 256).toInt()
+        val sin = Math.sin(Math.toRadians(lat))
+        val y = ((0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale / 256).toInt()
+        return x to y
     }
 
     @Test
@@ -56,8 +80,9 @@ class OfflineMapAssetsTest {
     @Test
     fun tilesAreRealMapImages() {
         // El paquete anterior eran 2 151 copias de la imagen «403 Access blocked» de OSM:
-        // comprobamos que ahora son PNG de 256×256 de verdad.
-        val sample = pngs().sortedBy { it.path }.take(24)
+        // comprobamos que ahora son PNG de 256×256 de verdad, incluido el detalle z16.
+        val sample = (pngs().sortedBy { it.path }.take(20) +
+            pngs().filter { it.parentFile?.parentFile?.name == "16" }.take(8)).distinct()
         sample.forEach { file ->
             val size = pngSize(file)
             assertNotNull("no es un PNG legible: " + file.path, size)

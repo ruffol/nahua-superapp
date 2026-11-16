@@ -59,10 +59,16 @@ extractor de PDF y a la red con control de errores. La cadena es:
 
 ## Ubicación
 
-`LocationProvider` usa `LocationManager` (sin Google Play Services). Prefiere un fix reciente en
-caché y, si no hay, espera GPS (7 s) y red (5 s) con timeout. El puente expone `Nahua.location()`;
-el permiso se pide desde la pantalla anfitriona con `RequestPermission`, de modo que la mini-app
-nunca ve el diálogo del sistema.
+`LocationProvider` usa `LocationManager` (sin Google Play Services). Tiene dos modos:
+
+- `currentFix()`: fix puntual; prefiere una lectura cacheada reciente y, si no hay, espera GPS (3 s)
+  y red (2 s). Devuelve `null` si no hay permiso o lectura; nunca inventa una posición.
+- `locationUpdates()`: `Flow` continuo con lat/lng, precisión, velocidad, rumbo y altitud para el
+  mapa en vivo. Se cancela al cerrar la mini app o al ocultar la pantalla.
+
+El puente expone `Nahua.location()`, `Nahua.watchLocation()`, `Nahua.openDirections()` y
+`Nahua.copy()`. El permiso se pide desde la pantalla anfitriona con `RequestPermission` (fine o
+coarse en Android 12+), de modo que la mini-app nunca ve el diálogo del sistema.
 
 ## Actualizaciones OTA
 
@@ -80,7 +86,7 @@ assets/miniapps/index.json  ──►  MiniAppRegistry  ──►  MiniAppManife
 MiniAppScreen ──► MiniAppWebView ──► WebViewAssetLoader ──┘
        │                   │
        │                   └── window.NahuaNative (addJavascriptInterface)
-       └── MiniAppBridge ──► WalletRepository.pay()
+       └── MiniAppBridge ──► WalletRepository.pay() / LocationManager / geo: intent
 ```
 
 - **Origen seguro**: los assets se sirven en `https://appassets.androidplatform.net/assets/...`,

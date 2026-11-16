@@ -1,6 +1,11 @@
 package com.nahuanotoca.superapp.feature.miniapp
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -32,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -55,10 +62,12 @@ import com.nahuanotoca.superapp.core.design.PixelPanelDeep
 import com.nahuanotoca.superapp.core.design.PixelRed
 import com.nahuanotoca.superapp.core.design.PixelTitle
 import com.nahuanotoca.superapp.core.design.PixelViolet
+import com.nahuanotoca.superapp.core.miniapp.DirectionsRequest
 import com.nahuanotoca.superapp.core.miniapp.MiniAppBridge
 import com.nahuanotoca.superapp.core.miniapp.PayRequest
 import com.nahuanotoca.superapp.core.model.Money
 import com.nahuanotoca.superapp.core.model.PaymentResult
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -71,6 +80,7 @@ fun MiniAppScreen(
     onClose: () -> Unit,
     onMessage: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     val manifest = viewModel.manifest
     if (manifest == null) {
         MiniAppNotFound(onClose = onClose, appId = viewModel.appId)
@@ -95,22 +105,59 @@ fun MiniAppScreen(
     }
 
     var pendingLocationId by remember { mutableStateOf<String?>(null) }
+    var pendingWatchInterval by remember { mutableStateOf<Long?>(null) }
+    val locationJob = remember { mutableStateOf<Job?>(null) }
 
     val locationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         val requestId = pendingLocationId
+        val watchInterval = pendingWatchInterval
         pendingLocationId = null
-        if (requestId != null) {
-            if (granted) {
-                scope.launch {
-                    val fix = viewModel.currentLocation()
-                    bridge.resolveLocation(requestId, fix, if (fix == null) "unavailable" else null)
-                }
-            } else {
+        pendingWatchInterval = null
+
+        // En Android 12+ el usuario puede conceder solo ubicación aproximada: el permiso
+        // "fine" llega como denegado pero el coarse ya está activo.
+        if (!granted && !viewModel.hasLocationPermission()) {
+            if (requestId != null) {
                 bridge.resolveLocation(requestId, null, "permission_denied")
             }
+            if (watchInterval != null) {
+                bridge.emitLocationError("permission_denied")
+            }
+            return@rememberLauncherForActivityResult
         }
+
+        if (requestId != null) {
+            scope.launch {
+                val fix = viewModel.currentLocation()
+                bridge.resolveLocation(requestId, fix, if (fix == null) "unavailable" else null)
+            }
+        }
+        if (watchInterval != null) {
+            locationJob.value?.cancel()
+            locationJob.value = scope.launch {
+                viewModel.locationUpdates(watchInterval).collect { fix -> bridge.emitLocation(fix) }
+            }
+        }
+    }
+
+    fun startLocationWatch(intervalMillis: Long) {
+        locationJob.value?.cancel()
+        locationJob.value = null
+        if (!viewModel.hasLocationPermission()) {
+            pendingWatchInterval = intervalMillis
+            locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            return
+        }
+        locationJob.value = scope.launch {
+            viewModel.locationUpdates(intervalMillis).collect { fix -> bridge.emitLocation(fix) }
+        }
+    }
+
+    fun stopLocationWatch() {
+        locationJob.value?.cancel()
+        locationJob.value = null
     }
 
     SideEffect {
@@ -124,6 +171,21 @@ fun MiniAppScreen(
                 pendingLocationId = requestId
                 locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
+        }
+        bridge.onLocationWatchStart = { interval -> startLocationWatch(interval) }
+        bridge.onLocationWatchStop = { stopLocationWatch() }
+        bridge.onDirectionsRequest = { request -> openDirections(context, request, onMessage) }
+        bridge.onCopyToClipboard = { text -> copyToClipboard(context, text, onMessage) }
+    }
+
+    DisposableEffect(bridge) {
+        onDispose {
+            locationJob.value?.cancel()
+            locationJob.value = null
+            bridge.onLocationWatchStart = {}
+            bridge.onLocationWatchStop = {}
+            bridge.onDirectionsRequest = {}
+            bridge.onCopyToClipboard = {}
         }
     }
 
@@ -235,6 +297,28 @@ fun MiniAppScreen(
             },
         )
     }
+}
+
+
+private fun openDirections(
+    context: Context,
+    request: DirectionsRequest,
+    onMessage: (String) -> Unit,
+) {
+    val label = Uri.encode(request.label.ifBlank { "Destino" })
+    val uri = Uri.parse(
+        "geo:" + request.latitude + "," + request.longitude +
+            "?q=" + request.latitude + "," + request.longitude + "(" + label + ")",
+    )
+    val intent = Intent(Intent.ACTION_VIEW, uri)
+    runCatching { context.startActivity(intent) }
+        .onFailure { onMessage("No hay una app de mapas instalada") }
+}
+
+private fun copyToClipboard(context: Context, text: String, onMessage: (String) -> Unit) {
+    val manager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+    manager?.setPrimaryClip(ClipData.newPlainText("Coordenadas", text))
+    onMessage("Coordenadas copiadas")
 }
 
 @Composable
