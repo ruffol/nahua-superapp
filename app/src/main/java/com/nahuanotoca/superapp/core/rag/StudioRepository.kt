@@ -98,6 +98,26 @@ class StudioRepository(context: Context) {
         }
     }
 
+    /** Suma un acierto de caché y los tokens que se ahorraron al no llamar a la API. */
+    suspend fun recordCacheHit(mesaId: String, savedTokens: Int) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val updated = _mesas.value.map { mesa ->
+                if (mesa.id == mesaId) {
+                    mesa.copy(
+                        cacheHits = mesa.cacheHits + 1,
+                        cachedTokensSaved = mesa.cachedTokensSaved + savedTokens,
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                } else {
+                    mesa
+                }
+            }
+            persist(updated)
+            _mesas.value = updated.sortedByDescending { it.updatedAt }
+            Unit
+        }
+    }
+
     suspend fun turns(mesaId: String): List<ChatTurn> = withContext(Dispatchers.IO) {
         val file = File(chatsFolder, mesaId + ".json")
         if (!file.exists()) return@withContext emptyList()
@@ -142,7 +162,9 @@ class StudioRepository(context: Context) {
                         .put("updatedAt", mesa.updatedAt)
                         .put("promptTokens", mesa.usage.promptTokens)
                         .put("completionTokens", mesa.usage.completionTokens)
-                        .put("requests", mesa.requests),
+                        .put("requests", mesa.requests)
+                        .put("cacheHits", mesa.cacheHits)
+                        .put("cachedTokensSaved", mesa.cachedTokensSaved),
                 )
             }
         }
@@ -169,6 +191,8 @@ class StudioRepository(context: Context) {
                             completionTokens = json.optInt("completionTokens", 0),
                         ),
                         requests = json.optInt("requests", 0),
+                        cacheHits = json.optInt("cacheHits", 0),
+                        cachedTokensSaved = json.optInt("cachedTokensSaved", 0),
                     ),
                 )
             }
@@ -188,6 +212,7 @@ class StudioRepository(context: Context) {
                     .put("completionTokens", turn.usage.completionTokens)
                     .put("elapsed", turn.elapsedMillis)
                     .put("createdAt", turn.createdAt)
+                    .put("cacheHit", turn.cacheHit)
                     .put(
                         "sources",
                         JSONArray().apply {
@@ -237,6 +262,7 @@ class StudioRepository(context: Context) {
                         sources = sources,
                         elapsedMillis = json.optLong("elapsed", 0L),
                         createdAt = json.optLong("createdAt", 0L),
+                        cacheHit = json.optBoolean("cacheHit", false),
                     ),
                 )
             }

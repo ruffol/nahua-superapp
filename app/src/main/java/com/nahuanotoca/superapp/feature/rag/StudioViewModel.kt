@@ -13,8 +13,15 @@ import com.nahuanotoca.superapp.core.model.RagFigure
 import com.nahuanotoca.superapp.core.model.RagSettings
 import com.nahuanotoca.superapp.core.model.StudioTask
 import com.nahuanotoca.superapp.core.model.StudioTasks
+import com.nahuanotoca.superapp.core.model.TokenUsage
+import com.nahuanotoca.superapp.core.rag.AnswerCache
+import com.nahuanotoca.superapp.core.rag.CacheKey
+import com.nahuanotoca.superapp.core.rag.CacheStats
+import com.nahuanotoca.superapp.core.rag.CachedAnswer
 import com.nahuanotoca.superapp.core.rag.ChatException
 import com.nahuanotoca.superapp.core.rag.ChatMessage
+import com.nahuanotoca.superapp.core.rag.ChatReply
+import com.nahuanotoca.superapp.core.rag.ExportFormat
 import com.nahuanotoca.superapp.core.rag.ContextBuilder
 import com.nahuanotoca.superapp.core.rag.ReportRequest
 import com.nahuanotoca.superapp.core.rag.StudioPrompts
@@ -34,6 +41,7 @@ import kotlinx.coroutines.withContext
 sealed class StudioEvent {
     data class Toast(val text: String) : StudioEvent()
     data class SharePdf(val path: String, val title: String) : StudioEvent()
+    data class ShareFile(val path: String, val title: String, val format: ExportFormat) : StudioEvent()
 }
 
 data class StudioUiState(
@@ -43,6 +51,7 @@ data class StudioUiState(
     val documents: List<RagDocument> = emptyList(),
     val figures: List<RagFigure> = emptyList(),
     val documentCounts: Map<String, Int> = emptyMap(),
+    val cacheStats: CacheStats = CacheStats(),
     val turns: List<ChatTurn> = emptyList(),
     val selectedDocumentIds: Set<String> = emptySet(),
     val isLoading: Boolean = true,
@@ -153,7 +162,8 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             val documents = container.rag.documents(mesaId)
             val figures = container.rag.figures(mesaId)
             val turns = container.studio.turns(mesaId)
-            _state.update { it.copy(documents = documents, figures = figures, turns = turns) }
+            val cache = container.answerCache.stats(mesaId)
+            _state.update { it.copy(documents = documents, figures = figures, turns = turns, cacheStats = cache) }
         }
     }
 
@@ -164,6 +174,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             figures = emptyList(),
             turns = emptyList(),
             selectedDocumentIds = emptySet(),
+            cacheStats = CacheStats(),
         )
     }
 
@@ -396,40 +407,88 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     add(ChatMessage.user(StudioPrompts.user(task, prompt, context)))
                 }
 
-                val result = container.chatClient.complete(current.settings, messages)
-                val reply = result.getOrNull()
-                if (reply == null) {
-                    val failure = result.exceptionOrNull()
-                    val status = (failure as? ChatException)?.statusCode
-                    _state.update {
-                        it.copy(
-                            error = apiErrorMessage(failure),
-                            settingsOpen = status == 401 || status == 403,
-                        )
+                // Acierto de caché: mismo modelo, tarea, pregunta, documentos e historial.
+                val historyDigest = StudioPrompts.history(current.turns).map { it.role + ":" + it.content }
+                val cacheKey = CacheKey.of(
+                    model = current.settings.model,
+                    taskId = task?.id,
+                    prompt = prompt,
+                    documentIds = scope.ifEmpty { current.documents.map { it.id }.toSet() },
+                    contextBlocks = context.blocks,
+                    history = historyDigest,
+                )
+                val cached = container.answerCache.get(mesa.id, cacheKey)
+
+                val reply: ChatReply
+                if (cached != null) {
+                    reply = ChatReply(
+                        text = cached.text,
+                        usage = TokenUsage.Empty,
+                        model = cached.model.ifBlank { current.settings.model },
+                    )
+                } else {
+                    val result = container.chatClient.complete(current.settings, messages)
+                    val remote = result.getOrNull()
+                    if (remote == null) {
+                        val failure = result.exceptionOrNull()
+                        val status = (failure as? ChatException)?.statusCode
+                        _state.update {
+                            it.copy(
+                                error = apiErrorMessage(failure),
+                                settingsOpen = status == 401 || status == 403,
+                            )
+                        }
+                        return@launch
                     }
-                    return@launch
+                    reply = remote
                 }
 
+                val cacheHit = cached != null
                 val assistantTurn = ChatTurn(
                     id = newId("turn"),
                     role = ChatRole.ASSISTANT,
                     text = reply.text,
                     taskId = task?.id,
                     model = reply.model,
-                    usage = reply.usage,
+                    usage = if (cacheHit) TokenUsage.Empty else reply.usage,
                     sources = context.sources,
                     elapsedMillis = System.currentTimeMillis() - startedAt,
                     createdAt = System.currentTimeMillis(),
+                    cacheHit = cacheHit,
                 )
                 container.studio.appendTurn(mesa.id, userTurn)
                 container.studio.appendTurn(mesa.id, assistantTurn)
-                container.studio.recordUsage(mesa.id, reply.usage)
+
+                if (cacheHit && cached != null) {
+                    container.studio.recordCacheHit(mesa.id, cached.totalTokens)
+                    _events.emit(
+                        StudioEvent.Toast(
+                            "Acierto de caché: 0 tokens (ahorraste " + cached.totalTokens + ")",
+                        ),
+                    )
+                } else {
+                    container.studio.recordUsage(mesa.id, reply.usage)
+                    container.answerCache.put(
+                        mesa.id,
+                        CachedAnswer(
+                            key = cacheKey,
+                            text = reply.text,
+                            model = reply.model,
+                            promptTokens = reply.usage.promptTokens,
+                            completionTokens = reply.usage.completionTokens,
+                            sources = context.sources,
+                        ),
+                    )
+                }
+
+                val cacheStats = container.answerCache.stats(mesa.id)
                 _state.update {
                     it.copy(
                         turns = it.turns + userTurn + assistantTurn,
                         pendingTurn = null,
                         isWorking = false,
                         workingLabel = "",
+                        cacheStats = cacheStats,
                     )
                 }
             } catch (e: Exception) {
@@ -443,6 +502,44 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     // --- exportación ------------------------------------------------------
+
+    /** Baja una sola respuesta como PDF, Markdown o texto. */
+    fun exportTurn(turnId: String, format: ExportFormat) {
+        val mesa = _state.value.activeMesa ?: return
+        val turn = _state.value.turns.firstOrNull { it.id == turnId }
+        if (turn == null || turn.text.isBlank()) {
+            viewModelScope.launch { _events.emit(StudioEvent.Toast("Esa respuesta está vacía")) }
+            return
+        }
+        val task = StudioTasks.find(turn.taskId)
+        val title = (task?.label ?: "Respuesta") + " · " + mesa.name
+        viewModelScope.launch {
+            runCatching {
+                container.studyExporter.write(
+                    title = title,
+                    body = turn.text,
+                    format = format,
+                    model = turn.model,
+                    mesaName = mesa.name,
+                    sources = turn.sources,
+                    usage = turn.usage,
+                )
+            }.onSuccess { file ->
+                _events.emit(StudioEvent.ShareFile(file.absolutePath, title, format))
+            }.onFailure { failure ->
+                _state.update { it.copy(error = "No pudimos exportar: " + (failure.message ?: "error")) }
+            }
+        }
+    }
+
+    fun clearCache() {
+        val mesaId = _state.value.activeMesaId ?: return
+        viewModelScope.launch {
+            container.answerCache.clear(mesaId)
+            _state.update { it.copy(cacheStats = CacheStats()) }
+            _events.emit(StudioEvent.Toast("Caché de la mesa vaciada"))
+        }
+    }
 
     fun exportPdf() {
         val mesa = _state.value.activeMesa ?: return

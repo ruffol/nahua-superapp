@@ -1,70 +1,30 @@
 package com.nahuanotoca.superapp.feature.rag
 
+import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CompareArrows
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.PictureAsPdf
-import androidx.compose.material.icons.rounded.Quiz
-import androidx.compose.material.icons.rounded.RecordVoiceOver
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,59 +35,50 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nahuanotoca.superapp.core.design.Amber
-import com.nahuanotoca.superapp.core.design.AmberSoft
-import com.nahuanotoca.superapp.core.design.Coral
-import com.nahuanotoca.superapp.core.design.CoralSoft
-import com.nahuanotoca.superapp.core.design.HeroGradientEnd
-import com.nahuanotoca.superapp.core.design.Jade
-import com.nahuanotoca.superapp.core.design.JadeSoft
-import com.nahuanotoca.superapp.core.design.NahuaCard
-import com.nahuanotoca.superapp.core.design.Sky
-import com.nahuanotoca.superapp.core.design.SkySoft
-import com.nahuanotoca.superapp.core.design.Teal
-import com.nahuanotoca.superapp.core.design.TealSoft
-import com.nahuanotoca.superapp.core.design.Violet
-import com.nahuanotoca.superapp.core.design.VioletSoft
-import com.nahuanotoca.superapp.core.model.ChatRole
-import com.nahuanotoca.superapp.core.model.ChatTurn
+import com.nahuanotoca.superapp.core.design.PixelBodyText
+import com.nahuanotoca.superapp.core.design.PixelButton
+import com.nahuanotoca.superapp.core.design.PixelChip
+import com.nahuanotoca.superapp.core.design.PixelCyan
+import com.nahuanotoca.superapp.core.design.PixelGlyph
+import com.nahuanotoca.superapp.core.design.PixelGreen
+import com.nahuanotoca.superapp.core.design.PixelIcons
+import com.nahuanotoca.superapp.core.design.PixelIconButton
+import com.nahuanotoca.superapp.core.design.PixelInk
+import com.nahuanotoca.superapp.core.design.PixelLabel
+import com.nahuanotoca.superapp.core.design.PixelMuted
+import com.nahuanotoca.superapp.core.design.PixelPanel
+import com.nahuanotoca.superapp.core.design.PixelPanelAlt
+import com.nahuanotoca.superapp.core.design.PixelPink
+import com.nahuanotoca.superapp.core.design.PixelPurple
+import com.nahuanotoca.superapp.core.design.PixelRed
+import com.nahuanotoca.superapp.core.design.PixelSprite
+import com.nahuanotoca.superapp.core.design.PixelTitle
+import com.nahuanotoca.superapp.core.design.PixelYellow
+import com.nahuanotoca.superapp.core.design.pixelMascot
+import com.nahuanotoca.superapp.core.design.pixelMascotPalette
 import com.nahuanotoca.superapp.core.model.Mesa
 import com.nahuanotoca.superapp.core.model.RagDocument
 import com.nahuanotoca.superapp.core.model.RagFigure
-import com.nahuanotoca.superapp.core.model.RagSettings
-import com.nahuanotoca.superapp.core.model.StudioTask
-import com.nahuanotoca.superapp.core.model.StudioTasks
-import com.nahuanotoca.superapp.core.model.TokenUsage
+import com.nahuanotoca.superapp.core.rag.ExportFormat
 import com.nahuanotoca.superapp.core.rag.ReportSharer
+import com.nahuanotoca.superapp.core.rag.StudyExporter
 import com.nahuanotoca.superapp.core.util.formatRelativeTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Pantalla del estudio. Dos vistas en una: lista de mesas (materias) y detalle de una mesa con
- * documentos, herramientas de estudio, conversación, tokens y exportación a PDF.
+ * Estudio en estilo pixel art: lista de mesas y detalle con documentos, herramientas, chat
+ * colapsable, dictado local y exportación de cada respuesta.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudioScreen(
     viewModel: StudioViewModel,
@@ -136,51 +87,53 @@ fun StudioScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val exporter = remember { StudyExporter(context) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is StudioEvent.Toast -> onMessage(event.text)
                 is StudioEvent.SharePdf -> ReportSharer.share(context, File(event.path), event.title)
+                is StudioEvent.ShareFile -> exporter.share(File(event.path), event.format, event.title)
             }
         }
     }
 
     BackHandler(enabled = state.activeMesaId != null) { viewModel.closeMesa() }
 
-    val activeMesa = state.activeMesa
-    if (activeMesa == null) {
-        MesasScreen(state = state, viewModel = viewModel, onBack = onBack)
-    } else {
-        MesaDetailScreen(
-            state = state,
-            mesa = activeMesa,
-            viewModel = viewModel,
-            onBack = viewModel::closeMesa,
-        )
-    }
+    com.nahuanotoca.superapp.core.design.PixelBackdrop {
+        val mesa = state.activeMesa
+        if (mesa == null) {
+            MesasScreen(state = state, viewModel = viewModel, onBack = onBack)
+        } else {
+            MesaDetailScreen(
+                state = state,
+                mesa = mesa,
+                viewModel = viewModel,
+                onBack = viewModel::closeMesa,
+                onCopy = { text ->
+                    copyToClipboard(context, "Nahuanotoka", text)
+                    onMessage("Respuesta copiada")
+                },
+                onMessage = onMessage,
+            )
+        }
 
-    if (state.settingsOpen) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = viewModel::closeSettings,
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            SettingsContent(
+        if (state.settingsOpen) {
+            SettingsDialog(
                 settings = state.settings,
                 onSave = viewModel::saveSettings,
                 onDismiss = viewModel::closeSettings,
             )
         }
-    }
 
-    if (state.editorOpen) {
-        MesaEditorDialog(
-            mesa = state.editingMesa,
-            onDismiss = viewModel::closeEditor,
-            onSave = viewModel::saveMesa,
-        )
+        if (state.editorOpen) {
+            MesaEditorDialog(
+                mesa = state.editingMesa,
+                onDismiss = viewModel::closeEditor,
+                onSave = viewModel::saveMesa,
+            )
+        }
     }
 }
 
@@ -189,7 +142,7 @@ fun StudioScreen(
 // ---------------------------------------------------------------------------
 
 @Composable
-internal fun MesasScreen(
+private fun MesasScreen(
     state: StudioUiState,
     viewModel: StudioViewModel,
     onBack: () -> Unit,
@@ -197,19 +150,19 @@ internal fun MesasScreen(
     var pendingDelete by remember { mutableStateOf<Mesa?>(null) }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(
-            title = "Nahuanotoka",
-            subtitle = "Mesas de trabajo · " + if (state.isConfigured) state.settings.model else "falta tu API key",
+        StudioTopBar(
+            title = "NAHUANOTOKA",
+            subtitle = if (state.isConfigured) "estudio · " + state.settings.model else "estudio · falta tu API key",
             onBack = onBack,
             onSettings = viewModel::openSettings,
         )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 28.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { ProblemHero() }
+            item { HeroPanel() }
 
             if (!state.isConfigured) {
                 item { ConfigurePrompt(onConfigure = viewModel::openSettings) }
@@ -217,55 +170,19 @@ internal fun MesasScreen(
 
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = "Tus mesas",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                        Text(
-                            text = "Una mesa por materia o exposición",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Button(
+                    PixelLabel(text = "TUS MESAS", size = 8.sp, color = PixelYellow)
+                    Spacer(Modifier.weight(1f))
+                    PixelButton(
+                        text = "+ NUEVA",
                         onClick = { viewModel.openEditor() },
-                        shape = RoundedCornerShape(50),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Nueva mesa", style = MaterialTheme.typography.labelLarge)
-                    }
+                        color = PixelPurple,
+                        fontSize = 7.sp,
+                    )
                 }
             }
 
             if (state.mesas.isEmpty() && !state.isLoading) {
-                item {
-                    NahuaCard(contentPadding = PaddingValues(18.dp)) {
-                        Text(
-                            text = "Crea tu primera mesa",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Por ejemplo: “Historia de México · exposición del bloque 3”. Ahí agregas los " +
-                                "PDFs y todo lo que generes se queda en esa materia.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.openEditor() },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Text("Crear mesa", style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-                }
+                item { EmptyMesas(onCreate = { viewModel.openEditor() }) }
             }
 
             items(state.mesas, key = { it.id }) { mesa ->
@@ -273,249 +190,207 @@ internal fun MesasScreen(
                     mesa = mesa,
                     documents = state.documentCounts[mesa.id] ?: 0,
                     onClick = { viewModel.openMesa(mesa.id) },
-                    onDelete = { pendingDelete = mesa },
                     onEdit = { viewModel.openEditor(mesa) },
+                    onDelete = { pendingDelete = mesa },
                 )
             }
 
             item {
-                Text(
-                    text = "Tus PDFs y tus conversaciones se quedan en el teléfono. Sólo la pregunta y los " +
-                        "fragmentos elegidos viajan a tu API.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
+                PixelBodyText(
+                    text = "Tus PDFs y tu historial viven en el teléfono. Solo la pregunta y los fragmentos " +
+                        "elegidos viajan a tu API.",
+                    size = 14.sp,
+                    color = PixelMuted,
                 )
             }
         }
     }
 
     pendingDelete?.let { mesa ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("¿Eliminar " + mesa.name + "?") },
-            text = {
-                Text(
-                    "Se borran sus PDFs indexados, la conversación y el contador de tokens. " +
-                        "Esta acción no se puede deshacer.",
+        Dialog(onDismissRequest = { pendingDelete = null }) {
+            PixelPanel(border = PixelRed, shadow = 4.dp) {
+                PixelTitle(text = "¿BORRAR MESA?", size = 9.sp, color = PixelRed)
+                Spacer(Modifier.height(6.dp))
+                PixelBodyText(
+                    text = "«" + mesa.name + "» se borra con sus PDFs indexados, su chat y su contador de tokens.",
+                    size = 17.sp,
+                    color = PixelInk,
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteMesa(mesa.id)
-                        pendingDelete = null
-                    },
-                ) {
-                    Text("Eliminar", color = Coral)
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PixelButton(
+                        text = "CANCELAR",
+                        onClick = { pendingDelete = null },
+                        modifier = Modifier.weight(1f),
+                        expand = true,
+                        color = PixelPanelAlt,
+                        fontSize = 7.sp,
+                    )
+                    PixelButton(
+                        text = "BORRAR",
+                        onClick = {
+                            viewModel.deleteMesa(mesa.id)
+                            pendingDelete = null
+                        },
+                        modifier = Modifier.weight(1f),
+                        color = PixelRed,
+                        fontSize = 7.sp,
+                    )
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") }
-            },
-        )
+            }
+        }
     }
 }
 
 @Composable
-internal fun ProblemHero() {
-    Column(
+private fun HeroPanel() {
+    PixelPanel(
+        fill = com.nahuanotoca.superapp.core.design.PixelPanelSoft,
+        border = PixelGreen,
+        shadow = 4.dp,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PixelSprite(
+                pattern = pixelMascot,
+                palette = pixelMascotPalette,
+                modifier = Modifier.size(44.dp),
+                pixelSize = 3.dp,
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                PixelTitle(text = "DE 10 PDFS A UNA EXPOSICIÓN", size = 9.sp, color = PixelYellow)
+                Spacer(Modifier.height(4.dp))
+                PixelBodyText(
+                    text = "Resúmenes con página, ideas propias, el cruce entre documentos y un PDF listo " +
+                        "para imprimir. Una mesa por materia.",
+                    size = 16.sp,
+                    color = PixelInk,
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            HeroStep("1", "AGREGA PDFs")
+            HeroStep("2", "PIDE ANÁLISIS")
+            HeroStep("3", "DESCARGA")
+        }
+    }
+}
+
+@Composable
+private fun HeroStep(number: String, label: String) {
+    Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
-            .background(Brush.linearGradient(listOf(Jade, HeroGradientEnd)))
-            .padding(20.dp),
+            .background(PixelInk.copy(alpha = 0.10f))
+            .padding(horizontal = 7.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PixelLabel(text = number, size = 6.sp, color = PixelGreen)
+        Spacer(Modifier.width(5.dp))
+        PixelLabel(text = label, size = 6.sp, color = PixelInk)
+    }
+}
+
+@Composable
+private fun MesaCard(
+    mesa: Mesa,
+    documents: Int,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    PixelPanel(
+        border = PixelPurple,
+        shadow = 3.dp,
+        modifier = Modifier.clickable(onClick = onClick),
+        contentPadding = PaddingValues(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.18f)),
+                    .size(34.dp)
+                    .background(PixelPurple.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    Icons.Rounded.AutoAwesome,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp),
-                )
+                PixelGlyph(PixelIcons.doc, size = 18.dp, color = PixelGreen)
             }
             Spacer(Modifier.width(10.dp))
-            Text(
-                text = "De 10 PDFs a una exposición",
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = "Tienes los PDFs de la materia y una exposición en tres días. Aquí los conviertes en " +
-                "resúmenes con página, ideas propias, el cruce entre documentos y un PDF listo para imprimir.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.88f),
-        )
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HeroStep("1", "Agrega tus PDFs", Modifier.weight(1f))
-            HeroStep("2", "Pide el análisis", Modifier.weight(1f))
-            HeroStep("3", "Exporta a PDF", Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-internal fun HeroStep(number: String, label: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.14f))
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = number,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.7f),
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-@Composable
-internal fun MesaCard(
-    mesa: Mesa,
-    documents: Int,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    onEdit: () -> Unit,
-) {
-    val accent = accentColor(mesa.accent)
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(accent.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Rounded.MenuBook, contentDescription = null, tint = accent, modifier = Modifier.size(21.dp))
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = mesa.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = if (mesa.subject.isBlank()) "Sin materia" else mesa.subject,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = onEdit) {
-                    Icon(
-                        Icons.Rounded.Edit,
-                        contentDescription = "Editar mesa",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                StatPill(documents.toString() + " PDF", accent)
-                Spacer(Modifier.width(8.dp))
-                StatPill(formatTokens(mesa.usage.totalTokens) + " tokens", accent)
-                Spacer(Modifier.width(8.dp))
-                StatPill(mesa.requests.toString() + " consultas", MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = formatRelativeTime(mesa.updatedAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            if (mesa.context.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = mesa.context,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun StatPill(text: String, color: Color) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = color.copy(alpha = 0.12f),
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = color,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-        )
-    }
-}
-
-@Composable
-internal fun ConfigurePrompt(onConfigure: () -> Unit) {
-    Surface(
-        onClick = onConfigure,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Conecta DeepSeek Flash",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    text = "El análisis lo genera el modelo de tu API (por defecto deepseek-v4.1-flash en " +
-                        "OpenCode Go). Sin llave no hay respuestas.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.85f),
+                PixelTitle(text = mesa.name, size = 8.sp, color = PixelInk)
+                PixelBodyText(
+                    text = if (mesa.subject.isBlank()) "sin materia" else mesa.subject,
+                    size = 15.sp,
+                    color = PixelMuted,
+                    maxLines = 1,
                 )
             }
-            Text(
-                text = "Configurar",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                fontWeight = FontWeight.Bold,
-            )
+            PixelIconButton(onClick = onEdit, fill = PixelPanel, border = PixelPurple) {
+                PixelGlyph(PixelIcons.gear, size = 14.dp, color = PixelCyan)
+            }
+            Spacer(Modifier.width(6.dp))
+            PixelIconButton(onClick = onDelete, fill = PixelPanel, border = PixelRed) {
+                PixelGlyph(PixelIcons.close, size = 13.dp, color = PixelRed)
+            }
         }
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PixelChip(text = documents.toString() + " PDF", selected = false, onClick = onClick, color = PixelCyan)
+            PixelChip(
+                text = formatTokens(mesa.usage.totalTokens) + " TOK",
+                selected = false,
+                onClick = onClick,
+                color = PixelYellow,
+            )
+            if (mesa.cacheHits > 0) {
+                PixelChip(
+                    text = mesa.cacheHits.toString() + " CACHÉ",
+                    selected = false,
+                    onClick = onClick,
+                    color = PixelGreen,
+                )
+            }
+            PixelBodyText(text = formatRelativeTime(mesa.updatedAt), size = 14.sp, color = PixelMuted)
+        }
+        if (mesa.context.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            PixelBodyText(text = mesa.context, size = 15.sp, color = PixelMuted, maxLines = 2)
+        }
+    }
+}
+
+@Composable
+private fun EmptyMesas(onCreate: () -> Unit) {
+    PixelPanel(border = PixelYellow, shadow = 3.dp) {
+        PixelTitle(text = "CREA TU PRIMERA MESA", size = 8.sp, color = PixelYellow)
+        Spacer(Modifier.height(4.dp))
+        PixelBodyText(
+            text = "Por ejemplo: “Historia de México · exposición del bloque 3”. Ahí agregas los PDFs y " +
+                "todo lo que generes se queda en esa materia.",
+            size = 16.sp,
+            color = PixelInk,
+        )
+        Spacer(Modifier.height(10.dp))
+        PixelButton(text = "CREAR MESA", onClick = onCreate, color = PixelPurple, modifier = Modifier.fillMaxWidth(), expand = true)
+    }
+}
+
+@Composable
+private fun ConfigurePrompt(onConfigure: () -> Unit) {
+    PixelPanel(border = PixelPink, shadow = 3.dp, modifier = Modifier.clickable(onClick = onConfigure)) {
+        PixelTitle(text = "CONECTA DEEPSEEK FLASH", size = 8.sp, color = PixelPink)
+        Spacer(Modifier.height(4.dp))
+        PixelBodyText(
+            text = "El análisis lo genera el modelo de tu API (por defecto deepseek-v4.1-flash en OpenCode " +
+                "Go). Sin llave no hay respuestas.",
+            size = 15.sp,
+            color = PixelInk,
+        )
+        Spacer(Modifier.height(8.dp))
+        PixelButton(text = "CONFIGURAR", onClick = onConfigure, color = PixelPurple, fontSize = 7.sp)
     }
 }
 
@@ -524,11 +399,13 @@ internal fun ConfigurePrompt(onConfigure: () -> Unit) {
 // ---------------------------------------------------------------------------
 
 @Composable
-internal fun MesaDetailScreen(
+private fun MesaDetailScreen(
     state: StudioUiState,
     mesa: Mesa,
     viewModel: StudioViewModel,
     onBack: () -> Unit,
+    onCopy: (String) -> Unit,
+    onMessage: (String) -> Unit,
 ) {
     val listState = rememberLazyListState()
     var question by rememberSaveable(mesa.id) { mutableStateOf("") }
@@ -542,14 +419,10 @@ internal fun MesaDetailScreen(
     }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(
+        StudioTopBar(
             title = mesa.name,
-            subtitle = buildString {
-                append(if (mesa.subject.isBlank()) "Mesa de trabajo" else mesa.subject)
-                append(" · ")
-                append(formatTokens(mesa.usage.totalTokens))
-                append(" tokens")
-            },
+            subtitle = (if (mesa.subject.isBlank()) "mesa de trabajo" else mesa.subject) +
+                " · " + formatTokens(mesa.usage.totalTokens) + " tok",
             onBack = onBack,
             onSettings = viewModel::openSettings,
         )
@@ -557,17 +430,18 @@ internal fun MesaDetailScreen(
         LazyColumn(
             modifier = Modifier.weight(1f),
             state = listState,
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            item { TokenCard(mesa) }
-            item { ContextCard(mesa = mesa, onEdit = { viewModel.openEditor(mesa) }) }
+            item { StatsPanel(mesa = mesa, cacheHits = state.cacheStats.entries, onClearCache = viewModel::clearCache) }
+            item { ContextPanel(mesa = mesa, onEdit = { viewModel.openEditor(mesa) }) }
 
             if (!state.isConfigured) {
                 item { ConfigurePrompt(onConfigure = viewModel::openSettings) }
             }
+
             item {
-                DocumentsSection(
+                DocumentsPanel(
                     documents = state.documents,
                     selected = state.selectedDocumentIds,
                     importing = state.isImporting,
@@ -577,149 +451,147 @@ internal fun MesaDetailScreen(
                     onClearSelection = viewModel::clearSelection,
                 )
             }
+
             if (state.figures.isNotEmpty()) {
-                item { FiguresSection(state.figures) }
+                item { FiguresPanel(state.figures) }
             }
 
             item {
-                StudyTools(
+                StudioTools(
                     enabled = state.documents.isNotEmpty() && state.isConfigured && !state.isWorking,
-                    working = state.isWorking,
                     onRun = viewModel::runTask,
                 )
             }
 
             if (state.turns.isEmpty() && state.pendingTurn == null && !state.isWorking) {
-                item { ConversationIntro() }
+                item { ChatHint() }
             }
 
-            items(state.turns, key = { it.id }) { turn -> TurnBlock(turn) }
+            items(state.turns, key = { it.id }) { turn ->
+                ChatTurnCard(
+                    turn = turn,
+                    onCopy = { onCopy(turn.text) },
+                    onExport = { format -> viewModel.exportTurn(turn.id, format) },
+                )
+            }
 
             state.pendingTurn?.let { pending ->
-                item { TurnBlock(pending) }
+                item { ChatTurnCard(turn = pending, onCopy = {}, onExport = {}) }
             }
 
             if (state.isWorking) {
-                item { WorkingCard(state.workingLabel) }
+                item { WorkingPanel(state.workingLabel) }
             }
 
             state.error?.let { message ->
-                item { ErrorCard(message = message, onDismiss = viewModel::dismissError) }
+                item { StudioError(message = message, onDismiss = viewModel::dismissError) }
             }
         }
 
-        Composer(
+        StudioComposer(
             question = question,
             onQuestionChange = { question = it },
             onSend = {
                 viewModel.ask(question)
                 question = ""
             },
+            onAttach = { pdfPicker.launch(arrayOf("application/pdf")) },
             onExport = viewModel::exportPdf,
-            onClear = viewModel::clearChat,
+            onConfigure = viewModel::openSettings,
+            onRunTask = viewModel::runTask,
             enabled = state.documents.isNotEmpty() && state.isConfigured && !state.isWorking,
             working = state.isWorking,
-            hasTurns = state.turns.isNotEmpty(),
             tokens = mesa.usage.totalTokens,
+            cacheHits = mesa.cacheHits,
+            onMessage = onMessage,
         )
     }
 }
 
 @Composable
-internal fun TokenCard(mesa: Mesa) {
-    NahuaCard(contentPadding = PaddingValues(16.dp)) {
+private fun StatsPanel(mesa: Mesa, cacheHits: Int, onClearCache: () -> Unit) {
+    PixelPanel(cut = 4.dp, contentPadding = PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Consumo de la mesa",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
+            PixelLabel(text = "CONSUMO DE LA MESA", size = 7.sp, color = PixelCyan)
+            Spacer(Modifier.weight(1f))
+            PixelBodyText(text = mesa.requests.toString() + " consultas", size = 14.sp, color = PixelMuted)
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            StatBox("ENTRADA", mesa.usage.promptTokens, PixelPurple, Modifier.weight(1f))
+            StatBox("SALIDA", mesa.usage.completionTokens, PixelGreen, Modifier.weight(1f))
+            StatBox("TOTAL", mesa.usage.totalTokens, PixelCyan, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PixelChip(
+                text = "CACHÉ " + mesa.cacheHits,
+                selected = mesa.cacheHits > 0,
+                onClick = {},
+                color = PixelGreen,
+            )
+            Spacer(Modifier.width(6.dp))
+            PixelBodyText(
+                text = formatTokens(mesa.cachedTokensSaved) + " tok ahorrados · " + cacheHits + " respuestas",
+                size = 14.sp,
+                color = PixelMuted,
                 modifier = Modifier.weight(1f),
             )
-            Text(
-                text = mesa.requests.toString() + " consultas",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TokenStat("Entrada", mesa.usage.promptTokens, Violet, Modifier.weight(1f))
-            TokenStat("Salida", mesa.usage.completionTokens, Jade, Modifier.weight(1f))
-            TokenStat("Total", mesa.usage.totalTokens, Sky, Modifier.weight(1f))
+            if (cacheHits > 0) {
+                PixelButton(
+                    text = "VACIAR",
+                    onClick = onClearCache,
+                    color = PixelPanelAlt,
+                    fontSize = 6.sp,
+                    contentPadding = PaddingValues(horizontal = 7.dp, vertical = 5.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-internal fun TokenStat(label: String, value: Int, color: Color, modifier: Modifier = Modifier) {
+private fun StatBox(label: String, value: Int, color: androidx.compose.ui.graphics.Color, modifier: Modifier) {
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(color.copy(alpha = 0.10f))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .background(color.copy(alpha = 0.14f))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        Text(
-            text = formatTokens(value),
-            style = MaterialTheme.typography.titleMedium,
-            color = color,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        PixelTitle(text = formatTokens(value), size = 9.sp, color = color)
+        PixelLabel(text = label, size = 5.sp, color = PixelMuted)
     }
 }
 
 @Composable
-internal fun ContextCard(mesa: Mesa, onEdit: () -> Unit) {
-    Surface(
-        onClick = onEdit,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+private fun ContextPanel(mesa: Mesa, onEdit: () -> Unit) {
+    PixelPanel(
+        fill = PixelPanelAlt,
+        border = PixelCyan,
+        cut = 4.dp,
+        modifier = Modifier.clickable(onClick = onEdit),
+        contentPadding = PaddingValues(12.dp),
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(VioletSoft),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Rounded.Edit, contentDescription = null, tint = Violet, modifier = Modifier.size(18.dp))
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Contexto de la mesa",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = if (mesa.context.isBlank()) {
-                        "Define materia, tema de la exposición, público y tono. Mejora las respuestas."
-                    } else {
-                        mesa.context
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (mesa.context.isBlank()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PixelLabel(text = "CONTEXTO DE LA MESA", size = 6.sp, color = PixelCyan)
+            Spacer(Modifier.weight(1f))
+            PixelLabel(text = "EDITAR", size = 6.sp, color = PixelMuted)
         }
+        Spacer(Modifier.height(4.dp))
+        PixelBodyText(
+            text = if (mesa.context.isBlank()) {
+                "Define materia, tema de la exposición, público y tono. Mejora las respuestas."
+            } else {
+                mesa.context
+            },
+            size = 16.sp,
+            color = if (mesa.context.isBlank()) PixelMuted else PixelInk,
+            maxLines = 3,
+        )
     }
 }
 
 @Composable
-internal fun DocumentsSection(
+private fun DocumentsPanel(
     documents: List<RagDocument>,
     selected: Set<String>,
     importing: Boolean,
@@ -728,163 +600,112 @@ internal fun DocumentsSection(
     onDelete: (String) -> Unit,
     onClearSelection: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    PixelPanel(cut = 4.dp, contentPadding = PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Documentos",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Text(
+                PixelLabel(text = "DOCUMENTOS", size = 7.sp, color = PixelPink)
+                PixelBodyText(
                     text = when {
-                        documents.isEmpty() -> "Aún no hay PDFs en esta mesa"
-                        selected.isEmpty() -> documents.size.toString() + " PDF(s) · base completa"
+                        documents.isEmpty() -> "aún no hay PDFs en esta mesa"
+                        selected.isEmpty() -> documents.size.toString() + " PDF · base completa"
                         else -> selected.size.toString() + " de " + documents.size + " seleccionados"
                     },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    size = 14.sp,
+                    color = PixelMuted,
                 )
             }
-            Button(
+            PixelButton(
+                text = if (importing) "INDEXANDO…" else "+ PDF",
                 onClick = onAdd,
                 enabled = !importing,
-                shape = RoundedCornerShape(50),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                if (importing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Indexando", style = MaterialTheme.typography.labelLarge)
-                } else {
-                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Agregar PDF", style = MaterialTheme.typography.labelLarge)
-                }
-            }
+                color = PixelGreen,
+                textColor = androidx.compose.ui.graphics.Color(0xFF0C2A1B),
+                fontSize = 7.sp,
+            )
         }
 
         if (documents.isNotEmpty() && selected.isNotEmpty()) {
-            TextButton(onClick = onClearSelection, contentPadding = PaddingValues(0.dp)) {
-                Text(
-                    text = "Usar todos los documentos",
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            Spacer(Modifier.height(6.dp))
+            PixelButton(
+                text = "USAR TODOS",
+                onClick = onClearSelection,
+                color = PixelPanelAlt,
+                fontSize = 6.sp,
+            )
         }
 
         documents.forEach { document ->
             val isSelected = document.id in selected
-            Surface(
-                onClick = { onToggle(document.id) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = if (isSelected) JadeSoft else MaterialTheme.colorScheme.surface,
-                border = BorderStroke(
-                    1.dp,
-                    if (isSelected) Jade else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                ),
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(if (isSelected) PixelGreen.copy(alpha = 0.18f) else PixelPanel)
+                    .padding(horizontal = 8.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clip(CircleShape)
-                            .background(if (isSelected) Jade else MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (isSelected) {
-                            Icon(Icons.Rounded.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        } else {
-                            Icon(
-                                Icons.Rounded.PictureAsPdf,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(12.dp),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = document.name,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = buildString {
-                                append(document.pages).append(" pág · ")
-                                append(document.chunks).append(" fragmentos")
-                                if (document.figures > 0) append(" · ").append(document.figures).append(" figuras")
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    IconButton(onClick = { onDelete(document.id) }) {
-                        Icon(
-                            Icons.Rounded.DeleteOutline,
-                            contentDescription = "Eliminar documento",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(if (isSelected) PixelGreen else PixelPanelAlt)
+                        .clickable { onToggle(document.id) },
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f).clickable { onToggle(document.id) }) {
+                    PixelBodyText(text = document.name, size = 16.sp, color = PixelInk, maxLines = 1)
+                    PixelBodyText(
+                        text = buildString {
+                            append(document.pages).append(" pág · ")
+                            append(document.chunks).append(" frag")
+                            if (document.figures > 0) append(" · ").append(document.figures).append(" fig")
+                        },
+                        size = 13.sp,
+                        color = PixelMuted,
+                    )
+                }
+                PixelIconButton(onClick = { onDelete(document.id) }, fill = PixelPanel, border = PixelRed) {
+                    PixelGlyph(PixelIcons.close, size = 11.dp, color = PixelRed)
                 }
             }
         }
 
-        Txt(
-            "Toca un PDF para incluirlo o excluirlo. Si no seleccionas ninguno, la mesa usa todos.",
+        Spacer(Modifier.height(6.dp))
+        PixelBodyText(
+            text = "Toca un PDF para incluirlo o excluirlo de la correlación.",
+            size = 13.sp,
+            color = PixelMuted,
         )
     }
 }
 
 @Composable
-internal fun FiguresSection(figures: List<RagFigure>) {
+private fun FiguresPanel(figures: List<RagFigure>) {
     var expanded by remember { mutableStateOf<RagFigure?>(null) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = "Figuras de tus PDFs",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = "Imágenes incrustadas en los documentos. Úsalas en tus diapositivas.",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(2.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    PixelPanel(cut = 4.dp, contentPadding = PaddingValues(12.dp)) {
+        PixelLabel(text = "FIGURAS DE TUS PDFS", size = 7.sp, color = PixelYellow)
+        Spacer(Modifier.height(6.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(figures, key = { it.path }) { figure ->
                 Column(
                     modifier = Modifier
-                        .width(118.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .width(96.dp)
                         .clickable { expanded = figure },
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(112.dp),
+                            .height(86.dp)
+                            .background(PixelPanelAlt),
                     ) {
                         FigureImage(path = figure.path, modifier = Modifier.fillMaxSize())
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
+                    Spacer(Modifier.height(3.dp))
+                    PixelBodyText(
                         text = "p. " + figure.page + " · " + figure.documentName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        size = 12.sp,
+                        color = PixelMuted,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -893,35 +714,49 @@ internal fun FiguresSection(figures: List<RagFigure>) {
 
     expanded?.let { figure ->
         Dialog(onDismissRequest = { expanded = null }) {
-            Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(
-                        text = figure.documentName + " · p. " + figure.page,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    FigureImage(
-                        path = figure.path,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(320.dp),
-                        crop = false,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    TextButton(onClick = { expanded = null }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Cerrar")
-                    }
-                }
+            PixelPanel(border = PixelYellow, shadow = 4.dp) {
+                PixelTitle(text = "P. " + figure.page, size = 8.sp, color = PixelYellow)
+                Spacer(Modifier.height(8.dp))
+                FigureImage(
+                    path = figure.path,
+                    modifier = Modifier.fillMaxWidth().height(260.dp),
+                    crop = false,
+                )
+                Spacer(Modifier.height(10.dp))
+                PixelButton(
+                    text = "CERRAR",
+                    onClick = { expanded = null },
+                    expand = true,
+                    color = PixelPanelAlt,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
 }
 
 @Composable
-internal fun FigureImage(path: String, modifier: Modifier = Modifier, crop: Boolean = true) {
+private fun ChatHint() {
+    PixelPanel(fill = PixelPanelAlt, border = PixelPurple, cut = 4.dp) {
+        PixelTitle(text = "PREGUNTA CON TUS PALABRAS", size = 8.sp, color = PixelGreen)
+        Spacer(Modifier.height(4.dp))
+        PixelBodyText(
+            text = "“resumen”, “explícame el tema 3” o “compara las dos lecturas”. Las respuestas citan " +
+                "documento y página, y puedes copiarlas o bajarlas en PDF, MD o TXT.",
+            size = 16.sp,
+            color = PixelMuted,
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Figuras
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun FigureImage(path: String, modifier: Modifier = Modifier, crop: Boolean = true) {
     val image by produceState<ImageBitmap?>(initialValue = null, path) {
-        value = withContext(Dispatchers.IO) { decodeFigure(path, if (crop) 420 else 1200) }
+        value = withContext(Dispatchers.IO) { decodeFigure(path, if (crop) 380 else 1100) }
     }
     val bitmap = image
     if (bitmap != null) {
@@ -933,12 +768,12 @@ internal fun FigureImage(path: String, modifier: Modifier = Modifier, crop: Bool
         )
     } else {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            PixelBodyText(text = "…", size = 16.sp, color = PixelMuted)
         }
     }
 }
 
-internal fun decodeFigure(path: String, maxSide: Int): ImageBitmap? = runCatching {
+private fun decodeFigure(path: String, maxSide: Int): ImageBitmap? = runCatching {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(path, bounds)
     var sample = 1

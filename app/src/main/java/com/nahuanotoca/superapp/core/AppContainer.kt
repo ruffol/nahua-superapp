@@ -9,12 +9,14 @@ import com.nahuanotoca.superapp.core.data.WalletRepository
 import com.nahuanotoca.superapp.core.data.catalog.ServiceCatalog
 import com.nahuanotoca.superapp.core.location.LocationProvider
 import com.nahuanotoca.superapp.core.miniapp.MiniAppRegistry
+import com.nahuanotoca.superapp.core.rag.AnswerCache
 import com.nahuanotoca.superapp.core.rag.ChatClient
 import com.nahuanotoca.superapp.core.rag.PdfExtractor
 import com.nahuanotoca.superapp.core.rag.RagRepository
 import com.nahuanotoca.superapp.core.rag.RagSettingsRepository
 import com.nahuanotoca.superapp.core.rag.ReportWriter
 import com.nahuanotoca.superapp.core.rag.StudioRepository
+import com.nahuanotoca.superapp.core.rag.StudyExporter
 import com.nahuanotoca.superapp.core.update.ApkInstaller
 import com.nahuanotoca.superapp.core.update.UpdateRepository
 
@@ -37,6 +39,8 @@ class AppContainer(context: Context) {
     val pdfExtractor = PdfExtractor(appContext)
     val chatClient = ChatClient()
     val studio = StudioRepository(appContext)
+    val answerCache = AnswerCache(appContext)
+    val studyExporter = StudyExporter(appContext)
     val reportWriter = ReportWriter(appContext)
     val updates = UpdateRepository(appContext)
     val apkInstaller = ApkInstaller(appContext)

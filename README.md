@@ -7,12 +7,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Una **super app** hecha para **Colima**: pagos, transporte, tianguis de productores locales,
-mapa **offline** con GPS, mascota virtual y **Nahuanotoka**, un estudio que convierte tus PDFs
+mapa **offline** con GPS, mascota virtual y **Nahuanotoka**, un estudio *pixel art* que convierte tus PDFs
 en mesas de trabajo por materia: resúmenes con página, ideas propias, correlación entre documentos,
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.4.3 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.5.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -28,7 +28,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **54 tests unitarios** y CI en GitHub Actions.
+- **61 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -65,6 +65,11 @@ materia que guarda tus documentos, tu contexto, tus consultas y lo que llevas ga
 4. **Pregunta libre** en el compositor. Las respuestas citan `[Documento, p. N]`.
 5. **PDF** exporta el análisis (portada, encabezados, tablas, fuentes y paginación) y lo comparte.
 6. **Tokens**: entrada, salida y total por mesa y por respuesta.
+7. **Caché de respuestas**: repite una consulta y no gasta tokens; la mesa acumula aciertos y
+   tokens ahorrados.
+8. **Copiar y descargar cada respuesta** en PDF, Markdown o TXT, con un lector a pantalla completa
+   para las respuestas largas.
+9. **Dictado local** con el reconocimiento del teléfono (modo offline cuando hay paquete de idioma).
 
 Por defecto usa **DeepSeek V4.1 Flash** (`deepseek-v4.1-flash`) vía OpenCode Go: es el modelo más
 barato para estudiar con muchos PDFs y su contexto alcanza para varias lecturas a la vez. Puedes
@@ -158,7 +163,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 54 tests
+./gradlew testDebugUnitTest    # 61 tests
 ./gradlew installDebug
 ```
 

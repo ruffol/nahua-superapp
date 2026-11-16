@@ -2,5 +2,6 @@
 <paths>
     <!-- PDFs generados por las mesas de trabajo. -->
     <cache-path name="reports" path="reports/" />
+    <cache-path name="exports" path="exports/" />
     <files-path name="files" path="." />
 </paths>

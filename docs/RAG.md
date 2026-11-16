@@ -20,6 +20,16 @@ Nahuanotoka convierte ese montón en una **mesa de trabajo por materia**:
 
 La app **no inventa**: si el dato no está en los documentos, lo dice y te señala qué archivo revisar.
 
+## Capturas
+
+| Mesas | Chat |
+| --- | --- |
+| ![Mesas](screens/estudio-mesas.png) | ![Chat](screens/estudio-chat.png) |
+
+| Herramientas | Lector completo |
+| --- | --- |
+| ![Herramientas](screens/estudio-herramientas.png) | ![Lector](screens/estudio-lector.png) |
+
 ## Qué es una mesa de trabajo
 
 Una mesa es una materia o una exposición. Guarda:
@@ -78,6 +88,38 @@ Ahora hay tres capas:
 Presupuesto por consulta: `topK` fragmentos (8 por defecto, ajustable 3–14) y un tope de ~14 000
 caracteres, para no reventar la ventana ni la cartera.
 
+## Caché de respuestas (ahorrar tokens)
+
+Cada consulta genera una clave determinista con el modelo, la tarea, la pregunta, los documentos
+seleccionados, los fragmentos enviados y el historial. Si repites exactamente la misma consulta:
+
+- no se llama a la API,
+- la respuesta sale de la caché local (`filesDir/studio/cache/<mesa>.json`),
+- la tarjeta se marca con **CACHÉ** y los tokens cuentan cero,
+- la mesa acumula *aciertos de caché* y *tokens ahorrados*, visibles en el panel de consumo.
+
+La caché caduca a los 14 días, guarda hasta 40 respuestas por mesa y se puede vaciar desde el
+botón **VACIAR** del panel de consumo.
+
+## Exportar cada respuesta
+
+Cada tarjeta del asistente tiene **COPIAR** y tres descargas: **PDF** (maquetado con portada,
+tablas y fuentes), **MD** (Markdown para Obsidian/Notion) y **TXT** (texto plano). El lector a
+pantalla completa repite las acciones, para que puedas copiar o bajar el texto completo sin salir
+del recuadro. Los archivos se escriben en la caché de la app y se comparten con `FileProvider`.
+
+## Respuestas largas sin invadir el chat
+
+Las respuestas se muestran recortadas a ~430 caracteres con el botón **VER TODO**. Al tocarlo se
+abre un lector a pantalla completa: el chat queda inmóvil detrás y el texto se desplaza dentro del
+recuadro, con las acciones fijas abajo.
+
+## Dictado local
+
+El micrófono del compositor usa `SpeechRecognizer` con `EXTRA_PREFER_OFFLINE`, así que si el
+teléfono tiene el paquete de idioma español descargado, el audio no sale del dispositivo. Si no hay
+servicio de reconocimiento o falta permiso, la app lo dice y sigues escribiendo.
+
 ## Tokens y costo
 
 - El campo `usage` de la respuesta del proveedor se guarda por turno y se acumula por mesa.
@@ -86,6 +128,13 @@ caracteres, para no reventar la ventana ni la cartera.
   respuesta.
 - Con `deepseek-v4.1-flash` (0.30 USD por millón de entrada y 1.20 por millón de salida) una mesa de
   estudio típica cuesta centavos: una consulta con 8 fragmentos ronda 2 500–4 000 tokens de entrada.
+
+## Dirección visual
+
+El estudio usa una estética pixel art: tipografía *Press Start 2P* (títulos) y *VT323* (texto),
+paneles morados con esquinas escalonadas, bordes de 2 px, sprites dibujados con `PixelSprite` y
+un fondo de puntos. Los recursos viven en `core/design/Pixel.kt` y `PixelArt.kt`; las fuentes
+son OFL y sus licencias están en `assets/licenses/`.
 
 ## Modelo por defecto
 

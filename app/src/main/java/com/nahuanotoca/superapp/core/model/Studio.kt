@@ -34,6 +34,8 @@ data class Mesa(
     val updatedAt: Long = System.currentTimeMillis(),
     val usage: TokenUsage = TokenUsage.Empty,
     val requests: Int = 0,
+    val cacheHits: Int = 0,
+    val cachedTokensSaved: Int = 0,
 ) {
     val title: String get() = if (subject.isBlank()) name else name + " · " + subject
 }
@@ -51,6 +53,7 @@ data class ChatTurn(
     val sources: List<RagSource> = emptyList(),
     val elapsedMillis: Long = 0,
     val createdAt: Long = System.currentTimeMillis(),
+    val cacheHit: Boolean = false,
 )
 
 /**

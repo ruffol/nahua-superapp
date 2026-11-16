@@ -3,6 +3,27 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.5.0] — 2026-11-16
+
+### Añadido
+
+- **Nueva dirección visual pixel art** en el estudio: tipografía *Press Start 2P* y *VT323*,
+  paneles con esquinas escalonadas, bordes gruesos, sprites de axolote y del estudiante, fondo de
+  puntos y botones con sombra dura (`core/design/Pixel.kt`, `PixelArt.kt`).
+- **Caché de respuestas**: misma consulta, mismos documentos e historial → respuesta local sin
+  llamar a la API. La mesa muestra aciertos y tokens ahorrados; el panel permite vaciar la caché.
+- **Copiar y descargar cada respuesta** en PDF, Markdown y TXT, con `StudyExporter` y
+  `FileProvider`.
+- **Lector a pantalla completa** para respuestas largas: el chat se queda inmóvil y el texto se
+  desplaza dentro de un recuadro.
+- **Dictado local** en el compositor con `SpeechRecognizer` y `EXTRA_PREFER_OFFLINE`.
+- 7 tests nuevos de la clave de caché; 61 en total.
+
+### Cambiado
+
+- El chat muestra vistas previas recortadas (~430 caracteres) con el botón **VER TODO**.
+- El estudio usa fondos, tarjetas y diálogos propios en lugar de los Material de la app.
+
 ## [0.4.3] — 2026-11-16
 
 ### Añadido
