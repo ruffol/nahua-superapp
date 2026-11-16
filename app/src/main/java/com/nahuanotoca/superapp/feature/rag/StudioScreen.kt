@@ -414,6 +414,8 @@ private fun MesaDetailScreen(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> viewModel.importPdfs(uris) }
 
+    val documentTypes = arrayOf("application/pdf", "application/epub+zip")
+
     LaunchedEffect(state.turns.size, state.isWorking) {
         runCatching { listState.animateScrollToItem(listState.layoutInfo.totalItemsCount) }
     }
@@ -445,11 +447,15 @@ private fun MesaDetailScreen(
                     documents = state.documents,
                     selected = state.selectedDocumentIds,
                     importing = state.isImporting,
-                    onAdd = { pdfPicker.launch(arrayOf("application/pdf")) },
+                    onAdd = { pdfPicker.launch(documentTypes) },
                     onToggle = viewModel::toggleDocumentSelection,
                     onDelete = viewModel::deleteDocument,
                     onClearSelection = viewModel::clearSelection,
                 )
+            }
+
+            state.importProgress?.let { progress ->
+                item { ImportProgressPanel(progress) }
             }
 
             if (state.figures.isNotEmpty()) {
@@ -479,6 +485,10 @@ private fun MesaDetailScreen(
                 item { ChatTurnCard(turn = pending, onCopy = {}, onExport = {}) }
             }
 
+            if (state.streamingText.isNotBlank()) {
+                item { StreamingCard(state.streamingText) }
+            }
+
             if (state.isWorking) {
                 item { WorkingPanel(state.workingLabel) }
             }
@@ -495,7 +505,7 @@ private fun MesaDetailScreen(
                 viewModel.ask(question)
                 question = ""
             },
-            onAttach = { pdfPicker.launch(arrayOf("application/pdf")) },
+            onAttach = { pdfPicker.launch(documentTypes) },
             onExport = viewModel::exportPdf,
             onConfigure = viewModel::openSettings,
             onRunTask = viewModel::runTask,
@@ -732,6 +742,39 @@ private fun FiguresPanel(figures: List<RagFigure>) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ImportProgressPanel(progress: ImportProgress) {
+    PixelPanel(border = PixelCyan, cut = 4.dp, contentPadding = PaddingValues(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PixelLabel(text = "INDEXANDO", size = 7.sp, color = PixelCyan)
+            Spacer(Modifier.weight(1f))
+            PixelBodyText(
+                text = progress.book.toString() + " de " + progress.books + " libros · " +
+                    progress.pages + " páginas",
+                size = 14.sp,
+                color = PixelMuted,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(10.dp)
+                .background(PixelPanelAlt),
+        ) {
+            val fraction = (progress.book.toFloat() / progress.books.coerceAtLeast(1)).coerceIn(0.05f, 1f)
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(10.dp)
+                    .background(PixelGreen),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        PixelBodyText(text = progress.name, size = 14.sp, color = PixelMuted, maxLines = 1)
     }
 }
 

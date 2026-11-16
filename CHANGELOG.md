@@ -3,6 +3,30 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.6.0] — 2026-11-16
+
+### Añadido
+
+- **EPUB sin dependencias**: `EpubParser` lee el ZIP, el OPF y el spine, convierte cada capítulo en
+  una “página” y reutiliza el mismo índice y las mismas citas que los PDFs.
+- **Limpieza de texto** (`TextCleaner`): elimina encabezados y pies repetidos, números de página
+  sueltos y guiones de corte, y conserva los cortes de párrafo.
+- **Fragmentación por palabras**: bloques de 450 palabras con 50 de solapamiento (antes ~150
+  palabras por caracteres), con el conteo de palabras por bloque.
+- **Búsqueda balanceada por libro**: con varios documentos se piden los 3 mejores fragmentos de
+  cada uno y se intercalan, para que ninguna obra acapare el contexto.
+- **Streaming**: la respuesta se pide con `"stream": true` y se muestra mientras llega, con
+  detección automática si el proveedor ignora el streaming.
+- **Progreso de indexación**: libro N de M, páginas procesadas y barra pixel en la mesa.
+- 11 tests nuevos (limpieza, chunking por palabras, EPUB y búsqueda balanceada); 72 en total.
+
+### Pendiente (documentado en docs/RAG.md)
+
+- Embeddings locales (ONNX/MediaPipe) y base vectorial con HNSW: requieren dependencias y un modelo
+  que este build offline no puede descargar. La búsqueda léxica por raíz queda como respaldo.
+- `WorkManager` para indexar en segundo plano: hoy la importación vive en el ViewModel y se cancela
+  si se cierra la app.
+
 ## [0.5.1] — 2026-11-16
 
 ### Cambiado

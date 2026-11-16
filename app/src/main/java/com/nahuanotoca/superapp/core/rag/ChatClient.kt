@@ -132,6 +132,125 @@ class ChatClient {
     }
 
     /**
+     * Igual que [complete] pero con "stream": true. Cada trozo de texto se entrega a [onDelta] en
+     * cuanto llega, así el usuario ve la respuesta escribirse en vez de esperar 15 segundos.
+     *
+     * Si el proveedor ignora el streaming y devuelve un JSON completo, se detecta y se usa igual.
+     */
+    suspend fun completeStreaming(
+        settings: RagSettings,
+        messages: List<ChatMessage>,
+        temperature: Double = 0.3,
+        maxTokens: Int = 2400,
+        onDelta: (String) -> Unit,
+    ): Result<ChatReply> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(messages.isNotEmpty()) { "La conversación está vacía" }
+
+            val payload = JSONObject().apply {
+                put("model", settings.model)
+                put("temperature", temperature)
+                put("max_tokens", maxTokens)
+                put("stream", true)
+                put(
+                    "messages",
+                    JSONArray().apply {
+                        messages.forEach { message ->
+                            put(JSONObject().put("role", message.role).put("content", message.content))
+                        }
+                    },
+                )
+            }
+
+            val connection = openPost(settings)
+            try {
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+
+                val status = connection.responseCode
+                if (status !in 200..299) {
+                    val body = connection.errorStream?.bufferedReader(Charsets.UTF_8)
+                        ?.use { it.readText() }
+                        .orEmpty()
+                    throw ChatException(describeError(status, body), status)
+                }
+
+                val collected = StringBuilder()
+                var usage = TokenUsage.Empty
+                var modelName = settings.model
+                var sawEvent = false
+
+                connection.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                    while (true) {
+                        val line = reader.readLine() ?: break
+                        val trimmed = line.trim()
+                        if (trimmed.isEmpty()) continue
+
+                        if (!trimmed.startsWith("data:")) {
+                            if (!sawEvent && trimmed.startsWith("{")) {
+                                val json = runCatching { JSONObject(trimmed) }.getOrNull()
+                                if (json != null) {
+                                    val content = json.optJSONArray("choices")
+                                        ?.optJSONObject(0)
+                                        ?.optJSONObject("message")
+                                        ?.optString("content")
+                                        .orEmpty()
+                                    if (content.isNotBlank()) {
+                                        collected.append(content)
+                                        onDelta(content)
+                                    }
+                                    usage = parseUsage(json, messages, content)
+                                    modelName = json.optString("model").ifBlank { modelName }
+                                }
+                            }
+                            continue
+                        }
+
+                        sawEvent = true
+                        val data = trimmed.removePrefix("data:").trim()
+                        if (data == "[DONE]") break
+
+                        val json = runCatching { JSONObject(data) }.getOrNull() ?: continue
+                        if (json.has("model")) {
+                            modelName = json.optString("model").ifBlank { modelName }
+                        }
+                        json.optJSONObject("usage")?.let { reported ->
+                            usage = TokenUsage(
+                                promptTokens = reported.optInt("prompt_tokens", 0),
+                                completionTokens = reported.optInt("completion_tokens", 0),
+                            )
+                        }
+                        val delta = json.optJSONArray("choices")
+                            ?.optJSONObject(0)
+                            ?.optJSONObject("delta")
+                            ?.optString("content")
+                            .orEmpty()
+                        if (delta.isNotEmpty()) {
+                            collected.append(delta)
+                            onDelta(delta)
+                        }
+                    }
+                }
+
+                val text = collected.toString().trim()
+                if (text.isBlank()) {
+                    throw ChatException("El modelo respondió sin contenido. Revisa el modelo configurado.")
+                }
+                val finalUsage = if (usage.totalTokens > 0) {
+                    usage
+                } else {
+                    TokenUsage(
+                        promptTokens = estimate(messages.joinToString(" ") { it.content }),
+                        completionTokens = estimate(text),
+                    )
+                }
+                ChatReply(text = text, usage = finalUsage, model = modelName)
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
+    /**
      * Abre una petición POST contra el endpoint configurado. Las cabeceras de sesión llevan un id
      * aleatorio por proceso: nunca se manda material de la API key fuera de Authorization.
      */

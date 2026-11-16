@@ -113,4 +113,42 @@ class ContextBuilderTest {
         assertTrue(context.isEmpty)
         assertEquals(0, context.documentCount)
     }
+
+    @Test
+    fun balancedTakesTheBestFragmentsOfEveryBook() {
+        val books = (1..4).flatMap { book ->
+            (1..6).map { page ->
+                chunk("Libro" + book, page, "concepto común sobre el tema " + page + " del libro " + book)
+            }
+        }
+
+        val context = ContextBuilder.build(
+            query = "concepto común tema",
+            chunks = books,
+            maxBlocks = 12,
+            perDocument = 3,
+        )
+
+        assertEquals(ContextBuilder.MODE_BALANCED, context.mode)
+        assertTrue(context.blocks.size <= 12)
+        (1..4).forEach { book ->
+            assertTrue(
+                "falta el Libro" + book + " en el contexto",
+                context.blocks.any { it.contains("Libro" + book) },
+            )
+        }
+    }
+
+    @Test
+    fun balancedFallsBackToCoverageWhenNothingMatches() {
+        val context = ContextBuilder.build(
+            query = "fotosíntesis clorofila",
+            chunks = algebra + historia,
+            perDocument = 3,
+        )
+
+        assertTrue(context.weak)
+        assertFalse(context.isEmpty)
+        assertEquals(ContextBuilder.MODE_COVERAGE, context.mode)
+    }
 }

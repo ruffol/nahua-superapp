@@ -68,6 +68,34 @@ los fragmentos elegidos viajan a tu API.
 6. **Correlaciona sólo una parte**: toca los PDFs que quieras incluir; si no seleccionas ninguno, se
    usan todos.
 
+## Hoja de ruta propuesta vs. lo que hay
+
+Comparación punto por punto con la ruta de 10 días (extracción → embeddings → Top-K → UI):
+
+| Fase de la ruta | En la app | Nota |
+| --- | --- | --- |
+| PDFBox-Android para PDFs | ✅ `PdfExtractor` | Ya estaba |
+| Epublib para EPUBs | ✅ sin librería: `EpubParser` lee el ZIP + OPF + spine y convierte cada capítulo en una “página” | Cero dependencias nuevas |
+| Texto página por página | ✅ | También figuras incrustadas |
+| Limpieza de texto | ✅ `TextCleaner`: encabezados/pies repetidos, números de página sueltos, guiones de corte de línea y saltos | Antes solo se colapsaban espacios |
+| Chunks de 400–500 palabras con 50 de solape | ✅ 450 / 50 | Antes: ~150 palabras por caracteres |
+| Metadatos por bloque | ✅ `libroId`, `tituloLibro`, `numeroPagina` | Se guardan con el índice |
+| Embeddings locales (.tflite/.onnx) | ❌ pendiente | Requiere modelo (~90 MB) + MediaPipe/ONNX Runtime; el build offline no puede descargar esas dependencias |
+| ObjectBox + `@HnswIndex` | ❌ pendiente | Hoy el índice es JSON por mesa; suficiente para decenas de libros |
+| WorkManager para indexar en segundo plano | ⚠️ pendiente | La indexación corre en un coroutine con progreso visible; si sales de la app se cancela |
+| Top-K **por libro** (3 c/u) | ✅ `ContextBuilder.balanced` | Antes era un top-K global que una obra larga podía acaparar |
+| Prompt con atribución por libro | ✅ | Cada bloque lleva `[Documento, p. N]` |
+| Cliente OpenCode con Bearer | ✅ `ChatClient` | `HttpURLConnection`, sin Retrofit |
+| Barra de progreso de indexación | ✅ libro N de M + páginas procesadas | |
+| Streaming (`"stream": true`) | ✅ SSE token por token | Antes: esperar la respuesta completa |
+| Citas verificables | ✅ | Documento + página bajo cada respuesta |
+
+Las dos piezas que faltan (embeddings + base vectorial) son las únicas que exigen dependencias
+pesadas. Cuando haya red en el build, el orden recomendado es: ONNX Runtime + `all-MiniLM-L6-v2`
+cuantizado a int8 (~25 MB), vectores en un archivo binario propio con HNSW, y `WorkManager` para
+indexar en segundo plano. La búsqueda léxica actual se queda como respaldo para consultas con
+nombres propios o cifras, donde los embeddings suelen fallar.
+
 ## Cómo decide qué leer (y por qué antes fallaba)
 
 El motor anterior sólo comparaba palabras exactas contra el texto. Con un PDF de 8 páginas y la
@@ -85,8 +113,9 @@ Ahora hay tres capas:
    los fragmentos más representativos y marca la consulta como *débil*, de modo que el modelo
    empiece aclarando qué sí cubre el material y qué no.
 
-Presupuesto por consulta: `topK` fragmentos (8 por defecto, ajustable 3–14) y un tope de ~14 000
-caracteres, para no reventar la ventana ni la cartera.
+Presupuesto por consulta: con **varios libros** se toman los **3 mejores fragmentos de cada uno**
+(intercalados por ronda, máximo 12 bloques) y cada bloque se recorta a ~1 200 caracteres; el total
+ronda 14 000 caracteres. Con un solo libro se usa `topK` (8 por defecto).
 
 ## Caché de respuestas (ahorrar tokens)
 
@@ -163,7 +192,8 @@ SAF (OpenDocument)
       ▼
 PdfExtractor (PDFBox-Android)      texto por página + figuras incrustadas
       │
-      ├── TextChunker              fragmentos de ~900 caracteres con traslape
+      ├── TextCleaner              limpia encabezados, pies y números de página
+      ├── TextChunker              450 palabras por bloque, 50 de traslape
       │        └── filesDir/rag/<mesa>/doc_<id>.chunks.json
       └── Bitmap JPEG              filesDir/rag/<mesa>/fig_<id>_<n>.jpg
       │
@@ -222,7 +252,8 @@ primera vez que abres la app.
 | --- | --- |
 | 300 páginas por PDF | Tiempo de extracción en gama baja |
 | PDFs con texto | Los escaneados necesitan OCR previo |
-| 8 fragmentos / ~14 000 caracteres | Costo y ventana del proveedor |
+| 3 fragmentos por libro / ~14 000 caracteres | Costo y ventana del proveedor |
+| 450 palabras por bloque | Coincide con la ruta de estudio (400–500) |
 | 12 figuras por PDF | Memoria del teléfono |
 | 80 turnos por mesa | Tamaño del historial |
 | Sin API key o sin red | No hay análisis: el modelo no corre en el teléfono |

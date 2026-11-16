@@ -60,7 +60,7 @@ class PdfExtractor(private val context: Context) {
                 }
 
                 return ExtractedPdf(
-                    pages = pages,
+                    pages = TextCleaner.clean(pages),
                     totalPages = totalPages,
                     truncated = totalPages > lastPage,
                     figures = figures,

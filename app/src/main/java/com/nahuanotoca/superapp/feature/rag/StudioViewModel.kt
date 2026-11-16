@@ -44,6 +44,14 @@ sealed class StudioEvent {
     data class ShareFile(val path: String, val title: String, val format: ExportFormat) : StudioEvent()
 }
 
+/** Progreso visible mientras se indexan varios libros. */
+data class ImportProgress(
+    val book: Int,
+    val books: Int,
+    val pages: Int,
+    val name: String,
+)
+
 data class StudioUiState(
     val settings: RagSettings = RagSettings(),
     val mesas: List<Mesa> = emptyList(),
@@ -52,6 +60,8 @@ data class StudioUiState(
     val figures: List<RagFigure> = emptyList(),
     val documentCounts: Map<String, Int> = emptyMap(),
     val cacheStats: CacheStats = CacheStats(),
+    val streamingText: String = "",
+    val importProgress: ImportProgress? = null,
     val turns: List<ChatTurn> = emptyList(),
     val selectedDocumentIds: Set<String> = emptySet(),
     val isLoading: Boolean = true,
@@ -230,12 +240,28 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             var figureCount = 0
             var lastError: String? = null
 
-            uris.forEach { uri ->
+            uris.forEachIndexed { index, uri ->
                 val name = resolveDisplayName(uri)
+                _state.update {
+                    it.copy(
+                        importProgress = ImportProgress(
+                            book = index + 1,
+                            books = uris.size,
+                            pages = pageCount,
+                            name = name,
+                        ),
+                    )
+                }
+                val isEpub = name.endsWith(".epub", ignoreCase = true) ||
+                    container.appContext.contentResolver.getType(uri)?.contains("epub", ignoreCase = true) == true
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        val pdf = container.pdfExtractor.extract(uri)
-                        Triple(pdf, TextChunker.chunk(pdf.pages), name)
+                        val document = if (isEpub) {
+                            container.epubExtractor.extract(uri)
+                        } else {
+                            container.pdfExtractor.extract(uri)
+                        }
+                        Triple(document, TextChunker.chunk(document.pages), name)
                     }
                 }.onSuccess { (pdf, chunks, displayName) ->
                     if (chunks.isEmpty()) {
@@ -269,6 +295,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     documents = documents,
                     figures = figures,
                     isImporting = false,
+                    importProgress = null,
                     documentCounts = it.documentCounts + (mesaId to documents.size),
                     error = if (indexed == 0 && lastError != null) lastError else null,
                 )
@@ -367,6 +394,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             it.copy(
                 isWorking = true,
                 error = null,
+                streamingText = "",
                 pendingTurn = userTurn,
                 workingLabel = if (task != null) "Preparando " + task.label.lowercase() else "Leyendo y respondiendo",
             )
@@ -395,6 +423,9 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     maxBlocks = current.settings.topK.coerceIn(3, 14),
                     broad = task?.broad ?: false,
                     documentIds = scope,
+                    // Con varios libros: los 3 mejores fragmentos de cada uno (máx. 12 bloques).
+                    perDocument = if (current.documents.size >= 2) 3 else 0,
+                    blockChars = 1_200,
                 )
                 if (context.isEmpty) {
                     _state.update { it.copy(error = "No hay texto suficiente en esta mesa para responder.") }
@@ -427,7 +458,20 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                         model = cached.model.ifBlank { current.settings.model },
                     )
                 } else {
-                    val result = container.chatClient.complete(current.settings, messages)
+                    val buffer = StringBuilder()
+                    var lastPush = 0L
+                    val result = container.chatClient.completeStreaming(
+                        settings = current.settings,
+                        messages = messages,
+                    ) { delta ->
+                        buffer.append(delta)
+                        val now = System.currentTimeMillis()
+                        if (now - lastPush > 120) {
+                            lastPush = now
+                            val snapshot = buffer.toString()
+                            _state.update { it.copy(streamingText = snapshot) }
+                        }
+                    }
                     val remote = result.getOrNull()
                     if (remote == null) {
                         val failure = result.exceptionOrNull()
@@ -435,6 +479,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                         _state.update {
                             it.copy(
                                 error = apiErrorMessage(failure),
+                                streamingText = "",
                                 settingsOpen = status == 401 || status == 403,
                             )
                         }
@@ -488,6 +533,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                         pendingTurn = null,
                         isWorking = false,
                         workingLabel = "",
+                        streamingText = "",
                         cacheStats = cacheStats,
                     )
                 }

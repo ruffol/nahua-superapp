@@ -1,54 +1,44 @@
 package com.nahuanotoca.superapp.core.rag
 
 /**
- * Splits extracted PDF pages into overlapping, word-boundary aware chunks. Pure Kotlin so the
- * chunking rules can be unit tested without Android.
+ * Fragmentación por palabras, como pide la guía de estudio: bloques de 400–500 palabras con 50 de
+ * solapamiento para no cortar una idea a la mitad.
+ *
+ * Antes se cortaba por caracteres (~150 palabras), lo que producía fragmentos diminutos y una
+ * búsqueda menos precisa.
  */
 object TextChunker {
 
-    data class Chunk(val page: Int, val text: String)
+    data class Chunk(val page: Int, val text: String, val words: Int = 0)
 
     private val WHITESPACE = Regex("\\s+")
 
     fun chunk(
         pages: List<String>,
-        maxChars: Int = 900,
-        overlapChars: Int = 140,
+        maxWords: Int = 450,
+        overlapWords: Int = 50,
     ): List<Chunk> {
-        require(maxChars > 200) { "maxChars must be greater than 200" }
-        require(overlapChars in 0 until maxChars) { "overlapChars must be smaller than maxChars" }
+        require(maxWords in 50..2_000) { "maxWords debe estar entre 50 y 2000" }
+        require(overlapWords in 0 until maxWords) { "overlapWords debe ser menor que maxWords" }
 
         val chunks = mutableListOf<Chunk>()
 
         pages.forEachIndexed { pageIndex, raw ->
-            val text = raw.replace(WHITESPACE, " ").trim()
-            if (text.isEmpty()) return@forEachIndexed
+            val words = raw.replace(WHITESPACE, " ").trim().split(" ").filter { it.isNotEmpty() }
+            if (words.isEmpty()) return@forEachIndexed
 
-            if (text.length <= maxChars) {
-                chunks += Chunk(pageIndex + 1, text)
+            if (words.size <= maxWords) {
+                chunks += Chunk(pageIndex + 1, words.joinToString(" "), words.size)
                 return@forEachIndexed
             }
 
             var start = 0
-            while (start < text.length) {
-                var end = (start + maxChars).coerceAtMost(text.length)
-                if (end < text.length) {
-                    val boundary = text.lastIndexOfAny(
-                        chars = charArrayOf('.', '!', '?', ';', ',', ' '),
-                        startIndex = end,
-                    )
-                    if (boundary > start + maxChars / 2) {
-                        end = boundary + 1
-                    }
-                }
-
-                val piece = text.substring(start, end).trim()
-                if (piece.isNotEmpty()) {
-                    chunks += Chunk(pageIndex + 1, piece)
-                }
-
-                if (end >= text.length) break
-                start = (end - overlapChars).coerceAtLeast(start + 1)
+            while (start < words.size) {
+                val end = (start + maxWords).coerceAtMost(words.size)
+                val text = words.subList(start, end).joinToString(" ")
+                chunks += Chunk(pageIndex + 1, text, end - start)
+                if (end >= words.size) break
+                start = (end - overlapWords).coerceAtLeast(start + 1)
             }
         }
 

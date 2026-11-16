@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.5.1 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.6.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -28,7 +28,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **61 tests unitarios** y CI en GitHub Actions.
+- **72 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -58,10 +58,11 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 materia que guarda tus documentos, tu contexto, tus consultas y lo que llevas gastado.
 
 1. **Servicios → Nahuanotoka → Nueva mesa** (nombre, materia y contexto: público, duración, tono).
-2. **Agregar PDF** (texto seleccionable, hasta 300 páginas, varios a la vez). Se indexan en el
-   teléfono y sus figuras quedan disponibles como galería.
+2. **Agregar PDF o EPUB** (varios a la vez). Se limpian encabezados y números de página, se parten
+   en bloques de 450 palabras con 50 de traslape y las figuras de los PDFs quedan como galería.
 3. **Herramientas**: *Resumen*, *Ideas nuevas*, *Correlación*, *Guion de exposición*, *Glosario* y
-   *Preguntas de repaso*. Cada una manda el contexto completo de la mesa, no palabras clave.
+   *Preguntas de repaso*. Con varios libros se envían los 3 mejores fragmentos de cada uno.
+   Las respuestas llegan **en streaming**, token por token.
 4. **Pregunta libre** en el compositor. Las respuestas citan `[Documento, p. N]`.
 5. **PDF** exporta el análisis (portada, encabezados, tablas, fuentes y paginación) y lo comparte.
 6. **Tokens**: entrada, salida y total por mesa y por respuesta.
@@ -164,7 +165,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 61 tests
+./gradlew testDebugUnitTest    # 72 tests
 ./gradlew installDebug
 ```
 

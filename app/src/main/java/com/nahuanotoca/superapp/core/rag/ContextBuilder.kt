@@ -27,6 +27,7 @@ object ContextBuilder {
 
     const val MODE_SEARCH = "busqueda"
     const val MODE_COVERAGE = "cobertura"
+    const val MODE_BALANCED = "balanceado"
 
     fun build(
         query: String,
@@ -35,6 +36,8 @@ object ContextBuilder {
         maxChars: Int = 14_000,
         broad: Boolean = false,
         documentIds: Set<String> = emptySet(),
+        perDocument: Int = 0,
+        blockChars: Int = 1_200,
     ): Context {
         val scoped = if (documentIds.isEmpty()) chunks else chunks.filter { it.documentId in documentIds }
         if (scoped.isEmpty()) return Context(emptyList(), emptyList(), MODE_COVERAGE, true, 0)
@@ -46,6 +49,18 @@ object ContextBuilder {
         if (broad) {
             picked = coverage(scoped, maxBlocks)
             mode = MODE_COVERAGE
+        } else if (perDocument > 0) {
+            // Búsqueda balanceada: los N mejores fragmentos de CADA libro, para no dejar fuera
+            // ninguna obra cuando se cruzan varios documentos.
+            val balanced = balanced(scoped, query, perDocument)
+            if (balanced.isEmpty()) {
+                picked = coverage(scoped, maxBlocks)
+                mode = MODE_COVERAGE
+                weak = true
+            } else {
+                picked = balanced
+                mode = MODE_BALANCED
+            }
         } else {
             val hits = Retriever.select(query, scoped, maxBlocks).map { it.chunk }
             if (hits.isEmpty()) {
@@ -63,7 +78,12 @@ object ContextBuilder {
         val used = mutableListOf<RagChunk>()
         var budget = 0
         picked.forEach { chunk ->
-            val block = "[" + chunk.documentName + ", p. " + chunk.page + "] " + chunk.text
+            val body = if (chunk.text.length > blockChars) {
+                chunk.text.take(blockChars).substringBeforeLast(' ') + "…"
+            } else {
+                chunk.text
+            }
+            val block = "[" + chunk.documentName + ", p. " + chunk.page + "] " + body
             if (blocks.isNotEmpty() && budget + block.length > maxChars) return@forEach
             blocks += block
             used += chunk
@@ -81,6 +101,36 @@ object ContextBuilder {
             weak = weak,
             documentCount = used.map { it.documentId }.distinct().size,
         )
+    }
+
+    /**
+     * Para cada documento se toman sus [perDocument] fragmentos mejor puntuados y luego se
+     * intercalan en rondas: primero el mejor de cada libro, después el segundo, etc. Así una obra
+     * larga no acapara el contexto y la correlación ve todas las fuentes.
+     */
+    fun balanced(chunks: List<RagChunk>, query: String, perDocument: Int): List<RagChunk> {
+        if (perDocument <= 0) return emptyList()
+        val byDocument = chunks.groupBy { it.documentId }.toSortedMap()
+        val ranked = byDocument.map { (_, list) ->
+            Retriever.select(query, list, perDocument).map { it.chunk }
+        }
+        if (ranked.all { it.isEmpty() }) return emptyList()
+
+        val limit = perDocument * ranked.size
+        val result = mutableListOf<RagChunk>()
+        var round = 0
+        while (result.size < limit) {
+            var appended = false
+            ranked.forEach { list ->
+                if (round < list.size) {
+                    result += list[round]
+                    appended = true
+                }
+            }
+            if (!appended) break
+            round++
+        }
+        return result
     }
 
     /**

@@ -411,6 +411,41 @@ private fun stripMarks(text: String): String = text
     .replace("__", "")
     .replace("\u0060", "")
 
+/** Respuesta que va llegando en vivo (streaming), con el cursor al final. */
+@Composable
+internal fun StreamingCard(text: String) {
+    val visible = if (text.length > 1_600) "…" + text.takeLast(1_600) else text
+    Row(verticalAlignment = Alignment.Top) {
+        PixelSprite(
+            pattern = pixelMascot,
+            palette = pixelMascotPalette,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .size(30.dp),
+            pixelSize = 2.dp,
+        )
+        Spacer(Modifier.width(8.dp))
+        PixelPanel(
+            fill = PixelPanelAlt,
+            border = PixelGreen,
+            shadow = 3.dp,
+            cut = 6.dp,
+            contentPadding = PaddingValues(12.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PixelLabel(text = "GENERANDO", size = 6.sp, color = PixelGreen)
+                Spacer(Modifier.width(6.dp))
+                PixelBodyText(text = "recibiendo texto…", size = 13.sp, color = PixelMuted)
+            }
+            Spacer(Modifier.height(6.dp))
+            MarkdownLite(text = visible, color = PixelInk)
+            Spacer(Modifier.height(4.dp))
+            PixelBodyText(text = "▌", size = 18.sp, color = PixelGreen)
+        }
+    }
+}
+
 @Composable
 internal fun WorkingPanel(label: String) {
     val transition = rememberInfiniteTransition(label = "dots")
