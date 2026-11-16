@@ -7,31 +7,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Una **super app** al estilo de las apps chinas (WeChat, Alipay, Meituan): un solo binario que
-agrupa pagos, transporte, comida, servicios del hogar, gobierno y ocio, con un **runtime de
-mini-apps** para que terceros publiquen experiencias sin volver a publicar la app.
+agrupa pagos, transporte, comida, tianguis, mapas, ocio y una IA que responde sobre tus PDFs, con
+un **runtime de mini-apps** para que terceros publiquen experiencias sin volver a publicar la app.
 
 Este repositorio es el *shell* funcional: hub de servicios, cartera con pagos reales dentro de la
-app, escáner QR, bandeja de avisos, perfil y cuatro mini-apps de demostración que cobran a través
-del puente de pagos.
+app, escáner QR, mapas, mascota virtual, tianguis regional, asistente RAG local y siete mini-apps /
+features que cobran o consultan a través de las APIs del host.
 
-> **Estado:** v0.1.0 — demo de producto, no lista para producción. No hay backend, KYC, PCI ni
+> **Estado:** v0.2.0 — demo de producto, no lista para producción. No hay backend, KYC, PCI ni
 > firma de mini-apps todavía. Ver la hoja de ruta al final.
-
----
-
-## Vista rápida
-
-```
-Inicio                Cartera              Mini app
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│ Hola, Ana  🔔 │    │ Cartera       │    │ ✕  Nahua Ride │
-│ [ Buscar... ] │    │ $2,500.00     │    │ ¿A dónde?     │
-│ Saldo $2,500  │    │ Recargar ...  │    │ Centro  ▸ $58 │
-│ ┌──┬──┬──┬──┐ │    │ Movimientos   │    │ [ Pedir viaje]│
-│ │🚗│🍜│🧾│🎬│ │    │ Café  −$85.00 │    │  pago nativo  │
-│ └──┴──┴──┴──┘ │    └───────────────┘    └───────────────┘
-└───────────────┘
-```
 
 ---
 
@@ -43,18 +27,46 @@ Inicio                Cartera              Mini app
   confirmación, debita la cartera y devuelve el `transactionId` al JavaScript.
 - **Runtime de mini-apps** basado en WebView aislado, servido por `WebViewAssetLoader` en un origen
   `https://` (sin `file://`, sin tráfico en claro).
+- **Nahua IA (RAG local)**: importa PDFs, extrae su texto en el dispositivo, recupera los pasajes
+  relevantes y responde con tu API compatible con OpenAI (OpenCode Go por defecto).
+- **Mapas** con Leaflet y teselas de OpenStreetMap, con los tianguis de cinco ciudades.
+- **Axolote virtual** con estadísticas, niveles y persistencia local.
 - **Escáner QR** con flujo de pago simulado (listo para CameraX + ML Kit).
 - **Avisos**, **perfil**, tema claro/oscuro y preferencias persistentes.
-- **Tests unitarios** de dinero, ledger, catálogo y formateo; **CI** en GitHub Actions.
+- **33 tests unitarios** y **CI** en GitHub Actions.
 
-### Las cuatro mini-apps de demo
+### Mini-apps y features
 
-| Mini app | Qué hace | Pago |
-| --- | --- | --- |
-| **Nahua Ride** | elige destino, ve tarifa y ETA, pide el viaje | `Nahua.pay` |
-| **Nahua Food** | menú, carrito y checkout | `Nahua.pay` |
-| **Pagar servicios** | luz, agua e internet con montos y vencimientos | `Nahua.pay` |
-| **Cine** | cartelera, funciones, boletos | `Nahua.pay` |
+| App | Tipo | Qué hace | Integración |
+| --- | --- | --- | --- |
+| **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
+| **Nahua Food** | mini-app | menú, carrito y checkout | `Nahua.pay` |
+| **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
+| **Cine** | mini-app | cartelera, funciones y boletos | `Nahua.pay` |
+| **Mapas** | mini-app | tianguis y rutas en CDMX, Oaxaca, Puebla, Mérida y GDL | Leaflet + OSM |
+| **Axolote** | mini-app | mascota virtual con hambre, ánimo y niveles | `localStorage` |
+| **Tianguis** | mini-app | productores de Oaxaca, Puebla, Yucatán y CDMX | `Nahua.pay` |
+| **Nahua IA** | feature nativa | RAG sobre tus PDFs con tu propia API | HTTP + PDFBox |
+
+---
+
+## Nahua IA (RAG local)
+
+1. Abre **Servicios → Nahua IA**.
+2. Toca el engrane y configura:
+   - **Base URL**: `https://opencode.ai/zen/go/v1`
+   - **Modelo**: `deepseek-v4-pro` (o `kimi-k2.7-code`, `glm-5.1`, `mimo-v2.5-pro`)
+   - **API key**: tu llave de OpenCode Zen / OpenCode Go
+3. Agrega un PDF con texto seleccionable (hasta 300 páginas).
+4. Pregunta en lenguaje natural: la app recupera hasta 4 fragmentos y los envía junto con tu
+   pregunta. La respuesta cita `[Documento, p. N]`.
+
+Privacidad: el PDF y su índice **nunca salen del teléfono**; solo viajan la pregunta y los
+fragmentos recuperados. La API key se guarda en el almacenamiento privado de la app (para
+producción: Keystore).
+
+Cualquier endpoint compatible con `POST /chat/completions` funciona: OpenAI, OpenRouter, Ollama o
+vLLM. Detalles de arquitectura en [docs/RAG.md](docs/RAG.md).
 
 ---
 
@@ -70,8 +82,9 @@ app/
    │  ├─ miniapp/         manifiestos, registro y puente JS
    │  ├─ model/           modelos + WalletLedger (aritmética pura)
    │  ├─ navigation/      rutas
+   │  ├─ rag/             extracción PDF, chunking, retrieval y cliente LLM
    │  └─ util/            formateo de fechas
-   ├─ feature/            home, services, wallet, scan, inbox, profile, miniapp, search
+   ├─ feature/            home, services, wallet, scan, inbox, profile, miniapp, search, rag
    ├─ ui/                 shell de navegación y fábrica de ViewModels
    ├─ NahuaApplication.kt
    └─ MainActivity.kt
@@ -82,12 +95,14 @@ flowchart LR
     UI[Compose UI] --> VM[ViewModels]
     VM --> REPO[Repositories]
     REPO --> DS[(DataStore)]
+    REPO --> FILES[(filesDir/rag)]
     UI --> NAV[Navigation]
     NAV --> WEB[MiniApp WebView]
     WEB -- Nahua.pay --> BRIDGE[MiniAppBridge]
     BRIDGE -- confirmación --> UI
     BRIDGE --> VM
-    VM --> REPO
+    VM --> RAG[RAG: chunk + retriever]
+    RAG --> LLM[API compatible OpenAI]
 ```
 
 Decisiones clave:
@@ -98,8 +113,10 @@ Decisiones clave:
   así que el cambio de motor no afecta la UI.
 - **Dinero en centavos (`Long`)** y `WalletLedger` puro para poder testear las reglas sin Android.
 - **Mini-apps en HTML** para iterar rápido; el contrato es `assets/miniapps/index.json`.
+- **RAG sin embeddings**: recuperación léxica BM25 ligera, sin descargas de modelos ni red adicional.
 
-Más detalle: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) y [docs/MINIAPP_SDK.md](docs/MINIAPP_SDK.md).
+Más detalle: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/MINIAPP_SDK.md](docs/MINIAPP_SDK.md)
+y [docs/RAG.md](docs/RAG.md).
 
 ---
 
@@ -144,13 +161,14 @@ Si el usuario cancela o no hay saldo, el puente resuelve el `Promise` con
 
 ## Hoja de ruta
 
+- [x] Mini-apps de mapas, mascota virtual, tianguis y RAG local sobre PDFs.
 - [ ] Backend real (cuentas, ledger doble entrada, webhooks) y OAuth/OIDC.
+- [ ] Embeddings on-device (MediaPipe/ONNX) para retrieval semántico.
 - [ ] Mini-apps firmadas (manifiesto + hash) y permisos granulares.
 - [ ] CameraX + ML Kit para escaneo QR real.
 - [ ] Módulos Gradle (`core:design`, `core:data`, `feature:*`) y Hilt.
 - [ ] Pagos con tarjeta/SPEI, KYC y cumplimiento PCI.
 - [ ] Notificaciones push y centro de soporte.
-- [ ] Capturas de pantalla automatizadas (emulador + Compose UI tests).
 
 ---
 

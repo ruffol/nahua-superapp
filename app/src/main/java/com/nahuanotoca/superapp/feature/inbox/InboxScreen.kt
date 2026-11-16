@@ -21,7 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.LocalOffer
-import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -162,5 +162,5 @@ private fun noticeVisuals(kind: NoticeKind): NoticeVisuals = when (kind) {
     NoticeKind.WALLET -> NoticeVisuals(Icons.Rounded.AccountBalanceWallet, Jade, JadeSoft)
     NoticeKind.PROMO -> NoticeVisuals(Icons.Rounded.LocalOffer, Amber, AmberSoft)
     NoticeKind.SECURITY -> NoticeVisuals(Icons.Rounded.Shield, Coral, CoralSoft)
-    NoticeKind.SERVICE -> NoticeVisuals(Icons.Rounded.ReceiptLong, Sky, SkySoft)
+    NoticeKind.SERVICE -> NoticeVisuals(Icons.AutoMirrored.Rounded.ReceiptLong, Sky, SkySoft)
 }

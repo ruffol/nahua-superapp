@@ -50,6 +50,13 @@ Para migrar a Hilt:
 El saldo semilla (MXN 2,500) se materializa con el primer movimiento para que la demo sea usable
 sin backend.
 
+## RAG local
+
+`Nahua IA` es un feature nativo (no mini-app) porque necesita acceso al selector de archivos, al
+extractor de PDF y a la red con control de errores. La cadena es:
+`PdfExtractor → TextChunker → RagRepository → Retriever → ChatClient`. El detalle vive en
+[RAG.md](RAG.md).
+
 ## Runtime de mini-apps
 
 ```
@@ -78,6 +85,7 @@ Más detalle en [MINIAPP_SDK.md](MINIAPP_SDK.md).
 | DataStore + JSON | Build simple, sin KSP/Room | Room + KSP |
 | DI manual | Menos ceremonia en v0.1 | Hilt |
 | Mini-apps HTML locales | Iteración sin republicar | React Native / Flutter embebido |
+| RAG léxico (BM25) | Sin modelos ni descargas; funciona offline | Embeddings on-device |
 | Un módulo Gradle | Velocidad de arranque | Multi-módulo por feature |
 | Iconos Material | Cero assets binarios | Íconos propios / SVG |
 

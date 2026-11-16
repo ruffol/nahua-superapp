@@ -36,6 +36,33 @@
       "entry": "miniapps/cinema/index.html",
       "accent": "#7C4DFF",
       "permissions": ["wallet.pay", "user.profile"]
+    },
+    {
+      "id": "mapa",
+      "name": "Mapas",
+      "tagline": "Tianguis y rutas cerca de ti",
+      "version": "1.0.0",
+      "entry": "miniapps/mapa/index.html",
+      "accent": "#2F6BFF",
+      "permissions": ["map.tiles"]
+    },
+    {
+      "id": "tamagochi",
+      "name": "Axolote",
+      "tagline": "Tu mascota virtual",
+      "version": "1.0.0",
+      "entry": "miniapps/tamagochi/index.html",
+      "accent": "#FF6B4A",
+      "permissions": ["storage.local"]
+    },
+    {
+      "id": "tianguis",
+      "name": "Tianguis",
+      "tagline": "Productores de tu región",
+      "version": "1.0.0",
+      "entry": "miniapps/tianguis/index.html",
+      "accent": "#F2A100",
+      "permissions": ["wallet.pay", "user.profile"]
     }
   ]
 }

@@ -9,6 +9,7 @@ object Routes {
     const val INBOX = "inbox"
     const val SEARCH = "search"
     const val SETTINGS = "settings"
+    const val RAG = "rag"
 
     const val MINI_APP_PATTERN = "miniapp/{appId}"
     const val MINI_APP_ARG = "appId"

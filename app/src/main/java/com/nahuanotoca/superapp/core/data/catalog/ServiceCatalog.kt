@@ -2,6 +2,9 @@ package com.nahuanotoca.superapp.core.data.catalog
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.DirectionsBus
 import androidx.compose.material.icons.rounded.DirectionsCar
@@ -12,9 +15,10 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Storefront
 import com.nahuanotoca.superapp.core.design.Amber
 import com.nahuanotoca.superapp.core.design.Coral
 import com.nahuanotoca.superapp.core.design.Jade
@@ -58,7 +62,7 @@ object ServiceCatalog {
             name = "Pagar servicios",
             tagline = "Luz, agua e internet",
             category = ServiceCategory.PAYMENTS,
-            icon = Icons.Rounded.ReceiptLong,
+            icon = Icons.AutoMirrored.Rounded.ReceiptLong,
             accent = Sky,
             target = ServiceTarget.MiniApp("bills"),
         ),
@@ -107,6 +111,43 @@ object ServiceCatalog {
             icon = Icons.Rounded.Person,
             accent = Jade,
             target = ServiceTarget.Native(Routes.PROFILE),
+        ),
+        Service(
+            id = "mapas",
+            name = "Mapas",
+            tagline = "Tianguis y rutas cerca de ti",
+            category = ServiceCategory.TRANSPORT,
+            icon = Icons.Rounded.Explore,
+            accent = Sky,
+            target = ServiceTarget.MiniApp("mapa"),
+            badge = "Nuevo",
+        ),
+        Service(
+            id = "tianguis",
+            name = "Tianguis",
+            tagline = "Productores de tu región",
+            category = ServiceCategory.MARKET,
+            icon = Icons.Rounded.Storefront,
+            accent = Amber,
+            target = ServiceTarget.MiniApp("tianguis"),
+        ),
+        Service(
+            id = "tamagochi",
+            name = "Axolote",
+            tagline = "Tu mascota virtual",
+            category = ServiceCategory.ENTERTAINMENT,
+            icon = Icons.Rounded.Pets,
+            accent = Coral,
+            target = ServiceTarget.MiniApp("tamagochi"),
+        ),
+        Service(
+            id = "rag",
+            name = "Nahua IA",
+            tagline = "Pregunta a tus PDFs",
+            category = ServiceCategory.LIFESTYLE,
+            icon = Icons.Rounded.AutoAwesome,
+            accent = Violet,
+            target = ServiceTarget.Native(Routes.RAG),
         ),
         Service(
             id = "topup",

@@ -51,7 +51,6 @@ fun MiniAppWebView(
             WebView(webViewContext).apply {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
-                settings.databaseEnabled = true
                 settings.allowContentAccess = false
                 settings.allowFileAccess = false
                 settings.cacheMode = WebSettings.LOAD_DEFAULT

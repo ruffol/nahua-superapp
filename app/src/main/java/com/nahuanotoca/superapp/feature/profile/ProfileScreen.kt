@@ -284,7 +284,7 @@ fun ProfileScreen(
             ) {
                 SettingRow(
                     icon = Icons.Rounded.Info,
-                    title = "Versión 0.1.0",
+                    title = "Versión 0.2.0",
                     subtitle = "Super app de código abierto",
                     onClick = {
                         runCatching {

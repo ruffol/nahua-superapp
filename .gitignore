@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 .gradle-home/
+.tmp/
+_download/
 .android-home/
 build-log.txt
 build/

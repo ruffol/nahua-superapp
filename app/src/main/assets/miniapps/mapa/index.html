@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapas</title>
+<link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
+<style>
+  html, body { height: 100%; margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #10161C; background: #E8EDF4; }
+  #map { position: absolute; inset: 0; z-index: 0; background: #E8EDF4; }
+  .top { position: absolute; z-index: 10; top: 0; left: 0; right: 0; padding: calc(12px + env(safe-area-inset-top)) 14px 0; }
+  .card { background: rgba(255,255,255,0.96); border-radius: 20px; box-shadow: 0 10px 30px rgba(16,22,28,0.16); backdrop-filter: blur(10px); }
+  .head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+  .head .brand { font-weight: 700; font-size: 16px; flex: 1; }
+  .head .brand small { display: block; font-weight: 500; font-size: 11px; color: #5D6A78; margin-top: 2px; }
+  .close { border: 0; background: #F0F2F7; color: #10161C; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 600; }
+  .cities { display: flex; gap: 8px; overflow-x: auto; padding: 0 14px 12px; scrollbar-width: none; }
+  .cities::-webkit-scrollbar { display: none; }
+  .city { border: 1px solid #E4E8F0; background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 600; white-space: nowrap; color: #10161C; }
+  .city.active { background: #0E7C66; border-color: #0E7C66; color: #fff; }
+  .bottom { position: absolute; z-index: 10; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .sheet { padding: 14px 16px; max-height: 46vh; overflow-y: auto; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+  .row + .row { border-top: 1px solid #F0F2F7; }
+  .pin { width: 38px; height: 38px; border-radius: 12px; background: #E2EAFF; display: grid; place-items: center; font-size: 18px; flex: none; }
+  .row strong { font-size: 14px; display: block; }
+  .row span { font-size: 12px; color: #5D6A78; }
+  .go { margin-left: auto; border: 0; background: #0E7C66; color: #fff; border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 700; }
+  .note { margin: 8px 2px 0; font-size: 10px; color: #5D6A78; text-align: center; }
+  .leaflet-control-attribution { font-size: 9px; }
+  .leaflet-popup-content { margin: 10px 12px; font-size: 12px; }
+  .muted { color: #5D6A78; font-size: 12px; }
+  .section-title { font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: #5D6A78; margin: 4px 0 2px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="top">
+  <div class="card">
+    <div class="head">
+      <div class="brand">Mapas<small id="cityLabel">Ciudad de México y tianguis cercanos</small></div>
+      <button class="close" onclick="Nahua.close()">Cerrar</button>
+    </div>
+    <div class="cities" id="cities"></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="card sheet" id="sheet"></div>
+  <div class="note">Teselas © OpenStreetMap · requiere conexión a internet</div>
+</div>
+
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script src="../nahua-sdk.js"></script>
+<script>
+  var CITIES = [
+    { id: 'cdmx', label: 'CDMX', center: [19.4326, -99.1332], zoom: 12 },
+    { id: 'oaxaca', label: 'Oaxaca', center: [17.0732, -96.7266], zoom: 12 },
+    { id: 'puebla', label: 'Puebla', center: [19.0414, -98.2063], zoom: 12 },
+    { id: 'merida', label: 'Mérida', center: [20.9674, -89.5926], zoom: 12 },
+    { id: 'gdl', label: 'Guadalajara', center: [20.6597, -103.3496], zoom: 12 }
+  ];
+
+  var MARKETS = [
+    { city: 'cdmx', name: 'La Merced', area: 'Centro', specialty: 'Frutas, especias y flores', lat: 19.4265, lng: -99.1239, emoji: '🌽' },
+    { city: 'cdmx', name: 'Medellín', area: 'Roma Sur', specialty: 'Antojitos y carnitas', lat: 19.4050, lng: -99.1680, emoji: '🌮' },
+    { city: 'cdmx', name: 'Jamaica', area: 'Doctores', specialty: 'Flores y plantas', lat: 19.4085, lng: -99.1167, emoji: '🌺' },
+    { city: 'cdmx', name: 'Coyoacán', area: 'Coyoacán', specialty: 'Artesanías y tostadas', lat: 19.3500, lng: -99.1620, emoji: '🎨' },
+    { city: 'oaxaca', name: '20 de Noviembre', area: 'Centro', specialty: 'Quesillo y tasajo', lat: 17.0600, lng: -96.7260, emoji: '🧀' },
+    { city: 'oaxaca', name: 'Tlacolula', area: 'Tlacolula', specialty: 'Pan de yema y mezcal', lat: 16.9550, lng: -96.4780, emoji: '🥖' },
+    { city: 'puebla', name: 'El Parián', area: 'Centro', specialty: 'Talavera y dulces', lat: 19.0430, lng: -98.1980, emoji: '🏺' },
+    { city: 'merida', name: 'Lucas de Gálvez', area: 'Centro', specialty: 'Hamacas y bordados', lat: 20.9670, lng: -89.6240, emoji: '🧵' },
+    { city: 'gdl', name: 'San Juan de Dios', area: 'Centro', specialty: 'Juguetes y ropa', lat: 20.6760, lng: -103.3480, emoji: '🪀' }
+  ];
+
+  var map = L.map('map', { zoomControl: false }).setView(CITIES[0].center, CITIES[0].zoom);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  var layer = L.layerGroup().addTo(map);
+  var current = CITIES[0];
+  var markers = {};
+
+  function icon(market, active) {
+    var size = active ? 44 : 38;
+    var background = active ? '#0E7C66' : '#FFFFFF';
+    var border = active ? '#0E7C66' : '#E4E8F0';
+    var html = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:14px;display:grid;' +
+      'place-items:center;font-size:' + (active ? 22 : 18) + 'px;background:' + background + ';' +
+      'box-shadow:0 6px 16px rgba(16,22,28,0.25);border:2px solid ' + border + ';">' +
+      market.emoji + '</div>';
+    return L.divIcon({ className: '', html: html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
+  }
+
+  function renderCities() {
+    var container = document.getElementById('cities');
+    container.innerHTML = '';
+    CITIES.forEach(function (city) {
+      var button = document.createElement('button');
+      button.className = 'city' + (city.id === current.id ? ' active' : '');
+      button.textContent = city.label;
+      button.onclick = function () { selectCity(city); };
+      container.appendChild(button);
+    });
+    document.getElementById('cityLabel').textContent = current.label + ' · ' + MARKETS.filter(function (m) { return m.city === current.id; }).length + ' tianguis';
+  }
+
+  function renderSheet(highlight) {
+    var markets = MARKETS.filter(function (m) { return m.city === current.id; });
+    var sheet = document.getElementById('sheet');
+    var html = '<div class="section-title">Tianguis en ' + current.label + '</div>';
+    markets.forEach(function (market) {
+      html += '<div class="row" data-market="' + market.name + '">' +
+        '<div class="pin">' + market.emoji + '</div>' +
+        '<div><strong>' + market.name + '</strong><span>' + market.area + ' · ' + market.specialty + '</span></div>' +
+        '<button class="go" data-go="' + market.name + '">Ver</button>' +
+        '</div>';
+    });
+    html += '<div class="section-title" style="margin-top:8px">Rutas</div>' +
+      '<div class="row"><div class="pin">🚌</div><div><strong>Transporte público</strong><span>Rutas y tarifas en Nahua</span></div></div>';
+    sheet.innerHTML = html;
+
+    sheet.querySelectorAll('[data-go]').forEach(function (button) {
+      button.onclick = function () { focusMarket(button.getAttribute('data-go')); };
+    });
+    sheet.querySelectorAll('[data-market]').forEach(function (row) {
+      row.onclick = function () { focusMarket(row.getAttribute('data-market')); };
+    });
+  }
+
+  function selectCity(city) {
+    current = city;
+    map.setView(city.center, city.zoom, { animate: true });
+    renderCities();
+    renderSheet();
+    drawMarkers();
+  }
+
+  function drawMarkers() {
+    layer.clearLayers();
+    markers = {};
+    MARKETS.filter(function (m) { return m.city === current.id; }).forEach(function (market) {
+      var marker = L.marker([market.lat, market.lng], { icon: icon(market, false) }).addTo(layer);
+      marker.bindPopup('<strong>' + market.name + '</strong><br>' + market.specialty +
+        '<br><span style="color:#5D6A78">' + market.area + '</span>');
+      marker.on('click', function () {
+        L.popup().setLatLng([market.lat, market.lng]).setContent(marker.getPopup().getContent()).openOn(map);
+        Nahua.toast(market.name + ' · ' + market.specialty);
+      });
+      markers[market.name] = marker;
+    });
+  }
+
+  function focusMarket(name) {
+    var market = MARKETS.filter(function (m) { return m.name === name; })[0];
+    if (!market) return;
+    map.flyTo([market.lat, market.lng], 16, { duration: 0.7 });
+    var marker = markers[market.name];
+    if (marker) { marker.setIcon(icon(market, true)); marker.openPopup(); }
+    setTimeout(function () { if (marker) marker.setIcon(icon(market, false)); }, 2200);
+    Nahua.toast(market.name + ' · ' + market.area);
+  }
+
+  renderCities();
+  renderSheet();
+  drawMarkers();
+
+  var user = Nahua.user();
+  if (user.name) {
+    document.getElementById('cityLabel').textContent =
+      'Hola ' + user.name.split(' ')[0] + ' · elige un tianguis';
+  }
+</script>
+</body>
+</html>
