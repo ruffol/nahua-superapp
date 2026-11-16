@@ -3,7 +3,7 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
-## [No publicado]
+## [0.5.1] — 2026-11-16
 
 ### Cambiado
 

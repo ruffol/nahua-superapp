@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.5.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.5.1 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -93,12 +93,13 @@ Detalles de arquitectura, algoritmo y límites en [docs/RAG.md](docs/RAG.md).
 Publicar una versión nueva:
 
 ```bash
-git tag v0.3.1
-git push origin v0.3.1
+git tag v0.5.1
+git push origin v0.5.1
 ```
 
-El workflow `release.yml` compila el APK con `versionName=0.3.1` y `versionCode=301`, lo firma y lo
-adjunta a la release. En el teléfono basta con tocar *Buscar actualizaciones*.
+El workflow `release.yml` deriva la versión de la etiqueta (`0.5.1` → `versionCode=501`, con la
+fórmula *mayor×10000 + menor×100 + parche*), compila y firma el APK y lo adjunta a la release. En el
+teléfono basta con tocar *Buscar actualizaciones*.
 
 > **Firma:** el repo incluye `signing/nahua-demo.keystore` a propósito para que las compilaciones de
 > CI y las locales compartan firma y puedan actualizarse entre sí. Es una llave de demo, pública:
