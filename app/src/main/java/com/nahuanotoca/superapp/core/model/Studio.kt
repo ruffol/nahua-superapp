@@ -1,0 +1,142 @@
+package com.nahuanotoca.superapp.core.model
+
+/**
+ * Cuántos tokens consumió una petición. Se muestra por respuesta y acumulado por mesa, para que el
+ * estudiante sepa cuánto contexto está pagando antes de quedarse sin cuota.
+ */
+data class TokenUsage(
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0,
+) {
+    val totalTokens: Int get() = promptTokens + completionTokens
+
+    fun plus(other: TokenUsage): TokenUsage = TokenUsage(
+        promptTokens = promptTokens + other.promptTokens,
+        completionTokens = completionTokens + other.completionTokens,
+    )
+
+    companion object {
+        val Empty: TokenUsage = TokenUsage()
+    }
+}
+
+/**
+ * Una mesa de trabajo = una materia (o una exposición concreta). Agrupa sus PDFs, el contexto que
+ * escribió el estudiante y el consumo de tokens. El estudiante crea tantas mesas como necesite.
+ */
+data class Mesa(
+    val id: String,
+    val name: String,
+    val subject: String = "",
+    val context: String = "",
+    val accent: Int = 0,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val usage: TokenUsage = TokenUsage.Empty,
+    val requests: Int = 0,
+) {
+    val title: String get() = if (subject.isBlank()) name else name + " · " + subject
+}
+
+enum class ChatRole { USER, ASSISTANT }
+
+/** Un turno de la conversación de una mesa. Los turnos se guardan en disco por mesa. */
+data class ChatTurn(
+    val id: String,
+    val role: ChatRole,
+    val text: String,
+    val taskId: String? = null,
+    val model: String = "",
+    val usage: TokenUsage = TokenUsage.Empty,
+    val sources: List<RagSource> = emptyList(),
+    val elapsedMillis: Long = 0,
+    val createdAt: Long = System.currentTimeMillis(),
+)
+
+/**
+ * Acciones de estudio predefinidas. Cada una cambia el contexto que se manda (cobertura completa
+ * vs. búsqueda puntual) y el formato de salida esperado.
+ */
+data class StudioTask(
+    val id: String,
+    val label: String,
+    val hint: String,
+    val instruction: String,
+    val prompt: String,
+    val broad: Boolean = true,
+)
+
+object StudioTasks {
+
+    const val SUMMARY = "resumen"
+    const val IDEAS = "ideas"
+    const val CORRELATE = "correlacion"
+    const val PRESENTATION = "exposicion"
+    const val GLOSSARY = "glosario"
+    const val QUESTIONS = "preguntas"
+
+    val all: List<StudioTask> = listOf(
+        StudioTask(
+            id = SUMMARY,
+            label = "Resumen",
+            hint = "Idea central y puntos clave con página",
+            instruction = "Redacta un resumen de estudio en español, en Markdown. Empieza con la idea " +
+                "central en 2 frases. Después lista de 5 a 8 puntos clave, cada uno con su cita " +
+                "[Documento, p. N]. Cierra con 3 conceptos que el estudiante debe poder explicar " +
+                "con sus propias palabras.",
+            prompt = "Resume el material de esta mesa como si yo tuviera que exponerlo en 10 minutos.",
+        ),
+        StudioTask(
+            id = IDEAS,
+            label = "Ideas nuevas",
+            hint = "Hipótesis, conexiones y preguntas abiertas",
+            instruction = "Genera ideas propias del estudiante a partir del material. Devuelve 6 ideas " +
+                "en Markdown, cada una con: título corto, la idea en 2-3 frases, y una etiqueta " +
+                "[apoyo textual: Documento, p. N] o [inferencia propia]. Incluye al menos una conexión " +
+                "con otra materia, una aplicación práctica y una pregunta que el material deja abierta. " +
+                "No inventes datos: si algo es inferencia, dilo.",
+            prompt = "Dame ideas nuevas que pueda defender en clase a partir de estos documentos.",
+        ),
+        StudioTask(
+            id = CORRELATE,
+            label = "Correlación",
+            hint = "Coincidencias, choques e intersección entre documentos",
+            instruction = "Cruza los documentos entre sí y devuelve un análisis en Markdown con estas " +
+                "secciones: 1) Coincidencias (qué afirman varios documentos, con citas), 2) Diferencias " +
+                "o contradicciones (quién dice qué, con citas), 3) Exclusivo de cada documento, " +
+                "4) Intersección: 3 ideas nuevas que solo aparecen al combinar dos o más documentos, " +
+                "5) Huecos: qué falta investigar. Usa una tabla cuando compares más de dos documentos.",
+            prompt = "Correlaciona e intersecta la información de los documentos de esta mesa.",
+        ),
+        StudioTask(
+            id = PRESENTATION,
+            label = "Guion de exposición",
+            hint = "Apertura, bloques y cierre con diapositivas",
+            instruction = "Arma un guion de exposición en Markdown: apertura de 30 segundos, 3 o 4 " +
+                "bloques con (a) qué diapositiva usar, (b) qué decir literalmente, (c) qué apoyo " +
+                "textual citar; luego cierre con la idea que debe quedar, y 5 preguntas probables del " +
+                "público con su respuesta corta.",
+            prompt = "Prepara el guion de mi exposición con el material de esta mesa.",
+        ),
+        StudioTask(
+            id = GLOSSARY,
+            label = "Glosario",
+            hint = "Términos técnicos definidos con página",
+            instruction = "Extrae de 10 a 15 términos técnicos del material. Para cada uno: término en " +
+                "negritas, definición tomada del contexto en una o dos frases, y cita " +
+                "[Documento, p. N]. Ordena alfabéticamente y marca los que aparecen en varios documentos.",
+            prompt = "Hazme el glosario de términos que tengo que dominar para la exposición.",
+        ),
+        StudioTask(
+            id = QUESTIONS,
+            label = "Preguntas de repaso",
+            hint = "Conceptuales, de aplicación y de análisis",
+            instruction = "Genera 8 preguntas de repaso en Markdown: 4 conceptuales, 2 de aplicación y 2 " +
+                "de análisis crítico. Después de cada pregunta agrega la respuesta modelo en 2-3 " +
+                "frases y la cita [Documento, p. N] que la respalda.",
+            prompt = "Genera preguntas de repaso con respuesta para estudiar de estos documentos.",
+        ),
+    )
+
+    fun find(id: String?): StudioTask? = all.firstOrNull { it.id == id }
+}

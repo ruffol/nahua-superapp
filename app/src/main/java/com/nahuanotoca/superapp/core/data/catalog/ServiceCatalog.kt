@@ -141,13 +141,14 @@ object ServiceCatalog {
             target = ServiceTarget.MiniApp("tamagochi"),
         ),
         Service(
-            id = "rag",
+            id = "studio",
             name = "Nahuanotoka",
-            tagline = "Pregunta a tus PDFs",
+            tagline = "Mesas de estudio con tus PDFs",
             category = ServiceCategory.LIFESTYLE,
             icon = Icons.Rounded.AutoAwesome,
             accent = Violet,
-            target = ServiceTarget.Native(Routes.RAG),
+            target = ServiceTarget.Native(Routes.STUDIO),
+            badge = "Nuevo",
         ),
         Service(
             id = "topup",

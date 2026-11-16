@@ -60,6 +60,32 @@ class RetrieverTest {
     }
 
     @Test
+    fun matchesWordRootsAndPlurals() {
+        val ranked = Retriever.select(
+            "obligacion del inquilino",
+            listOf(
+                RagChunk(
+                    documentId = "doc_3",
+                    documentName = "Contrato",
+                    page = 3,
+                    text = "Las obligaciones del arrendatario incluyen el pago puntual de la renta.",
+                ),
+            ),
+        )
+
+        assertTrue(ranked.isNotEmpty())
+        assertEquals(3, ranked.first().chunk.page)
+    }
+
+    @Test
+    fun requestWordsLikeResumenDoNotPoisonTheQuery() {
+        val ranked = Retriever.select("dame un resumen de la renta", chunks, limit = 1)
+
+        assertTrue(ranked.isNotEmpty())
+        assertEquals(2, ranked.first().chunk.page)
+    }
+
+    @Test
     fun unrelatedQueryReturnsNothing() {
         val ranked = Retriever.select("astronomía cuántica", chunks)
 

@@ -7,11 +7,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Una **super app** hecha para **Colima**: pagos, transporte, comida, tianguis de productores locales,
-mapa **offline** con GPS, mascota virtual, ocio y **Nahuanotoka**, un asistente que responde sobre
-tus PDFs con tu propia API. Todo en un solo binario, con un **runtime de mini-apps** y
+mapa **offline** con GPS, mascota virtual, ocio y **Nahuanotoka**, un estudio que convierte tus PDFs
+en mesas de trabajo por materia: resúmenes con página, ideas propias, correlación entre documentos,
+figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.3.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.4.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -21,13 +22,13 @@ tus PDFs con tu propia API. Todo en un solo binario, con un **runtime de mini-ap
   **GPS** para centrarte; teselas en línea de OpenStreetMap como respaldo.
 - **Tianguis de Colima**: productores de Colima, Villa de Álvarez, Comala, Tecomán, Manzanillo y
   Armería, con canasta y pago desde la cartera.
-- **Nahuanotoka (RAG local)**: importa PDFs, extrae su texto en el teléfono y pregunta con tu API
-  compatible con OpenAI (OpenCode Go por defecto).
+- **Nahuanotoka (mesas de estudio)**: crea una mesa por materia, agrega varios PDFs, pide resumen,
+  ideas, correlación o guion de exposición, revisa los tokens gastados y exporta el análisis a PDF.
 - **Actualizaciones OTA**: desde *Perfil → Versión* la app busca la última release en GitHub, la
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **40 tests unitarios** y CI en GitHub Actions.
+- **52 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -40,7 +41,7 @@ tus PDFs con tu propia API. Todo en un solo binario, con un **runtime de mini-ap
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
 | **Cine** | mini-app | cartelera, funciones y boletos | `Nahua.pay` |
 | **Axolote** | mini-app | mascota virtual con hambre, ánimo y niveles | `localStorage` |
-| **Nahuanotoka** | feature nativa | RAG sobre tus PDFs con tu API | HTTP + PDFBox |
+| **Nahuanotoka** | feature nativa | mesas de estudio: resumen, ideas, correlación y PDF | HTTP + PDFBox |
 
 ---
 
@@ -53,14 +54,26 @@ tus PDFs con tu propia API. Todo en un solo binario, con un **runtime de mini-ap
   precisión.
 - Atribución a OpenStreetMap en el mapa y en el pie.
 
-## Nahuanotoka (RAG local)
+## Nahuanotoka (mesas de trabajo)
 
-1. **Servicios → Nahuanotoka → engrane**.
-2. Base URL `https://opencode.ai/zen/go/v1`, modelo `deepseek-v4-pro` y tu API key de OpenCode Go.
-3. **Agregar PDF** (con texto seleccionable, hasta 300 páginas) y pregunta.
+**El problema:** tienes doce PDFs y una exposición en tres días. **La solución:** una mesa por
+materia que guarda tus documentos, tu contexto, tus consultas y lo que llevas gastado.
 
-El documento y su índice se quedan en el teléfono; solo viajan la pregunta y 4 fragmentos. La
-respuesta cita `[Documento, p. N]`. Detalles en [docs/RAG.md](docs/RAG.md).
+1. **Servicios → Nahuanotoka → Nueva mesa** (nombre, materia y contexto: público, duración, tono).
+2. **Agregar PDF** (texto seleccionable, hasta 300 páginas, varios a la vez). Se indexan en el
+   teléfono y sus figuras quedan disponibles como galería.
+3. **Herramientas**: *Resumen*, *Ideas nuevas*, *Correlación*, *Guion de exposición*, *Glosario* y
+   *Preguntas de repaso*. Cada una manda el contexto completo de la mesa, no palabras clave.
+4. **Pregunta libre** en el compositor. Las respuestas citan `[Documento, p. N]`.
+5. **PDF** exporta el análisis (portada, encabezados, tablas, fuentes y paginación) y lo comparte.
+6. **Tokens**: entrada, salida y total por mesa y por respuesta.
+
+Por defecto usa **DeepSeek V4.1 Flash** (`deepseek-v4.1-flash`) vía OpenCode Go: es el modelo más
+barato para estudiar con muchos PDFs y su contexto alcanza para varias lecturas a la vez. Puedes
+cambiar base URL y modelo a cualquier API compatible con OpenAI.
+
+Los documentos se quedan en el teléfono; sólo viajan la pregunta y los fragmentos elegidos.
+Detalles de arquitectura, algoritmo y límites en [docs/RAG.md](docs/RAG.md).
 
 ## Actualizaciones OTA
 
@@ -99,10 +112,11 @@ app/
    │  ├─ miniapp/         manifiestos, registro y puente JS (pago, ubicación)
    │  ├─ model/           modelos + WalletLedger (aritmética pura)
    │  ├─ navigation/      rutas
-   │  ├─ rag/             extracción PDF, chunking, retrieval y cliente LLM
+   │  ├─ rag/             PDF (texto y figuras), índice, contexto, LLM, PDF de salida
    │  ├─ update/          GitHub Releases + PackageInstaller
    │  └─ util/            formateo de fechas
    ├─ feature/            home, services, wallet, scan, inbox, profile, miniapp, search, rag, update
+   │  └─ rag/            mesas de estudio (lista, detalle, herramientas, exportar PDF)
    ├─ ui/                 shell de navegación y fábrica de ViewModels
    ├─ NahuaApplication.kt
    └─ MainActivity.kt
@@ -118,14 +132,17 @@ flowchart LR
     NAV --> WEB[MiniApp WebView]
     WEB -- Nahua.pay / Nahua.location --> BRIDGE[MiniAppBridge]
     BRIDGE -- confirmación / GPS --> UI
-    VM --> RAG[RAG: chunk + retriever]
+    VM --> RAG[contexto: búsqueda + cobertura]
     RAG --> LLM[API compatible OpenAI]
+    VM --> PDF[ReportWriter: PDF]
+    PDF --> SHARE[FileProvider]
     UI --> UPD[GitHub Releases]
     UPD --> INST[PackageInstaller]
 ```
 
-Decisiones: DI manual (`AppContainer`), DataStore en lugar de Room, dinero en centavos, mini-apps
-HTML, RAG léxico sin embeddings y mapa raster offline para no depender de Google Play Services.
+Decisiones: DI manual (`AppContainer`), DataStore y JSON en `filesDir` en lugar de Room, dinero en
+centavos, mini-apps HTML, recuperación léxica por raíz + cobertura por documento (sin embeddings) y
+mapa raster offline para no depender de Google Play Services.
 
 Más detalle: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/MINIAPP_SDK.md](docs/MINIAPP_SDK.md)
 y [docs/RAG.md](docs/RAG.md).
@@ -139,7 +156,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 40 tests
+./gradlew testDebugUnitTest    # 52 tests
 ./gradlew installDebug
 ```
 
@@ -159,6 +176,7 @@ El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
 
 - [ ] Backend real (cuentas, ledger de doble entrada, webhooks) y OAuth/OIDC.
 - [ ] Embeddings on-device para búsqueda semántica en Nahuanotoka.
+- [ ] OCR on-device para los PDFs escaneados de las mesas.
 - [ ] Firma de mini-apps y permisos granulares.
 - [ ] CameraX + ML Kit para QR real.
 - [ ] Módulos Gradle y Hilt.

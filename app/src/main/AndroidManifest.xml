@@ -40,6 +40,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Comparte los PDF generados desde las mesas de trabajo sin exponer archivos internos. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Mini-apps run inside the host app, no exported components required. -->
         <meta-data
             android:name="com.nahuanotoca.superapp.MINIAPP_API_VERSION"

@@ -3,6 +3,43 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.4.0] — 2026-11-15
+
+### Corregido
+
+- **“No encontré pasajes relevantes” con PDFs que sí tienen texto.** El recuperador sólo comparaba
+  palabras exactas: “Dame un resumen” buscaba literalmente `dame` y `resumen`, que no aparecen en
+  un documento, y devolvía cero resultados. Ahora:
+  - coincidencia por raíz y plurales (“obligacion” ↔ “obligaciones”),
+  - las tareas globales usan **cobertura por documento** en lugar de búsqueda por palabras,
+  - si no hay coincidencias puntuales se manda lo más representativo y se marca la consulta como
+    débil en vez de fallar.
+- La lista de mesas ya no pierde el contador de documentos al reabrir la app.
+
+### Añadido
+
+- **Mesas de trabajo**: una por materia, con nombre, materia, contexto propio, documentos,
+  conversación y contador de tokens. Se crean, editan y eliminan desde la app.
+- **Herramientas de estudio**: Resumen, Ideas nuevas, Correlación entre documentos, Guion de
+  exposición, Glosario y Preguntas de repaso, cada una con su formato y su estrategia de contexto.
+- **Exportar a PDF**: `ReportWriter` dibuja un A4 paginado (portada, encabezados, viñetas, tablas,
+  fuentes y pie de página) y lo comparte con `FileProvider`.
+- **Consumo de tokens** por mesa (entrada, salida, total) y por respuesta, leyendo `usage` del
+  proveedor con estimación de respaldo.
+- **Figuras de los PDFs**: extracción de imágenes incrustadas (≥160 px) con galería y vista ampliada.
+- **DeepSeek V4.1 Flash** como modelo por defecto y presets editables (`deepseek-flash`,
+  `deepseek-v4-pro`, `kimi-k2.7-code`, `glm-5.1`, `mimo-v2.5-pro`).
+- **Selección múltiple** de PDFs al importar, con resumen de páginas, fragmentos y figuras.
+- **Migración**: los PDFs del formato anterior pasan solos a la mesa “Mis documentos”.
+- 12 tests nuevos (contexto, cobertura y el caso del PDF de 8 páginas); 52 en total.
+
+### Cambiado
+
+- La ruta `rag` pasa a ser `studio` y el servicio se llama “Mesas de estudio con tus PDFs”.
+- `ChatClient` acepta historial, `max_tokens` y devuelve modelo y `usage`.
+- El PDF ya no se reindexa por consulta: el contexto se arma por fragmentos con presupuesto de
+  caracteres.
+
 ## [0.3.0] — 2026-11-15
 
 ### Añadido

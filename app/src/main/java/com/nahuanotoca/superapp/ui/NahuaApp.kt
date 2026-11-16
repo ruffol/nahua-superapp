@@ -61,8 +61,8 @@ import com.nahuanotoca.superapp.feature.inbox.InboxViewModel
 import com.nahuanotoca.superapp.feature.miniapp.MiniAppScreen
 import com.nahuanotoca.superapp.feature.miniapp.MiniAppViewModel
 import com.nahuanotoca.superapp.feature.profile.ProfileScreen
-import com.nahuanotoca.superapp.feature.rag.RagScreen
-import com.nahuanotoca.superapp.feature.rag.RagViewModel
+import com.nahuanotoca.superapp.feature.rag.StudioScreen
+import com.nahuanotoca.superapp.feature.rag.StudioViewModel
 import com.nahuanotoca.superapp.feature.profile.ProfileViewModel
 import com.nahuanotoca.superapp.feature.scan.ScanScreen
 import com.nahuanotoca.superapp.feature.scan.ScanViewModel
@@ -173,9 +173,9 @@ fun NahuaApp(container: AppContainer) {
                 )
             }
 
-            composable(Routes.RAG) {
-                val viewModel = rememberAppViewModel { RagViewModel(it) }
-                RagScreen(
+            composable(Routes.STUDIO) {
+                val viewModel = rememberAppViewModel { StudioViewModel(it) }
+                StudioScreen(
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onMessage = showMessage,
