@@ -185,7 +185,7 @@ private fun RagTopBar(onBack: () -> Unit, onSettings: () -> Unit, configured: Bo
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Nahua IA",
+                text = "Nahuanotoka",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )

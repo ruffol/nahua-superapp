@@ -107,7 +107,7 @@ class ChatClient {
 
     private companion object {
         const val SYSTEM_PROMPT: String =
-            "Eres Nahua IA, un asistente que responde en español usando únicamente el contexto " +
+            "Eres Nahuanotoka, un asistente que responde en español usando únicamente el contexto " +
                 "entregado. Si la respuesta no está en el contexto, dilo con claridad y sugiere qué " +
                 "documento revisar. No inventes datos, cifras ni citas. Sé breve y concreto."
     }

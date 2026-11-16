@@ -24,7 +24,9 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Fingerprint
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
@@ -61,6 +63,9 @@ import com.nahuanotoca.superapp.core.design.HeroGradientEnd
 import com.nahuanotoca.superapp.core.design.Jade
 import com.nahuanotoca.superapp.core.design.JadeSoft
 import com.nahuanotoca.superapp.core.design.NahuaCard
+import com.nahuanotoca.superapp.feature.update.UpdateSheet
+import com.nahuanotoca.superapp.feature.update.UpdateViewModel
+import com.nahuanotoca.superapp.ui.rememberAppViewModel
 
 @Composable
 fun ProfileScreen(
@@ -72,7 +77,10 @@ fun ProfileScreen(
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
     val profile = viewModel.profile
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showUpdateSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val updateViewModel = rememberAppViewModel { UpdateViewModel(it) }
+    val updateState by updateViewModel.state.collectAsStateWithLifecycle()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -283,9 +291,23 @@ fun ProfileScreen(
                 contentPadding = PaddingValues(vertical = 4.dp),
             ) {
                 SettingRow(
+                    icon = Icons.Rounded.SystemUpdate,
+                    title = "Versión " + updateState.currentVersion,
+                    subtitle = "Buscar actualizaciones",
+                    onClick = { showUpdateSheet = true },
+                )
+                SettingDivider()
+                SettingRow(
                     icon = Icons.Rounded.Info,
-                    title = "Versión 0.2.0",
-                    subtitle = "Super app de código abierto",
+                    title = "Actualizar app",
+                    subtitle = "Descarga la última versión sin pasar un APK",
+                    onClick = { showUpdateSheet = true },
+                )
+                SettingDivider()
+                SettingRow(
+                    icon = Icons.Rounded.Code,
+                    title = "Código en GitHub",
+                    subtitle = "ruffol/nahua-superapp",
                     onClick = {
                         runCatching {
                             context.startActivity(
@@ -318,6 +340,10 @@ fun ProfileScreen(
                     .padding(top = 6.dp),
             )
         }
+    }
+
+    if (showUpdateSheet) {
+        UpdateSheet(viewModel = updateViewModel, onDismiss = { showUpdateSheet = false })
     }
 
     if (showLogoutDialog) {

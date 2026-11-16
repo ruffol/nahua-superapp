@@ -3,34 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mapas</title>
+<title>Mapas de Colima</title>
 <link rel="stylesheet" href="../vendor/leaflet/leaflet.css">
 <style>
   html, body { height: 100%; margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #10161C; background: #E8EDF4; }
   #map { position: absolute; inset: 0; z-index: 0; background: #E8EDF4; }
   .top { position: absolute; z-index: 10; top: 0; left: 0; right: 0; padding: calc(12px + env(safe-area-inset-top)) 14px 0; }
-  .card { background: rgba(255,255,255,0.96); border-radius: 20px; box-shadow: 0 10px 30px rgba(16,22,28,0.16); backdrop-filter: blur(10px); }
+  .card { background: rgba(255,255,255,0.97); border-radius: 20px; box-shadow: 0 10px 30px rgba(16,22,28,0.16); }
   .head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
-  .head .brand { font-weight: 700; font-size: 16px; flex: 1; }
-  .head .brand small { display: block; font-weight: 500; font-size: 11px; color: #5D6A78; margin-top: 2px; }
+  .brand { font-weight: 700; font-size: 16px; flex: 1; }
+  .brand small { display: block; font-weight: 500; font-size: 11px; color: #5D6A78; margin-top: 2px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; color: #0E7C66; background: #D7F1E9; border-radius: 999px; padding: 4px 8px; }
   .close { border: 0; background: #F0F2F7; color: #10161C; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 600; }
   .cities { display: flex; gap: 8px; overflow-x: auto; padding: 0 14px 12px; scrollbar-width: none; }
   .cities::-webkit-scrollbar { display: none; }
-  .city { border: 1px solid #E4E8F0; background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 600; white-space: nowrap; color: #10161C; }
+  .city { border: 1px solid #E4E8F0; background: #fff; border-radius: 999px; padding: 8px 13px; font-size: 12px; font-weight: 600; white-space: nowrap; color: #10161C; }
   .city.active { background: #0E7C66; border-color: #0E7C66; color: #fff; }
   .bottom { position: absolute; z-index: 10; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); }
-  .sheet { padding: 14px 16px; max-height: 46vh; overflow-y: auto; }
+  .sheet { padding: 14px 16px; max-height: 40vh; overflow-y: auto; }
   .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
   .row + .row { border-top: 1px solid #F0F2F7; }
   .pin { width: 38px; height: 38px; border-radius: 12px; background: #E2EAFF; display: grid; place-items: center; font-size: 18px; flex: none; }
   .row strong { font-size: 14px; display: block; }
   .row span { font-size: 12px; color: #5D6A78; }
   .go { margin-left: auto; border: 0; background: #0E7C66; color: #fff; border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 700; }
+  .locate { position: absolute; right: 16px; z-index: 11; bottom: calc(46vh + 18px + env(safe-area-inset-bottom)); width: 52px; height: 52px; border-radius: 18px; border: 0; background: #fff; box-shadow: 0 8px 22px rgba(16,22,28,0.22); font-size: 22px; }
+  .locate:active { transform: scale(0.96); }
   .note { margin: 8px 2px 0; font-size: 10px; color: #5D6A78; text-align: center; }
   .leaflet-control-attribution { font-size: 9px; }
   .leaflet-popup-content { margin: 10px 12px; font-size: 12px; }
-  .muted { color: #5D6A78; font-size: 12px; }
   .section-title { font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; color: #5D6A78; margin: 4px 0 2px; }
+  .user-dot { width: 18px; height: 18px; border-radius: 50%; background: #2F6BFF; border: 4px solid #fff; box-shadow: 0 0 0 6px rgba(47,107,255,0.18); }
 </style>
 </head>
 <body>
@@ -39,50 +42,80 @@
 <div class="top">
   <div class="card">
     <div class="head">
-      <div class="brand">Mapas<small id="cityLabel">Ciudad de México y tianguis cercanos</small></div>
+      <div class="brand">Colima<small id="cityLabel">Mapa offline · tianguis y GPS</small></div>
+      <span class="badge">OFFLINE</span>
       <button class="close" onclick="Nahua.close()">Cerrar</button>
     </div>
     <div class="cities" id="cities"></div>
   </div>
 </div>
 
+<button class="locate" id="locate" title="Mi ubicación">📍</button>
+
 <div class="bottom">
   <div class="card sheet" id="sheet"></div>
-  <div class="note">Teselas © OpenStreetMap · requiere conexión a internet</div>
+  <div class="note">© OpenStreetMap · teselas de Colima incluidas en la app</div>
 </div>
 
 <script src="../vendor/leaflet/leaflet.js"></script>
 <script src="../nahua-sdk.js"></script>
 <script>
-  var CITIES = [
-    { id: 'cdmx', label: 'CDMX', center: [19.4326, -99.1332], zoom: 12 },
-    { id: 'oaxaca', label: 'Oaxaca', center: [17.0732, -96.7266], zoom: 12 },
-    { id: 'puebla', label: 'Puebla', center: [19.0414, -98.2063], zoom: 12 },
-    { id: 'merida', label: 'Mérida', center: [20.9674, -89.5926], zoom: 12 },
-    { id: 'gdl', label: 'Guadalajara', center: [20.6597, -103.3496], zoom: 12 }
+  var MUNICIPIOS = [
+    { id: 'colima', label: 'Colima', center: [19.2433, -103.7250], zoom: 14 },
+    { id: 'villa', label: 'Villa de Álvarez', center: [19.2670, -103.7370], zoom: 14 },
+    { id: 'comala', label: 'Comala', center: [19.3270, -103.7590], zoom: 14 },
+    { id: 'tecoman', label: 'Tecomán', center: [18.9100, -103.8730], zoom: 13 },
+    { id: 'manzanillo', label: 'Manzanillo', center: [19.0510, -104.3150], zoom: 13 },
+    { id: 'armeria', label: 'Armería', center: [18.9370, -103.9640], zoom: 13 }
   ];
 
-  var MARKETS = [
-    { city: 'cdmx', name: 'La Merced', area: 'Centro', specialty: 'Frutas, especias y flores', lat: 19.4265, lng: -99.1239, emoji: '🌽' },
-    { city: 'cdmx', name: 'Medellín', area: 'Roma Sur', specialty: 'Antojitos y carnitas', lat: 19.4050, lng: -99.1680, emoji: '🌮' },
-    { city: 'cdmx', name: 'Jamaica', area: 'Doctores', specialty: 'Flores y plantas', lat: 19.4085, lng: -99.1167, emoji: '🌺' },
-    { city: 'cdmx', name: 'Coyoacán', area: 'Coyoacán', specialty: 'Artesanías y tostadas', lat: 19.3500, lng: -99.1620, emoji: '🎨' },
-    { city: 'oaxaca', name: '20 de Noviembre', area: 'Centro', specialty: 'Quesillo y tasajo', lat: 17.0600, lng: -96.7260, emoji: '🧀' },
-    { city: 'oaxaca', name: 'Tlacolula', area: 'Tlacolula', specialty: 'Pan de yema y mezcal', lat: 16.9550, lng: -96.4780, emoji: '🥖' },
-    { city: 'puebla', name: 'El Parián', area: 'Centro', specialty: 'Talavera y dulces', lat: 19.0430, lng: -98.1980, emoji: '🏺' },
-    { city: 'merida', name: 'Lucas de Gálvez', area: 'Centro', specialty: 'Hamacas y bordados', lat: 20.9670, lng: -89.6240, emoji: '🧵' },
-    { city: 'gdl', name: 'San Juan de Dios', area: 'Centro', specialty: 'Juguetes y ropa', lat: 20.6760, lng: -103.3480, emoji: '🪀' }
+  var TIANGUIS = [
+    { city: 'colima', name: 'Mercado Gutiérrez Nájera', area: 'Centro', day: 'Diario · 6:00–18:00', specialty: 'Frutas, carnes y comida corrida', lat: 19.2446, lng: -103.7240, emoji: '🧺' },
+    { city: 'colima', name: 'Tianguis La Estancia', area: 'La Estancia', day: 'Domingo · 7:00–14:00', specialty: 'Verduras y antojitos', lat: 19.2560, lng: -103.7180, emoji: '🥬' },
+    { city: 'colima', name: 'Tianguis Vista Hermosa', area: 'Vista Hermosa', day: 'Miércoles · 7:00–13:00', specialty: 'Ropa, fruta y plantas', lat: 19.2710, lng: -103.7350, emoji: '👕' },
+    { city: 'villa', name: 'Tianguis de Villa de Álvarez', area: 'Centro', day: 'Domingo · 7:00–15:00', specialty: 'Tamales, tuba y quesos', lat: 19.2668, lng: -103.7385, emoji: '🫔' },
+    { city: 'villa', name: 'Mercado Campesino', area: 'La Fábrica', day: 'Sábado · 8:00–14:00', specialty: 'Producto local de temporada', lat: 19.2600, lng: -103.7450, emoji: '🌽' },
+    { city: 'comala', name: 'Mercado de Comala', area: 'Centro', day: 'Diario · 7:00–19:00', specialty: 'Café, pan y nieves de garrafa', lat: 19.3273, lng: -103.7592, emoji: '☕' },
+    { city: 'comala', name: 'Tianguis de Suchitlán', area: 'Suchitlán', day: 'Domingo · 8:00–14:00', specialty: 'Café de altura y artesanías', lat: 19.3750, lng: -103.7100, emoji: '🎨' },
+    { city: 'tecoman', name: 'Mercado Municipal', area: 'Centro', day: 'Diario · 6:00–17:00', specialty: 'Limón, mango y mariscos', lat: 18.9103, lng: -103.8728, emoji: '🍋' },
+    { city: 'tecoman', name: 'Tianguis de Cerro de Ortega', area: 'Cerro de Ortega', day: 'Jueves · 7:00–14:00', specialty: 'Coco y pescado fresco', lat: 18.7500, lng: -103.8000, emoji: '🥥' },
+    { city: 'manzanillo', name: 'Mercado de Manzanillo', area: 'Centro', day: 'Diario · 6:00–17:00', specialty: 'Pescado y mariscos del día', lat: 19.0512, lng: -104.3148, emoji: '🐟' },
+    { city: 'manzanillo', name: 'Tianguis de Santiago', area: 'Santiago', day: 'Sábado · 7:00–14:00', specialty: 'Frutas y mariscos', lat: 19.1100, lng: -104.3400, emoji: '🦐' },
+    { city: 'armeria', name: 'Tianguis de Armería', area: 'Centro', day: 'Martes · 7:00–14:00', specialty: 'Sandía, melón y mango', lat: 18.9372, lng: -103.9638, emoji: '🍉' }
   ];
 
-  var map = L.map('map', { zoomControl: false }).setView(CITIES[0].center, CITIES[0].zoom);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  var BOUNDS = L.latLngBounds([18.55, -104.85], [19.50, -103.30]);
+  var OFFLINE_TILE = 'https://appassets.androidplatform.net/assets/miniapps/mapa/tiles/{z}/{x}/{y}.png';
+  var TRANSPARENT = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+  var map = L.map('map', {
+    zoomControl: false,
+    minZoom: 9,
+    maxBounds: BOUNDS,
+    maxBoundsViscosity: 0.9
+  }).setView([19.2433, -103.7250], 13);
+
+  var online = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
+  var offline = L.tileLayer(OFFLINE_TILE, {
+    minZoom: 9,
+    maxNativeZoom: 15,
+    maxZoom: 19,
+    errorTileUrl: TRANSPARENT,
+    keepBuffer: 5,
+    attribution: 'Colima offline'
+  }).addTo(map);
+
+  L.control.scale({ imperial: false }).addTo(map);
+
   var layer = L.layerGroup().addTo(map);
-  var current = CITIES[0];
+  var current = MUNICIPIOS[0];
   var markers = {};
+  var userMarker = null;
+  var userCircle = null;
 
   function icon(market, active) {
     var size = active ? 44 : 38;
@@ -98,33 +131,36 @@
   function renderCities() {
     var container = document.getElementById('cities');
     container.innerHTML = '';
-    CITIES.forEach(function (city) {
+    MUNICIPIOS.forEach(function (city) {
       var button = document.createElement('button');
       button.className = 'city' + (city.id === current.id ? ' active' : '');
       button.textContent = city.label;
       button.onclick = function () { selectCity(city); };
       container.appendChild(button);
     });
-    document.getElementById('cityLabel').textContent = current.label + ' · ' + MARKETS.filter(function (m) { return m.city === current.id; }).length + ' tianguis';
+    document.getElementById('cityLabel').textContent =
+      current.label + ' · ' + TIANGUIS.filter(function (m) { return m.city === current.id; }).length + ' tianguis';
   }
 
-  function renderSheet(highlight) {
-    var markets = MARKETS.filter(function (m) { return m.city === current.id; });
+  function renderSheet() {
+    var markets = TIANGUIS.filter(function (m) { return m.city === current.id; });
     var sheet = document.getElementById('sheet');
     var html = '<div class="section-title">Tianguis en ' + current.label + '</div>';
     markets.forEach(function (market) {
       html += '<div class="row" data-market="' + market.name + '">' +
         '<div class="pin">' + market.emoji + '</div>' +
-        '<div><strong>' + market.name + '</strong><span>' + market.area + ' · ' + market.specialty + '</span></div>' +
+        '<div><strong>' + market.name + '</strong><span>' + market.area + ' · ' + market.specialty +
+        '</span><span>' + market.day + '</span></div>' +
         '<button class="go" data-go="' + market.name + '">Ver</button>' +
         '</div>';
     });
-    html += '<div class="section-title" style="margin-top:8px">Rutas</div>' +
-      '<div class="row"><div class="pin">🚌</div><div><strong>Transporte público</strong><span>Rutas y tarifas en Nahua</span></div></div>';
     sheet.innerHTML = html;
 
     sheet.querySelectorAll('[data-go]').forEach(function (button) {
-      button.onclick = function () { focusMarket(button.getAttribute('data-go')); };
+      button.onclick = function (event) {
+        event.stopPropagation();
+        focusMarket(button.getAttribute('data-go'));
+      };
     });
     sheet.querySelectorAll('[data-market]').forEach(function (row) {
       row.onclick = function () { focusMarket(row.getAttribute('data-market')); };
@@ -142,37 +178,61 @@
   function drawMarkers() {
     layer.clearLayers();
     markers = {};
-    MARKETS.filter(function (m) { return m.city === current.id; }).forEach(function (market) {
+    TIANGUIS.filter(function (m) { return m.city === current.id; }).forEach(function (market) {
       var marker = L.marker([market.lat, market.lng], { icon: icon(market, false) }).addTo(layer);
       marker.bindPopup('<strong>' + market.name + '</strong><br>' + market.specialty +
-        '<br><span style="color:#5D6A78">' + market.area + '</span>');
+        '<br><span style="color:#5D6A78">' + market.day + '</span>');
       marker.on('click', function () {
-        L.popup().setLatLng([market.lat, market.lng]).setContent(marker.getPopup().getContent()).openOn(map);
-        Nahua.toast(market.name + ' · ' + market.specialty);
+        marker.openPopup();
+        Nahua.toast(market.name + ' · ' + market.area);
       });
       markers[market.name] = marker;
     });
   }
 
   function focusMarket(name) {
-    var market = MARKETS.filter(function (m) { return m.name === name; })[0];
+    var market = TIANGUIS.filter(function (m) { return m.name === name; })[0];
     if (!market) return;
     map.flyTo([market.lat, market.lng], 16, { duration: 0.7 });
     var marker = markers[market.name];
     if (marker) { marker.setIcon(icon(market, true)); marker.openPopup(); }
     setTimeout(function () { if (marker) marker.setIcon(icon(market, false)); }, 2200);
-    Nahua.toast(market.name + ' · ' + market.area);
   }
+
+  function locateUser() {
+    Nahua.location().then(function (fix) {
+      var latlng = [fix.lat, fix.lng];
+      map.flyTo(latlng, 16, { duration: 0.8 });
+      if (userMarker) map.removeLayer(userMarker);
+      if (userCircle) map.removeLayer(userCircle);
+      userMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="user-dot"></div>',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        })
+      }).addTo(map);
+      userCircle = L.circle(latlng, {
+        radius: Math.max(25, fix.accuracy || 40),
+        color: '#2F6BFF',
+        weight: 1,
+        fillColor: '#2F6BFF',
+        fillOpacity: 0.1
+      }).addTo(map);
+      Nahua.toast('Estás aquí');
+    }).catch(function (error) {
+      var message = 'No pudimos obtener tu ubicación';
+      if (error.error === 'permission_denied') message = 'Permite la ubicación para centrarte';
+      Nahua.toast(message);
+    });
+  }
+
+  document.getElementById('locate').onclick = locateUser;
 
   renderCities();
   renderSheet();
   drawMarkers();
-
-  var user = Nahua.user();
-  if (user.name) {
-    document.getElementById('cityLabel').textContent =
-      'Hola ' + user.name.split(' ')[0] + ' · elige un tianguis';
-  }
 </script>
 </body>
 </html>

@@ -14,19 +14,21 @@ android {
         applicationId = "com.nahuanotoca.superapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        // Overridable from CI: -PnahuaVersionCode=301 -PnahuaVersionName=0.3.1
+        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "300").toInt()
+        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
 
-    // The sandbox blocks writes to ~/.android, so local builds use a debug keystore inside the
-    // workspace when one is present. CI (writable HOME) keeps the default Android debug keystore.
-    val localDebugKeystore = rootProject.file(".android-home/debug.keystore")
-    if (localDebugKeystore.exists()) {
-        signingConfigs.getByName("debug").apply {
-            storeFile = localDebugKeystore
+    // Demo signing key committed on purpose: sideloaded builds keep the same signature, which is
+    // what allows the in-app updater to install the next APK. Replace it (and the credentials)
+    // before distributing outside this demo.
+    val demoKeystore = rootProject.file("signing/nahua-demo.keystore")
+    if (demoKeystore.exists()) {
+        signingConfigs.create("nahuaDemo") {
+            storeFile = demoKeystore
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
@@ -36,7 +38,9 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
+            if (demoKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("nahuaDemo")
+            }
         }
         release {
             isMinifyEnabled = true

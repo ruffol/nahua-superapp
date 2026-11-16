@@ -115,7 +115,7 @@ object ServiceCatalog {
         Service(
             id = "mapas",
             name = "Mapas",
-            tagline = "Tianguis y rutas cerca de ti",
+            tagline = "Mapa offline de Colima y tianguis",
             category = ServiceCategory.TRANSPORT,
             icon = Icons.Rounded.Explore,
             accent = Sky,
@@ -125,7 +125,7 @@ object ServiceCatalog {
         Service(
             id = "tianguis",
             name = "Tianguis",
-            tagline = "Productores de tu región",
+            tagline = "Productores de Colima",
             category = ServiceCategory.MARKET,
             icon = Icons.Rounded.Storefront,
             accent = Amber,
@@ -142,7 +142,7 @@ object ServiceCatalog {
         ),
         Service(
             id = "rag",
-            name = "Nahua IA",
+            name = "Nahuanotoka",
             tagline = "Pregunta a tus PDFs",
             category = ServiceCategory.LIFESTYLE,
             icon = Icons.Rounded.AutoAwesome,

@@ -29,6 +29,7 @@ _probe/
 # Signing material
 *.jks
 *.keystore
+!signing/nahua-demo.keystore
 keystore.properties
 
 # Logs

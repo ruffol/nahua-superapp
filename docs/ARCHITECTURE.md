@@ -57,6 +57,21 @@ extractor de PDF y a la red con control de errores. La cadena es:
 `PdfExtractor → TextChunker → RagRepository → Retriever → ChatClient`. El detalle vive en
 [RAG.md](RAG.md).
 
+## Ubicación
+
+`LocationProvider` usa `LocationManager` (sin Google Play Services). Prefiere un fix reciente en
+caché y, si no hay, espera GPS (7 s) y red (5 s) con timeout. El puente expone `Nahua.location()`;
+el permiso se pide desde la pantalla anfitriona con `RequestPermission`, de modo que la mini-app
+nunca ve el diálogo del sistema.
+
+## Actualizaciones OTA
+
+`UpdateRepository` consulta `releases/latest` de GitHub, compara versiones con `Version` y descarga
+el APK a caché verificando el SHA-256 cuando la release lo publica (`digest`). `ApkInstaller` usa
+`PackageInstaller` con un `PendingIntent` mutable y un `BroadcastReceiver` que lanza la confirmación
+del sistema. El repositorio incluye una llave de firma de demo para que CI y las builds locales
+compartan firma; en producción debe sustituirse.
+
 ## Runtime de mini-apps
 
 ```

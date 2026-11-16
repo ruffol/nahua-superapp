@@ -49,8 +49,8 @@
   <button class="ghost" onclick="Nahua.close()">Cerrar</button>
 </header>
 <main id="app">
-  <h1>Del productor a tu mesa</h1>
-  <p class="sub" id="sub">Elige tu región y arma tu mandado.</p>
+  <h1>Del productor colimense a tu mesa</h1>
+  <p class="sub" id="sub">Elige tu municipio y arma tu mandado.</p>
   <div class="regions" id="regions"></div>
   <div id="products"></div>
   <div class="error" id="error"></div>
@@ -63,29 +63,35 @@
 <script src="../nahua-sdk.js"></script>
 <script>
   var REGIONS = [
-    { id: 'oaxaca', label: 'Oaxaca' },
-    { id: 'puebla', label: 'Puebla' },
-    { id: 'yucatan', label: 'Yucatán' },
-    { id: 'cdmx', label: 'CDMX' }
+    { id: 'colima', label: 'Colima' },
+    { id: 'villa', label: 'Villa de Álvarez' },
+    { id: 'comala', label: 'Comala' },
+    { id: 'tecoman', label: 'Tecomán' },
+    { id: 'manzanillo', label: 'Manzanillo' },
+    { id: 'armeria', label: 'Armería' }
   ];
 
   var PRODUCTS = [
-    { id: 'tlayuda', region: 'oaxaca', name: 'Tlayuda con tasajo', producer: 'Doña Rosa · Tlacolula', detail: 'Hecha en comal de barro', price: 75, emoji: '🫓' },
-    { id: 'mezcal', region: 'oaxaca', name: 'Mezcal espadín', producer: 'Don Beto · Matatlán', detail: '750 ml, 45% alc.', price: 320, emoji: '🥃' },
-    { id: 'barro', region: 'oaxaca', name: 'Jarra de barro negro', producer: 'Taller Záa · San Bartolo', detail: 'Pieza única, 1.2 L', price: 180, emoji: '🏺' },
-    { id: 'quesillo', region: 'oaxaca', name: 'Quesillo fresco', producer: 'Familia Cruz · Etla', detail: '500 g, del día', price: 90, emoji: '🧀' },
-    { id: 'mole', region: 'puebla', name: 'Mole poblano', producer: 'Cocina de la Abuela · Puebla', detail: 'Pasta artesanal 500 g', price: 140, emoji: '🍲' },
-    { id: 'talavera', region: 'puebla', name: 'Talavera poblana', producer: 'Taller Uriarte', detail: 'Plato decorado, 26 cm', price: 260, emoji: '🍽️' },
-    { id: 'camote', region: 'puebla', name: 'Camote cristalino', producer: 'Dulcería La Central', detail: '200 g, surtido', price: 45, emoji: '🍠' },
-    { id: 'cemita', region: 'puebla', name: 'Cemita poblana', producer: 'Cemitas La Oriental', detail: 'Milanesa y quesillo', price: 85, emoji: '🥪' },
-    { id: 'hamaca', region: 'yucatan', name: 'Hamaca de nylon', producer: 'Doña Nelly · Valladolid', detail: 'Tejida a mano, matrimonial', price: 450, emoji: '🧵' },
-    { id: 'relleno', region: 'yucatan', name: 'Relleno negro', producer: 'Cocina Yucateca · Mérida', detail: 'Para 4 personas', price: 120, emoji: '🍛' },
-    { id: 'panucho', region: 'yucatan', name: 'Panuchos de cochinita', producer: 'Doña Lucha · Centro', detail: 'Orden de 3', price: 70, emoji: '🌮' },
-    { id: 'miel', region: 'yucatan', name: 'Miel de melipona', producer: 'Meliponario Kaab · Yucatán', detail: '250 ml, cruda', price: 210, emoji: '🍯' },
-    { id: 'quesadilla', region: 'cdmx', name: 'Quesadilla de comal', producer: 'Tianguis de Coyoacán', detail: 'Con queso de hebra', price: 60, emoji: '🫓' },
-    { id: 'cafe', region: 'cdmx', name: 'Café de olla', producer: 'Cafetería La Merced', detail: '1 L, con piloncillo', price: 35, emoji: '☕' },
-    { id: 'alebrije', region: 'cdmx', name: 'Alebrije tallado', producer: 'Taller Linares · Centro', detail: 'Madera de copal, 15 cm', price: 380, emoji: '🦊' },
-    { id: 'tostada', region: 'cdmx', name: 'Tostadas de tinga', producer: 'Mercado de Medellín', detail: 'Orden de 3', price: 55, emoji: '🥗' }
+    { id: 'ponche', region: 'colima', name: 'Ponche de granada', producer: 'Doña Chelo · Colima centro', detail: '1 L, receta de temporada', price: 85, emoji: '🍹' },
+    { id: 'cocadas', region: 'colima', name: 'Cocadas colimenses', producer: 'Cocadas La Colimense', detail: '6 piezas, coco natural', price: 60, emoji: '🥥' },
+    { id: 'sopes', region: 'colima', name: 'Sopes colimenses', producer: 'Cocina de la Abuela · Colima', detail: 'Orden de 4 con picadillo', price: 70, emoji: '🫓' },
+    { id: 'cafe-olla', region: 'colima', name: 'Café de olla', producer: 'Café El Portal · Colima', detail: '1 L con piloncillo y canela', price: 35, emoji: '☕' },
+    { id: 'tamales', region: 'villa', name: 'Tamales de elote', producer: 'Doña Mari · Villa de Álvarez', detail: 'Docena, elote tierno', price: 65, emoji: '🫔' },
+    { id: 'tuba', region: 'villa', name: 'Tuba natural', producer: 'Palma Real · Villa de Álvarez', detail: '1 L, extraída del día', price: 45, emoji: '🥤' },
+    { id: 'queso-villa', region: 'villa', name: 'Queso fresco', producer: 'Rancho La Capilla · Villa', detail: '500 g, leche de rancho', price: 110, emoji: '🧀' },
+    { id: 'pan-elote', region: 'villa', name: 'Pan de elote', producer: 'Panadería La Villa', detail: 'Pieza grande, recién horneado', price: 50, emoji: '🍞' },
+    { id: 'cafe-comala', region: 'comala', name: 'Café de Comala', producer: 'Finca El Nogal · Comala', detail: '500 g tostado medio', price: 180, emoji: '☕' },
+    { id: 'pan-comala', region: 'comala', name: 'Pan de Comala', producer: 'Panadería Comalteca', detail: 'Charola de pan dulce', price: 55, emoji: '🥖' },
+    { id: 'nieves', region: 'comala', name: 'Nieves de garrafa', producer: 'Nieves Don Beto · Comala', detail: '1 L, sabores de temporada', price: 40, emoji: '🍧' },
+    { id: 'queso-comala', region: 'comala', name: 'Queso de Comala', producer: 'Quesería Suchitlán', detail: '500 g, madurado', price: 120, emoji: '🧀' },
+    { id: 'limon', region: 'tecoman', name: 'Limón colimense', producer: 'Huerta El Limón · Tecomán', detail: '5 kg, cosecha de la semana', price: 60, emoji: '🍋' },
+    { id: 'mango', region: 'tecoman', name: 'Mango ataúlfo', producer: 'Huerta San Rafael · Tecomán', detail: '3 kg, maduración natural', price: 75, emoji: '🥭' },
+    { id: 'coco', region: 'tecoman', name: 'Coco fresco', producer: 'Palmar de Tecomán', detail: '3 piezas con agua', price: 35, emoji: '🥥' },
+    { id: 'tamarindo', region: 'tecoman', name: 'Tamarindo', producer: 'Rancho Los Arroyos · Tecomán', detail: '500 g, pulpa natural', price: 40, emoji: '🌾' },
+    { id: 'pescado', region: 'manzanillo', name: 'Pescado fresco', producer: 'Cooperativa Santiago · Manzanillo', detail: '1 kg, captura del día', price: 150, emoji: '🐟' },
+    { id: 'mariscos', region: 'manzanillo', name: 'Mariscos mixtos', producer: 'Cooperativa Manzanillo', detail: '1 kg, camarón y pulpo', price: 220, emoji: '🦐' },
+    { id: 'sandia', region: 'armeria', name: 'Sandía', producer: 'Ejido Armería', detail: 'Pieza de 8–10 kg', price: 50, emoji: '🍉' },
+    { id: 'melon', region: 'armeria', name: 'Melón', producer: 'Ejido Armería', detail: 'Pieza de 2–3 kg', price: 45, emoji: '🍈' }
   ];
 
   var region = REGIONS[0];
@@ -226,7 +232,7 @@
 
   var user = Nahua.user();
   if (user.name) {
-    document.getElementById('sub').textContent = 'Hola ' + user.name.split(' ')[0] + ' · elige tu región y arma tu mandado.';
+    document.getElementById('sub').textContent = 'Hola ' + user.name.split(' ')[0] + ' · elige tu municipio y arma tu mandado.';
   }
   render();
 </script>

@@ -1,4 +1,4 @@
-# Nahua IA · RAG local sobre PDFs
+# Nahuanotoka · RAG local sobre PDFs
 
 El objetivo es responder preguntas sobre documentos personales sin subir los documentos a ningún
 servidor. El PDF se procesa en el teléfono; **solo la pregunta y los fragmentos recuperados** viajan
@@ -72,7 +72,7 @@ Cuerpo de la petición:
   "temperature": 0.2,
   "stream": false,
   "messages": [
-    { "role": "system", "content": "Eres Nahua IA…" },
+    { "role": "system", "content": "Eres Nahuanotoka…" },
     { "role": "user", "content": "Contexto extraído… Pregunta: …" }
   ]
 }

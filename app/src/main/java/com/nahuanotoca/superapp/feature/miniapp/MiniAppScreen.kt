@@ -1,6 +1,9 @@
 package com.nahuanotoca.superapp.feature.miniapp
 
+import android.Manifest
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -86,6 +90,39 @@ fun MiniAppScreen(
             onClose = onClose,
             onToast = onMessage,
         )
+    }
+
+    var pendingLocationId by remember { mutableStateOf<String?>(null) }
+
+    val locationPermission = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val requestId = pendingLocationId
+        pendingLocationId = null
+        if (requestId != null) {
+            if (granted) {
+                scope.launch {
+                    val fix = viewModel.currentLocation()
+                    bridge.resolveLocation(requestId, fix, if (fix == null) "unavailable" else null)
+                }
+            } else {
+                bridge.resolveLocation(requestId, null, "permission_denied")
+            }
+        }
+    }
+
+    SideEffect {
+        bridge.onLocationRequest = { requestId ->
+            if (viewModel.hasLocationPermission()) {
+                scope.launch {
+                    val fix = viewModel.currentLocation()
+                    bridge.resolveLocation(requestId, fix, if (fix == null) "unavailable" else null)
+                }
+            } else {
+                pendingLocationId = requestId
+                locationPermission.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
     }
 
     Column(

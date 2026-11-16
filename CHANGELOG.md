@@ -3,6 +3,28 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.3.0] — 2026-11-15
+
+### Añadido
+
+- **Mapa offline de Colima**: 2,151 teselas empaquetadas (z9–13 estatal, z14–15 metropolitano) con
+  respaldo en línea de OpenStreetMap y atribución.
+- **GPS**: proveedor nativo basado en `LocationManager`, puente `Nahua.location()` y botón
+  "Mi ubicación" en el mapa con permiso en tiempo de ejecución.
+- **Tianguis de Colima**: catálogo de productores de Colima, Villa de Álvarez, Comala, Tecomán,
+  Manzanillo y Armería; el mapa muestra sus mercados y horarios.
+- **Actualizaciones OTA**: consulta de GitHub Releases, descarga con progreso, verificación SHA-256
+  e instalación con `PackageInstaller`. Sección *Perfil → Versión*.
+- Workflow `release.yml`: al empujar un tag `v*` compila y publica el APK en la release.
+- Llave de firma de demo compartida entre CI y builds locales para que las actualizaciones instalen.
+- 7 tests nuevos (versiones y teselas offline); 40 en total.
+
+### Cambiado
+
+- La app pasa a estar enfocada en Colima (mapa, tianguis y textos).
+- "Nahua IA" se renombra a **Nahuanotoka**.
+- Versión 0.3.0 (versionCode 300).
+
 ## [0.2.0] — 2026-11-15
 
 ### Añadido

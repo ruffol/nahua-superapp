@@ -63,6 +63,20 @@ Nahua.pay({
   });
 ```
 
+### `Nahua.location()`
+
+Pide la ubicación del dispositivo. El host se encarga del permiso la primera vez.
+
+```js
+Nahua.location()
+  .then(pos => {
+    console.log(pos.lat, pos.lng, pos.accuracy);
+  })
+  .catch(error => {
+    // error.error: permission_denied | unavailable
+  });
+```
+
 ### `Nahua.toast(message)`
 
 Muestra un snackbar nativo.

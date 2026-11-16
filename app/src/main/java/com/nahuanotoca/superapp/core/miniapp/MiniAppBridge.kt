@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.JavascriptInterface
+import com.nahuanotoca.superapp.core.location.LocationFix
 import org.json.JSONObject
 
 data class PayRequest(
@@ -29,6 +30,9 @@ class MiniAppBridge(
     @Volatile
     var sendToWeb: ((String) -> Unit)? = null
 
+    /** Set by the host screen; the id is echoed back through [resolveLocation]. */
+    var onLocationRequest: (String) -> Unit = {}
+
     @JavascriptInterface
     fun getSession(): String = sessionJson()
 
@@ -47,6 +51,11 @@ class MiniAppBridge(
             merchant = payload?.optString("merchant", "Nahua") ?: "Nahua",
         )
         mainHandler.post { onPayRequest(request) }
+    }
+
+    @JavascriptInterface
+    fun requestLocation(payloadJson: String, requestId: String) {
+        mainHandler.post { onLocationRequest(requestId) }
     }
 
     @JavascriptInterface
@@ -75,6 +84,24 @@ class MiniAppBridge(
         if (error != null) result.put("error", error)
         if (transactionId != null) result.put("transactionId", transactionId)
         if (balanceCents != null) result.put("balanceCents", balanceCents)
+        deliver(requestId, result)
+    }
+
+    fun resolveLocation(requestId: String, fix: LocationFix?, error: String? = null) {
+        val result = JSONObject()
+        if (fix != null) {
+            result.put("status", "ok")
+            result.put("lat", fix.latitude)
+            result.put("lng", fix.longitude)
+            result.put("accuracy", fix.accuracyMeters.toDouble())
+        } else {
+            result.put("status", "error")
+            result.put("error", error ?: "unavailable")
+        }
+        deliver(requestId, result)
+    }
+
+    private fun deliver(requestId: String, result: JSONObject) {
         val script = "window.Nahua && window.Nahua._resolve(" +
             JSONObject.quote(requestId) + ", " + JSONObject.quote(result.toString()) + ")"
         mainHandler.post { sendToWeb?.invoke(script) }

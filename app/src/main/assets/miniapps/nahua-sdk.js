@@ -59,6 +59,14 @@
       window.NahuaNative.toast(String(message));
     },
 
+    /**
+     * Requests the device location (permission handled by the host).
+     * @returns {Promise<{status: string, lat: number, lng: number, accuracy: number}>}
+     */
+    location: function () {
+      return post('requestLocation', {});
+    },
+
     /** Closes the mini app and returns to the Nahua home. */
     close: function () {
       window.NahuaNative.close();
