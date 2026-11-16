@@ -15,8 +15,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Overridable from CI: -PnahuaVersionCode=301 -PnahuaVersionName=0.3.1
-        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "401").toInt()
-        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.4.1"
+        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "402").toInt()
+        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

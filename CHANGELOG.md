@@ -3,6 +3,19 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.4.2] — 2026-11-16
+
+### Cambiado
+
+- **Nahuanotoka analiza únicamente mediante API.** Se elimina el motor local
+  (`LocalStudyEngine`) y su respaldo silencioso: si no hay API key configurada, la app abre los
+  ajustes y explica que el análisis lo genera el modelo; si el proveedor falla, se muestra el error
+  real (401/403 abren la configuración) en lugar de una respuesta generada en el teléfono.
+- La mesa muestra el aviso de conexión también dentro del detalle, junto a los documentos.
+- `ChatClient` avisa con un mensaje claro cuando el endpoint devuelve HTML en vez de JSON (base URL
+  equivocada) en lugar de reventar con un error de parseo.
+- Tests: se retira `LocalStudyEngineTest`; quedan 54.
+
 ## [0.4.1] — 2026-11-16
 
 ### Eliminado

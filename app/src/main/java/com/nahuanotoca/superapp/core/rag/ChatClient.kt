@@ -79,6 +79,15 @@ class ChatClient {
                     throw ChatException(describeError(status, body), status)
                 }
 
+                // Un proxy o una base URL equivocada devuelve HTML con status 200: mejor avisar que
+                // dejar caer la excepción de JSON, porque el usuario no sabría qué corregir.
+                if (!body.trimStart().startsWith("{")) {
+                    throw ChatException(
+                        "La API respondió algo que no es JSON. Revisa la Base URL: debe ser el endpoint " +
+                            "compatible con OpenAI, normalmente terminando en /v1.",
+                    )
+                }
+
                 val json = JSONObject(body)
                 val content = json.optJSONArray("choices")
                     ?.optJSONObject(0)

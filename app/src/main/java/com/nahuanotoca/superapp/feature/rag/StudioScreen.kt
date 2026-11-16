@@ -503,8 +503,8 @@ internal fun ConfigurePrompt(onConfigure: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
                 Text(
-                    text = "Por defecto usa deepseek-v4.1-flash en OpenCode Go. También acepta cualquier " +
-                        "endpoint compatible con OpenAI.",
+                    text = "El análisis lo genera el modelo de tu API (por defecto deepseek-v4.1-flash en " +
+                        "OpenCode Go). Sin llave no hay respuestas.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.85f),
                 )
@@ -562,6 +562,10 @@ internal fun MesaDetailScreen(
         ) {
             item { TokenCard(mesa) }
             item { ContextCard(mesa = mesa, onEdit = { viewModel.openEditor(mesa) }) }
+
+            if (!state.isConfigured) {
+                item { ConfigurePrompt(onConfigure = viewModel::openSettings) }
+            }
             item {
                 DocumentsSection(
                     documents = state.documents,

@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.4.1 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.4.2 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -28,7 +28,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **58 tests unitarios** y CI en GitHub Actions.
+- **54 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -69,6 +69,10 @@ materia que guarda tus documentos, tu contexto, tus consultas y lo que llevas ga
 Por defecto usa **DeepSeek V4.1 Flash** (`deepseek-v4.1-flash`) vía OpenCode Go: es el modelo más
 barato para estudiar con muchos PDFs y su contexto alcanza para varias lecturas a la vez. Puedes
 cambiar base URL y modelo a cualquier API compatible con OpenAI.
+
+**Requiere API:** el texto se indexa en el teléfono, pero la redacción (resumen, ideas, correlación)
+la hace siempre el modelo configurado. Si la API falla o falta la llave, la app muestra el error y
+abre la configuración en lugar de inventar una respuesta.
 
 Los documentos se quedan en el teléfono; sólo viajan la pregunta y los fragmentos elegidos.
 Detalles de arquitectura, algoritmo y límites en [docs/RAG.md](docs/RAG.md).
@@ -154,7 +158,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 58 tests
+./gradlew testDebugUnitTest    # 54 tests
 ./gradlew installDebug
 ```
 

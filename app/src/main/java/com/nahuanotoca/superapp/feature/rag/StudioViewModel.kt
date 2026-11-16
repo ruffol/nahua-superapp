@@ -13,10 +13,9 @@ import com.nahuanotoca.superapp.core.model.RagFigure
 import com.nahuanotoca.superapp.core.model.RagSettings
 import com.nahuanotoca.superapp.core.model.StudioTask
 import com.nahuanotoca.superapp.core.model.StudioTasks
+import com.nahuanotoca.superapp.core.rag.ChatException
 import com.nahuanotoca.superapp.core.rag.ChatMessage
-import com.nahuanotoca.superapp.core.rag.ChatReply
 import com.nahuanotoca.superapp.core.rag.ContextBuilder
-import com.nahuanotoca.superapp.core.rag.LocalStudyEngine
 import com.nahuanotoca.superapp.core.rag.ReportRequest
 import com.nahuanotoca.superapp.core.rag.StudioPrompts
 import com.nahuanotoca.superapp.core.rag.TextChunker
@@ -321,6 +320,13 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         generate(null, prompt)
     }
 
+    /** Mensaje accionable cuando el proveedor falla: nunca se inventa una respuesta local. */
+    private fun apiErrorMessage(failure: Throwable?): String = when {
+        failure == null -> "La API no respondió. Revisa tu conexión y la configuración."
+        failure is ChatException -> failure.message ?: "La API rechazó la solicitud."
+        else -> failure.message ?: "No pudimos conectar con la API."
+    }
+
     private fun generate(task: StudioTask?, prompt: String) {
         val mesa = _state.value.activeMesa
         if (mesa == null) {
@@ -329,6 +335,15 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         }
         val current = _state.value
         if (current.isWorking) return
+        if (!current.settings.isConfigured) {
+            _state.update {
+                it.copy(
+                    settingsOpen = true,
+                    error = "Nahuanotoka analiza sólo con la API: configura la URL, el modelo y tu API key.",
+                )
+            }
+            return
+        }
         val startedAt = System.currentTimeMillis()
         val userTurn = ChatTurn(
             id = newId("turn"),
@@ -381,25 +396,18 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     add(ChatMessage.user(StudioPrompts.user(task, prompt, context)))
                 }
 
-                val reply: ChatReply = if (current.settings.isConfigured) {
-                    val remote = container.chatClient.complete(current.settings, messages)
-                    remote.getOrElse {
-                        LocalStudyEngine.analyze(
-                            mesa = mesa,
-                            task = task,
-                            prompt = prompt,
-                            context = context,
-                            allChunks = chunks,
-                        ).copy(text = LocalStudyEngine.analyze(mesa, task, prompt, context, chunks).text + "\n\n*(Generado con análisis local · el servicio de IA no estuvo disponible)*")
+                val result = container.chatClient.complete(current.settings, messages)
+                val reply = result.getOrNull()
+                if (reply == null) {
+                    val failure = result.exceptionOrNull()
+                    val status = (failure as? ChatException)?.statusCode
+                    _state.update {
+                        it.copy(
+                            error = apiErrorMessage(failure),
+                            settingsOpen = status == 401 || status == 403,
+                        )
                     }
-                } else {
-                    LocalStudyEngine.analyze(
-                        mesa = mesa,
-                        task = task,
-                        prompt = prompt,
-                        context = context,
-                        allChunks = chunks,
-                    )
+                    return@launch
                 }
 
                 val assistantTurn = ChatTurn(

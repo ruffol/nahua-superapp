@@ -89,6 +89,11 @@ caracteres, para no reventar la ventana ni la cartera.
 
 ## Modelo por defecto
 
+> **Todo el análisis lo genera el modelo vía API.** La app indexa los PDFs y elige los fragmentos,
+> pero la síntesis (resumen, ideas, correlación, guion…) siempre viene del proveedor configurado.
+> Si falta la llave o la API falla, la mesa muestra el error y abre la configuración: **no hay
+> respuestas de respaldo generadas en el teléfono**.
+
 | Campo | Valor |
 | --- | --- |
 | Base URL | `https://opencode.ai/zen/go/v1` |
@@ -171,6 +176,7 @@ primera vez que abres la app.
 | 8 fragmentos / ~14 000 caracteres | Costo y ventana del proveedor |
 | 12 figuras por PDF | Memoria del teléfono |
 | 80 turnos por mesa | Tamaño del historial |
+| Sin API key o sin red | No hay análisis: el modelo no corre en el teléfono |
 
 ## Diagnóstico
 
