@@ -14,7 +14,9 @@ import com.nahuanotoca.superapp.core.model.RagSettings
 import com.nahuanotoca.superapp.core.model.StudioTask
 import com.nahuanotoca.superapp.core.model.StudioTasks
 import com.nahuanotoca.superapp.core.rag.ChatMessage
+import com.nahuanotoca.superapp.core.rag.ChatReply
 import com.nahuanotoca.superapp.core.rag.ContextBuilder
+import com.nahuanotoca.superapp.core.rag.LocalStudyEngine
 import com.nahuanotoca.superapp.core.rag.ReportRequest
 import com.nahuanotoca.superapp.core.rag.StudioPrompts
 import com.nahuanotoca.superapp.core.rag.TextChunker
@@ -89,19 +91,48 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     /**
      * Primera carga. Si existen documentos del formato anterior (sin mesas) se crea una mesa con
-     * ellos: nadie pierde sus PDFs al actualizar.
+     * ellos. Si es la primera vez que abre la app, se crea una mesa de demostración para Colima.
      */
     private fun bootstrap() {
         viewModelScope.launch {
             val loaded = container.studio.load()
-            if (loaded.isEmpty() && container.rag.hasLegacyDocuments()) {
-                val mesa = container.studio.create(
-                    name = "Mis documentos",
-                    subject = "General",
-                    context = "PDFs importados antes de que existieran las mesas de trabajo.",
-                )
-                container.rag.migrateLegacy(mesa.id)
-                _events.emit(StudioEvent.Toast("Tus PDFs anteriores ahora viven en la mesa \"Mis documentos\"."))
+            if (loaded.isEmpty()) {
+                if (container.rag.hasLegacyDocuments()) {
+                    val mesa = container.studio.create(
+                        name = "Mis documentos",
+                        subject = "General",
+                        context = "PDFs importados antes de que existieran las mesas de trabajo.",
+                    )
+                    container.rag.migrateLegacy(mesa.id)
+                    _events.emit(StudioEvent.Toast("Tus PDFs anteriores ahora viven en la mesa \"Mis documentos\"."))
+                } else {
+                    val demoMesa = container.studio.create(
+                        name = "Historia y Geografía de Colima",
+                        subject = "Estudio Regional",
+                        context = "Mesa demostrativa para estudiar la historia, volcanes, tianguis y geografía de Colima con Nahuanotoka.",
+                    )
+                    val demoChunks = listOf(
+                        TextChunker.Chunk(
+                            page = 1,
+                            text = "El estado de Colima se ubica en la costa centro-occidental del Pacífico mexicano. Con una extensión de 5,627 km², destaca por su alta biodiversidad, zonas arqueológicas de El Chanal y La Campana, y su cercanía al complejo volcánico más activo de México.",
+                        ),
+                        TextChunker.Chunk(
+                            page = 2,
+                            text = "El Volcán de Colima o Volcán de Fuego (3,860 msnm) y el Nevado de Colima (4,260 msnm) configuran el paisaje geográfico del norte estatal. Sus suelos de ceniza volcánica favorecen la agricultura de café de altura en Comala y Suchitlán, así como la caña y frutales.",
+                        ),
+                        TextChunker.Chunk(
+                            page = 3,
+                            text = "Los tianguis tradicionales en Colima y Villa de Álvarez preservan el comercio comunitario desde la época virreinal. Se intercambian productos emblemáticos como la tuba con cacahuate, tamales de ceniza, quesos de montaña, limones de Tecomán y sal de mar de Cuyutlán.",
+                        ),
+                        TextChunker.Chunk(
+                            page = 4,
+                            text = "El puerto de Manzanillo es la capital económica y marítima del estado, liderando el movimiento de carga contenerizada en el Pacífico mexicano, conectando rutas comerciales internacionales y preservando importantes atractivos turísticos en Santiago y Miramar.",
+                        ),
+                    )
+                    runCatching {
+                        container.rag.import(demoMesa.id, "Guia_Colima_Patrimonio.pdf", demoChunks)
+                    }
+                }
             }
             val perMesa = counts(container.studio.mesas.value)
             _state.update { it.copy(isLoading = false, documentCounts = perMesa) }
@@ -298,31 +329,24 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         }
         val current = _state.value
         if (current.isWorking) return
-        if (!current.settings.isConfigured) {
-            _state.update {
-                it.copy(settingsOpen = true, error = "Configura tu API key para generar el análisis.")
-            }
-            return
+        val startedAt = System.currentTimeMillis()
+        val userTurn = ChatTurn(
+            id = newId("turn"),
+            role = ChatRole.USER,
+            text = prompt,
+            taskId = task?.id,
+            createdAt = startedAt,
+        )
+        _state.update {
+            it.copy(
+                isWorking = true,
+                error = null,
+                pendingTurn = userTurn,
+                workingLabel = if (task != null) "Preparando " + task.label.lowercase() else "Leyendo y respondiendo",
+            )
         }
 
         viewModelScope.launch {
-            val startedAt = System.currentTimeMillis()
-            val userTurn = ChatTurn(
-                id = newId("turn"),
-                role = ChatRole.USER,
-                text = prompt,
-                taskId = task?.id,
-                createdAt = startedAt,
-            )
-            _state.update {
-                it.copy(
-                    isWorking = true,
-                    error = null,
-                    pendingTurn = userTurn,
-                    workingLabel = if (task != null) "Preparando " + task.label.lowercase() else "Leyendo y respondiendo",
-                )
-            }
-
             try {
                 val chunks = container.rag.chunks(mesa.id)
                 if (chunks.isEmpty()) {
@@ -357,36 +381,53 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     add(ChatMessage.user(StudioPrompts.user(task, prompt, context)))
                 }
 
-                container.chatClient.complete(current.settings, messages)
-                    .onSuccess { reply ->
-                        val assistantTurn = ChatTurn(
-                            id = newId("turn"),
-                            role = ChatRole.ASSISTANT,
-                            text = reply.text,
-                            taskId = task?.id,
-                            model = reply.model,
-                            usage = reply.usage,
-                            sources = context.sources,
-                            elapsedMillis = System.currentTimeMillis() - startedAt,
-                            createdAt = System.currentTimeMillis(),
-                        )
-                        container.studio.appendTurn(mesa.id, userTurn)
-                        container.studio.appendTurn(mesa.id, assistantTurn)
-                        container.studio.recordUsage(mesa.id, reply.usage)
-                        _state.update {
-                            it.copy(
-                                turns = it.turns + userTurn + assistantTurn,
-                                pendingTurn = null,
-                                isWorking = false,
-                                workingLabel = "",
-                            )
-                        }
+                val reply: ChatReply = if (current.settings.isConfigured) {
+                    val remote = container.chatClient.complete(current.settings, messages)
+                    remote.getOrElse {
+                        LocalStudyEngine.analyze(
+                            mesa = mesa,
+                            task = task,
+                            prompt = prompt,
+                            context = context,
+                            allChunks = chunks,
+                        ).copy(text = LocalStudyEngine.analyze(mesa, task, prompt, context, chunks).text + "\n\n*(Generado con análisis local · el servicio de IA no estuvo disponible)*")
                     }
-                    .onFailure { failure ->
-                        _state.update {
-                            it.copy(error = failure.message ?: "La API no respondió")
-                        }
-                    }
+                } else {
+                    LocalStudyEngine.analyze(
+                        mesa = mesa,
+                        task = task,
+                        prompt = prompt,
+                        context = context,
+                        allChunks = chunks,
+                    )
+                }
+
+                val assistantTurn = ChatTurn(
+                    id = newId("turn"),
+                    role = ChatRole.ASSISTANT,
+                    text = reply.text,
+                    taskId = task?.id,
+                    model = reply.model,
+                    usage = reply.usage,
+                    sources = context.sources,
+                    elapsedMillis = System.currentTimeMillis() - startedAt,
+                    createdAt = System.currentTimeMillis(),
+                )
+                container.studio.appendTurn(mesa.id, userTurn)
+                container.studio.appendTurn(mesa.id, assistantTurn)
+                container.studio.recordUsage(mesa.id, reply.usage)
+                _state.update {
+                    it.copy(
+                        turns = it.turns + userTurn + assistantTurn,
+                        pendingTurn = null,
+                        isWorking = false,
+                        workingLabel = "",
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(error = e.message ?: "Ocurrió un error al procesar")
+                }
             } finally {
                 _state.update { it.copy(isWorking = false, workingLabel = "", pendingTurn = null) }
             }

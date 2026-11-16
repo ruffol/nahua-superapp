@@ -36,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +75,7 @@ fun HomeScreen(
 ) {
     val wallet by viewModel.wallet.collectAsStateWithLifecycle()
     val unread by viewModel.unreadCount.collectAsStateWithLifecycle()
+    var isRotaryMode by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -90,21 +92,81 @@ fun HomeScreen(
                 onOpenWallet = onOpenWallet,
             )
         }
-        item { PromoCarousel(onMessage = onMessage) }
+
+        // Selector moderno de aplicaciones: Aro de teléfono antiguo / Cuadrícula
         item {
-            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SectionHeader(
-                    title = "Servicios",
-                    actionLabel = "Ver todos",
-                    onAction = onSeeAllServices,
-                )
-                Spacer(Modifier.height(6.dp))
-                ServiceGrid(
-                    services = viewModel.featuredServices,
-                    onOpenService = onOpenService,
-                )
+            Column(modifier = Modifier.padding(top = 2.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SectionHeader(
+                        title = "Aplicaciones",
+                        actionLabel = "Ver todas",
+                        onAction = onSeeAllServices,
+                    )
+
+                    Surface(
+                        onClick = { isRotaryMode = !isRotaryMode },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = if (isRotaryMode) Icons.Rounded.Search else Icons.Rounded.Notifications,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = if (isRotaryMode) "Cuadrícula" else "Aro Telefónico",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                if (isRotaryMode) {
+                    RotaryAppDial(
+                        services = viewModel.allActiveServices,
+                        onOpenService = onOpenService,
+                    )
+                } else {
+                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        ServiceGrid(
+                            services = viewModel.featuredServices,
+                            onOpenService = onOpenService,
+                        )
+                    }
+                }
             }
         }
+
+        // Mapa offline de Colima y ubicación actual en el menú principal
+        item {
+            HomeOfflineMapCard(
+                viewModel = viewModel,
+                onOpenFullMap = {
+                    val mapService = viewModel.allActiveServices.firstOrNull { it.id == "mapas" }
+                    if (mapService != null) onOpenService(mapService) else onSeeAllServices()
+                },
+                onMessage = onMessage,
+            )
+        }
+
+        item { PromoCarousel(onMessage = onMessage) }
+
         item {
             QuickActions(
                 onScan = onScan,
@@ -112,6 +174,7 @@ fun HomeScreen(
                 onSend = { onMessage("Transferencias llegan en la próxima versión") },
             )
         }
+
         item {
             RecentActivity(
                 transactions = wallet.transactions.take(3),

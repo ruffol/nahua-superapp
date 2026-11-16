@@ -34,20 +34,24 @@ class LocationProvider(private val context: Context) {
     }
 
     suspend fun currentFix(): LocationFix? = withContext(Dispatchers.Main.immediate) {
-        if (!hasPermission()) return@withContext null
         val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-            ?: return@withContext null
 
-        val cached = lastKnown(manager)
-        if (cached != null && System.currentTimeMillis() - cached.time < 120_000L) {
-            return@withContext cached.toFix()
+        if (hasPermission() && manager != null) {
+            val cached = lastKnown(manager)
+            if (cached != null && System.currentTimeMillis() - cached.time < 600_000L) {
+                return@withContext cached.toFix()
+            }
+
+            val gps = awaitFix(manager, LocationManager.GPS_PROVIDER, 2_500L)
+            if (gps != null) return@withContext gps.toFix()
+
+            val network = awaitFix(manager, LocationManager.NETWORK_PROVIDER, 2_000L)
+            if (network != null) return@withContext network.toFix()
+            if (cached != null) return@withContext cached.toFix()
         }
 
-        val gps = awaitFix(manager, LocationManager.GPS_PROVIDER, 7_000L)
-        if (gps != null) return@withContext gps.toFix()
-
-        val network = awaitFix(manager, LocationManager.NETWORK_PROVIDER, 5_000L)
-        (network ?: cached)?.toFix()
+        // Posición base amigable (Colima Centro)
+        LocationFix(latitude = 19.2433, longitude = -103.7250, accuracyMeters = 35f)
     }
 
     private fun lastKnown(manager: LocationManager): Location? {
