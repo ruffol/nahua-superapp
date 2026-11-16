@@ -11,30 +11,12 @@
       "permissions": ["wallet.pay", "user.profile"]
     },
     {
-      "id": "food",
-      "name": "Nahua Food",
-      "tagline": "Comida a domicilio",
-      "version": "1.0.0",
-      "entry": "miniapps/food/index.html",
-      "accent": "#F2A100",
-      "permissions": ["wallet.pay", "user.profile"]
-    },
-    {
       "id": "bills",
       "name": "Pagar servicios",
       "tagline": "Luz, agua e internet",
       "version": "1.0.0",
       "entry": "miniapps/bills/index.html",
       "accent": "#2F6BFF",
-      "permissions": ["wallet.pay", "user.profile"]
-    },
-    {
-      "id": "cinema",
-      "name": "Cine",
-      "tagline": "Boletos en segundos",
-      "version": "1.0.0",
-      "entry": "miniapps/cinema/index.html",
-      "accent": "#7C4DFF",
       "permissions": ["wallet.pay", "user.profile"]
     },
     {

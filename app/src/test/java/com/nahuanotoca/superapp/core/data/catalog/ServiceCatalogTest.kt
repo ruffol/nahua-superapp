@@ -3,6 +3,7 @@ package com.nahuanotoca.superapp.core.data.catalog
 import com.nahuanotoca.superapp.core.model.ServiceTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -17,7 +18,7 @@ class ServiceCatalogTest {
 
     @Test
     fun featuredServicesExistInCatalog() {
-        assertEquals(8, ServiceCatalog.featured.size)
+        assertEquals(6, ServiceCatalog.featured.size)
         ServiceCatalog.featured.forEach { service ->
             assertNotNull(ServiceCatalog.find(service.id))
         }
@@ -27,6 +28,21 @@ class ServiceCatalogTest {
     fun everyCategoryHasAtLeastOneService() {
         ServiceCatalog.all.groupBy { it.category }.forEach { (category, services) ->
             assertTrue("Category " + category + " is empty", services.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun removedServicesAreNoLongerOffered() {
+        listOf("food", "cinema", "pharmacy", "insurance").forEach { id ->
+            assertNull("El servicio " + id + " sigue en el catálogo", ServiceCatalog.find(id))
+        }
+    }
+
+    @Test
+    fun remainingMiniAppsStayDeclared() {
+        val manifest = File("src/main/assets/miniapps/index.json").readText()
+        listOf("ride", "bills", "mapa", "tamagochi", "tianguis").forEach { id ->
+            assertTrue("Falta la mini-app " + id, manifest.contains("\"" + id + "\""))
         }
     }
 

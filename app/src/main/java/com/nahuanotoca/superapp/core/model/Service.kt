@@ -6,7 +6,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 enum class ServiceCategory(val label: String) {
     PAYMENTS("Pagos"),
     TRANSPORT("Transporte"),
-    FOOD("Comida"),
     LIFESTYLE("Vida"),
     GOVERNMENT("Gobierno"),
     ENTERTAINMENT("Ocio"),

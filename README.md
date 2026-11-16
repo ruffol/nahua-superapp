@@ -6,13 +6,13 @@
 [![minSdk](https://img.shields.io/badge/minSdk-26-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Una **super app** hecha para **Colima**: pagos, transporte, comida, tianguis de productores locales,
-mapa **offline** con GPS, mascota virtual, ocio y **Nahuanotoka**, un estudio que convierte tus PDFs
+Una **super app** hecha para **Colima**: pagos, transporte, tianguis de productores locales,
+mapa **offline** con GPS, mascota virtual y **Nahuanotoka**, un estudio que convierte tus PDFs
 en mesas de trabajo por materia: resúmenes con página, ideas propias, correlación entre documentos,
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.4.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.4.1 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -28,7 +28,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **52 tests unitarios** y CI en GitHub Actions.
+- **58 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -37,9 +37,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 | **Mapas** | mini-app | mapa offline de Colima, tianguis por municipio y “mi ubicación” | Leaflet + GPS |
 | **Tianguis** | mini-app | productores colimenses de seis municipios | `Nahua.pay` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
-| **Nahua Food** | mini-app | menú, carrito y checkout | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
-| **Cine** | mini-app | cartelera, funciones y boletos | `Nahua.pay` |
 | **Axolote** | mini-app | mascota virtual con hambre, ánimo y niveles | `localStorage` |
 | **Nahuanotoka** | feature nativa | mesas de estudio: resumen, ideas, correlación y PDF | HTTP + PDFBox |
 
@@ -156,7 +154,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 52 tests
+./gradlew testDebugUnitTest    # 58 tests
 ./gradlew installDebug
 ```
 

@@ -33,8 +33,8 @@ class InboxRepository {
             ),
             Notice(
                 id = "notice_promo",
-                title = "3x1 en café con Nahua Food",
-                body = "Válido hoy en sucursales participantes. Paga con tu cartera y gana puntos.",
+                title = "2x1 en café de productores de Comala",
+                body = "Disponible en el Tianguis de la app. Paga con tu cartera y gana puntos.",
                 kind = NoticeKind.PROMO,
                 timestamp = now - 95 * minute,
             ),

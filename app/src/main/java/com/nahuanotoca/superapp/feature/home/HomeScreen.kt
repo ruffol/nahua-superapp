@@ -385,9 +385,9 @@ private val promos = listOf(
         background = VioletSoft,
     ),
     Promo(
-        kicker = "ENVÍOS",
-        title = "Comida caliente, cero filas",
-        body = "Nahua Food ahora con envío gratis el primer pedido.",
+        kicker = "ESTUDIO",
+        title = "Tus PDFs, listos para exponer",
+        body = "Nahuanotoka arma el resumen, las ideas y el guion de tu exposición.",
         accent = Jade,
         background = JadeSoft,
     ),

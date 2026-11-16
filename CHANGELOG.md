@@ -3,6 +3,17 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.4.1] — 2026-11-16
+
+### Eliminado
+
+- **Nahua Food**, **Cine**, **Farmacia** y **Seguros** salen del catálogo de servicios, de la fila de
+  destacados y de la búsqueda.
+- Se borran los paquetes `miniapps/food` y `miniapps/cinema` y sus entradas en
+  `assets/miniapps/index.json`; también desaparece la categoría **Comida** del hub.
+- Tests: nuevos casos que verifican que los cuatro servicios ya no existen y que las mini-apps
+  restantes siguen declaradas; 58 tests en total.
+
 ## [0.4.0] — 2026-11-15
 
 ### Corregido

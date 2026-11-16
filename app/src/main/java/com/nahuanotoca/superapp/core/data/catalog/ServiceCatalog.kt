@@ -9,15 +9,11 @@ import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.DirectionsBus
 import androidx.compose.material.icons.rounded.DirectionsCar
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LocalPharmacy
-import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.Restaurant
-import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Storefront
 import com.nahuanotoca.superapp.core.design.Amber
 import com.nahuanotoca.superapp.core.design.Coral
@@ -49,15 +45,6 @@ object ServiceCatalog {
             badge = "Nuevo",
         ),
         Service(
-            id = "food",
-            name = "Nahua Food",
-            tagline = "Comida a domicilio",
-            category = ServiceCategory.FOOD,
-            icon = Icons.Rounded.Restaurant,
-            accent = Amber,
-            target = ServiceTarget.MiniApp("food"),
-        ),
-        Service(
             id = "bills",
             name = "Pagar servicios",
             tagline = "Luz, agua e internet",
@@ -65,15 +52,6 @@ object ServiceCatalog {
             icon = Icons.AutoMirrored.Rounded.ReceiptLong,
             accent = Sky,
             target = ServiceTarget.MiniApp("bills"),
-        ),
-        Service(
-            id = "cinema",
-            name = "Cine",
-            tagline = "Boletos en segundos",
-            category = ServiceCategory.ENTERTAINMENT,
-            icon = Icons.Rounded.Movie,
-            accent = Violet,
-            target = ServiceTarget.MiniApp("cinema"),
         ),
         Service(
             id = "wallet",
@@ -170,24 +148,6 @@ object ServiceCatalog {
             target = ServiceTarget.ComingSoon,
         ),
         Service(
-            id = "pharmacy",
-            name = "Farmacia",
-            tagline = "Medicamentos 24/7",
-            category = ServiceCategory.LIFESTYLE,
-            icon = Icons.Rounded.LocalPharmacy,
-            accent = Coral,
-            target = ServiceTarget.ComingSoon,
-        ),
-        Service(
-            id = "insurance",
-            name = "Seguros",
-            tagline = "Protege lo importante",
-            category = ServiceCategory.LIFESTYLE,
-            icon = Icons.Rounded.Shield,
-            accent = Violet,
-            target = ServiceTarget.ComingSoon,
-        ),
-        Service(
             id = "gov",
             name = "Trámites",
             tagline = "Gobierno en línea",
@@ -208,7 +168,7 @@ object ServiceCatalog {
     )
 
     val featured: List<Service> = listOf(
-        "ride", "food", "bills", "cinema", "wallet", "scan", "inbox", "profile",
+        "ride", "bills", "wallet", "scan", "inbox", "profile",
     ).mapNotNull { id -> all.firstOrNull { it.id == id } }
 
     fun byCategory(category: ServiceCategory): List<Service> = all.filter { it.category == category }
