@@ -1,0 +1,13 @@
+# Normalise text files to LF so shell scripts keep working on Linux/macOS.
+* text=auto eol=lf
+
+# Windows-specific scripts
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binaries
+*.jar binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.apk binary
