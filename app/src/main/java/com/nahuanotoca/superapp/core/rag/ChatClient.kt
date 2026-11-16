@@ -58,6 +58,9 @@ class ChatClient {
                 )
             }
 
+            val rawKey = settings.apiKey.trim()
+            val sessionKey = if (rawKey.isNotBlank()) rawKey.take(32) else "nahuanotoka-session"
+
             val connection = (URL(settings.chatEndpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 20_000
@@ -65,15 +68,55 @@ class ChatClient {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
-                setRequestProperty("Authorization", "Bearer " + settings.apiKey.trim())
+                setRequestProperty("Authorization", "Bearer " + rawKey)
+                // Encabezados de sesión y enrutamiento para proxies como OpenCode Zen/Go:
+                setRequestProperty("X-OpenCode-Session", sessionKey)
+                setRequestProperty("X-OpenCode-Session-Id", sessionKey)
+                setRequestProperty("X-Session-ID", sessionKey)
             }
 
             try {
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
 
-                val status = connection.responseCode
-                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-                val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                var status = connection.responseCode
+                var stream = if (status in 200..299) connection.inputStream else connection.errorStream
+                var body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+
+                // Si el proveedor rechaza con 400 debido a parámetros opcionales como max_tokens o temperature:
+                if (status == 400 && (body.contains("max_tokens", ignoreCase = true) || body.contains("temperature", ignoreCase = true) || body.contains("unrecognized", ignoreCase = true))) {
+                    val fallbackPayload = JSONObject().apply {
+                        put("model", settings.model)
+                        put("stream", false)
+                        put(
+                            "messages",
+                            JSONArray().apply {
+                                messages.forEach { message ->
+                                    put(JSONObject().put("role", message.role).put("content", message.content))
+                                }
+                            },
+                        )
+                    }
+                    val retryConn = (URL(settings.chatEndpoint).openConnection() as HttpURLConnection).apply {
+                        requestMethod = "POST"
+                        connectTimeout = 20_000
+                        readTimeout = 180_000
+                        doOutput = true
+                        setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                        setRequestProperty("Accept", "application/json")
+                        setRequestProperty("Authorization", "Bearer " + settings.apiKey.trim())
+                        setRequestProperty("X-OpenCode-Session", sessionKey)
+                        setRequestProperty("X-OpenCode-Session-Id", sessionKey)
+                        setRequestProperty("X-Session-ID", sessionKey)
+                    }
+                    try {
+                        retryConn.outputStream.use { it.write(fallbackPayload.toString().toByteArray(Charsets.UTF_8)) }
+                        status = retryConn.responseCode
+                        stream = if (status in 200..299) retryConn.inputStream else retryConn.errorStream
+                        body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
+                    } finally {
+                        retryConn.disconnect()
+                    }
+                }
 
                 if (status !in 200..299) {
                     throw ChatException(describeError(status, body), status)
@@ -133,12 +176,14 @@ class ChatClient {
     private fun estimate(text: String): Int = (text.length / 4).coerceAtLeast(1)
 
     private fun describeError(status: Int, body: String): String {
-        val apiMessage = runCatching {
-            JSONObject(body).optJSONObject("error")?.optString("message")
-        }.getOrNull().orEmpty()
+        val jsonError = runCatching { JSONObject(body) }.getOrNull()
+        val apiMessage = jsonError?.optJSONObject("error")?.optString("message")
+            ?: jsonError?.optString("message")
+            ?: jsonError?.optString("error")
+            ?: body.take(180)
 
         val hint = when (status) {
-            400 -> "La petición fue rechazada. Si tu proveedor no acepta max_tokens o la temperatura, revisa la configuración."
+            400 -> if (apiMessage.isNotBlank()) "Error 400 de la API: $apiMessage" else "La petición fue rechazada. Revisa el modelo o los parámetros enviados."
             401, 403 -> "API key inválida o sin permisos."
             404 -> "Endpoint o modelo no encontrado. Revisa la URL base y el modelo."
             413 -> "El contexto es demasiado grande para ese modelo. Usa un modelo flash o reduce los documentos."
@@ -146,6 +191,6 @@ class ChatClient {
             in 500..599 -> "El proveedor tuvo un error interno."
             else -> "La API rechazó la solicitud."
         }
-        return if (apiMessage.isBlank()) hint else hint + " (" + apiMessage.take(180) + ")"
+        return if (apiMessage.isBlank() || hint.startsWith("Error 400")) hint else "$hint ($apiMessage)"
     }
 }
