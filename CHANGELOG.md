@@ -3,6 +3,24 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.4.3] — 2026-11-16
+
+### Añadido
+
+- `ChatClient` reintenta una vez, sin `temperature` ni `max_tokens`, cuando el proveedor responde
+  400 por parámetros no reconocidos: compatibilidad con gateways estrictos sin tocar la
+  configuración del usuario.
+- Cabeceras de sesión (`X-OpenCode-Session`, `X-OpenCode-Session-Id`, `X-Session-ID`) para los
+  proxies que enrutan por sesión.
+- Los errores 400 muestran ahora el mensaje del proveedor en vez de un texto genérico.
+
+### Corregido
+
+- Las cabeceras de sesión llevan un UUID por proceso. Antes mandaban los primeros 32 caracteres de
+  la API key, filtrando material de la llave a cabeceras intermedias y logs.
+- La apertura de la petición (timeouts y cabeceras) queda en un solo lugar, sin duplicar el bloque
+  en el reintento.
+
 ## [0.4.2] — 2026-11-16
 
 ### Cambiado

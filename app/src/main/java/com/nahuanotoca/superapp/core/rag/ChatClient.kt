@@ -9,6 +9,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 
 class ChatException(message: String, val statusCode: Int? = null) : IOException(message)
 
@@ -34,6 +35,9 @@ data class ChatReply(
  */
 class ChatClient {
 
+    /** Identificador de sesión propio, para proxies que lo pidan. Nunca contiene la API key. */
+    private val sessionId: String = UUID.randomUUID().toString()
+
     suspend fun complete(
         settings: RagSettings,
         messages: List<ChatMessage>,
@@ -58,22 +62,7 @@ class ChatClient {
                 )
             }
 
-            val rawKey = settings.apiKey.trim()
-            val sessionKey = if (rawKey.isNotBlank()) rawKey.take(32) else "nahuanotoka-session"
-
-            val connection = (URL(settings.chatEndpoint).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 20_000
-                readTimeout = 180_000
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("Authorization", "Bearer " + rawKey)
-                // Encabezados de sesión y enrutamiento para proxies como OpenCode Zen/Go:
-                setRequestProperty("X-OpenCode-Session", sessionKey)
-                setRequestProperty("X-OpenCode-Session-Id", sessionKey)
-                setRequestProperty("X-Session-ID", sessionKey)
-            }
+            val connection = openPost(settings)
 
             try {
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
@@ -96,18 +85,7 @@ class ChatClient {
                             },
                         )
                     }
-                    val retryConn = (URL(settings.chatEndpoint).openConnection() as HttpURLConnection).apply {
-                        requestMethod = "POST"
-                        connectTimeout = 20_000
-                        readTimeout = 180_000
-                        doOutput = true
-                        setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                        setRequestProperty("Accept", "application/json")
-                        setRequestProperty("Authorization", "Bearer " + settings.apiKey.trim())
-                        setRequestProperty("X-OpenCode-Session", sessionKey)
-                        setRequestProperty("X-OpenCode-Session-Id", sessionKey)
-                        setRequestProperty("X-Session-ID", sessionKey)
-                    }
+                    val retryConn = openPost(settings)
                     try {
                         retryConn.outputStream.use { it.write(fallbackPayload.toString().toByteArray(Charsets.UTF_8)) }
                         status = retryConn.responseCode
@@ -152,6 +130,24 @@ class ChatClient {
             }
         }
     }
+
+    /**
+     * Abre una petición POST contra el endpoint configurado. Las cabeceras de sesión llevan un id
+     * aleatorio por proceso: nunca se manda material de la API key fuera de Authorization.
+     */
+    private fun openPost(settings: RagSettings): HttpURLConnection =
+        (URL(settings.chatEndpoint).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = 20_000
+            readTimeout = 180_000
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Authorization", "Bearer " + settings.apiKey.trim())
+            setRequestProperty("X-OpenCode-Session", sessionId)
+            setRequestProperty("X-OpenCode-Session-Id", sessionId)
+            setRequestProperty("X-Session-ID", sessionId)
+        }
 
     /**
      * Algunos proveedores no devuelven `usage` (o lo dejan en cero). En ese caso se estima con la
