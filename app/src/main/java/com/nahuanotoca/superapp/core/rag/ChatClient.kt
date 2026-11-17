@@ -42,6 +42,10 @@ class ChatClient {
     @Volatile
     private var activeConnection: HttpURLConnection? = null
 
+    private companion object {
+        const val MAX_TOKENS_CAP = 16_000
+    }
+
     /** Corta la petición en curso. El hilo de lectura recibe un IOException y termina. */
     fun cancelActive() {
         runCatching { activeConnection?.disconnect() }
@@ -127,7 +131,32 @@ class ChatClient {
                     .orEmpty()
 
                 if (content.isBlank()) {
-                    throw ChatException("El modelo respondió sin contenido. Revisa el modelo configurado.")
+                    val finish = json.optJSONArray("choices")?.optJSONObject(0)
+                        ?.optString("finish_reason").orEmpty()
+                    val reasoning = json.optJSONArray("choices")?.optJSONObject(0)
+                        ?.optJSONObject("message")?.optString("reasoning_content").orEmpty()
+
+                    // Modelos de razonamiento (p. ej. deepseek-v4.1-flash) gastan el presupuesto
+                    // pensando y devuelven content vacío con finish_reason=length. Se reintenta una
+                    // vez con el doble de espacio en lugar de mostrar una respuesta en blanco.
+                    if (finish == "length" && reasoning.isNotBlank() && maxTokens < MAX_TOKENS_CAP) {
+                        val retry = complete(
+                            settings = settings,
+                            messages = messages,
+                            temperature = temperature,
+                            maxTokens = (maxTokens * 2).coerceAtMost(MAX_TOKENS_CAP),
+                        )
+                        return@runCatching retry.getOrThrow()
+                    }
+                    throw ChatException(
+                        if (reasoning.isNotBlank()) {
+                            "El modelo razonó pero no llegó a responder: se quedó sin presupuesto. " +
+                                "Sube los tokens o usa un modelo sin razonamiento (por ejemplo " +
+                                "claude-haiku-5-5)."
+                        } else {
+                            "El modelo respondió sin contenido. Revisa el modelo configurado."
+                        },
+                    )
                 }
 
                 ChatReply(
@@ -244,7 +273,21 @@ class ChatClient {
 
                 val text = collected.toString().trim()
                 if (text.isBlank()) {
-                    throw ChatException("El modelo respondió sin contenido. Revisa el modelo configurado.")
+                    // Mismo caso que en [complete]: el modelo pensó y no escribió. Se reintenta sin
+                    // streaming con más presupuesto para no dejar al estudiante con una tarjeta vacía.
+                    if (maxTokens < MAX_TOKENS_CAP) {
+                        val retry = complete(
+                            settings = settings,
+                            messages = messages,
+                            temperature = temperature,
+                            maxTokens = (maxTokens * 2).coerceAtMost(MAX_TOKENS_CAP),
+                        )
+                        return@runCatching retry.getOrThrow()
+                    }
+                    throw ChatException(
+                        "El modelo razonó pero no llegó a responder. Usa un modelo sin razonamiento " +
+                            "o sube los tokens.",
+                    )
                 }
                 val finalUsage = if (usage.totalTokens > 0) {
                     usage

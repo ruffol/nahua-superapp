@@ -94,18 +94,18 @@ class ToolRegistry(tools: List<AssistantTool>) {
                 when (task.id) {
                     StudioTasks.CORRELATE -> AssistantTool(
                         task = task,
-                        budget = ToolBudget(maxCalls = 6, maxTokens = 3_000, maxSteps = 2),
+                        budget = ToolBudget(maxCalls = 6, maxTokens = 8_000, maxSteps = 2),
                         twoPass = true,
                     )
 
                     StudioTasks.PRESENTATION, StudioTasks.QUESTIONS -> AssistantTool(
                         task = task,
-                        budget = ToolBudget(maxCalls = 1, maxTokens = 2_800, maxSteps = 1),
+                        budget = ToolBudget(maxCalls = 1, maxTokens = 4_500, maxSteps = 1),
                     )
 
                     else -> AssistantTool(
                         task = task,
-                        budget = ToolBudget(maxCalls = 1, maxTokens = 2_400, maxSteps = 1),
+                        budget = ToolBudget(maxCalls = 1, maxTokens = 4_000, maxSteps = 1),
                     )
                 }
             },

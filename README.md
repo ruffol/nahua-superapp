@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.14.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.15.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -35,7 +35,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **138 tests unitarios** y CI en GitHub Actions.
+- **139 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -209,7 +209,7 @@ Decisiones: DI manual (`AppContainer`), DataStore y JSON en `filesDir` en lugar 
 centavos, mini-apps HTML, recuperación léxica por raíz + cobertura por documento (sin embeddings) y
 mapa raster offline para no depender de Google Play Services.
 
-Orquestador de herramientas: [docs/AGENT.md](docs/AGENT.md).
+Orquestador de herramientas: [docs/AGENT.md](docs/AGENT.md). Evaluación con el corpus real: [docs/EVAL.md](docs/EVAL.md).
 
 Informe técnico del RAG: [docs/Nahuanotoka-Informe-RAG.pdf](docs/Nahuanotoka-Informe-RAG.pdf).
 Auditoría y línea base (plan Nahua AI): [docs/AUDIT.md](docs/AUDIT.md) · [docs/BASELINE.md](docs/BASELINE.md) · [corpus de evaluación](docs/eval/README.md).
@@ -226,7 +226,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 138 tests
+./gradlew testDebugUnitTest    # 139 tests
 ./gradlew installDebug
 ```
 

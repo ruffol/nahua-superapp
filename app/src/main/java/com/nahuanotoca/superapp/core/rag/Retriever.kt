@@ -69,6 +69,10 @@ object Retriever {
         }
 
         val queryPhrase = query.trim().lowercase()
+        // Pares consecutivos de términos con contenido ("salario doméstico"): si aparecen juntos en
+        // el fragmento, suben, porque describen mejor la pregunta que las palabras sueltas.
+        val bigrams = terms.zipWithNext()
+
 
         val scored = chunks.mapIndexedNotNull { index, chunk ->
             val tokens = tokenized[index]
@@ -93,6 +97,12 @@ object Retriever {
                 score /= sqrt(tokens.size.toDouble())
                 if (queryPhrase.length > 8 && chunk.text.lowercase().contains(queryPhrase)) {
                     score += 0.5
+                }
+                bigrams.forEach { (first, second) ->
+                    val paired = tokens.zipWithNext().any { (left, right) ->
+                        matchesTerm(first, left) && matchesTerm(second, right)
+                    }
+                    if (paired) score += 0.45
                 }
             }
 

@@ -106,7 +106,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     private val tools: ToolRegistry = ToolRegistry.default()
     private val gateway = ChatClientGateway(container.chatClient)
-    private val digestTokens = 900
+    private val digestTokens = 2_500
 
     private var generationJob: Job? = null
     private var importJob: Job? = null

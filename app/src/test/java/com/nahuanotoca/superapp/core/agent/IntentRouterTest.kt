@@ -46,7 +46,8 @@ class IntentRouterTest {
         assertTrue(correlate != null)
         assertTrue(registry.isTwoPass(StudioTasks.CORRELATE))
         assertTrue(registry.budgetOf(StudioTasks.CORRELATE).maxCalls >= 2)
-        assertEquals(2_400, registry.budgetOf(StudioTasks.SUMMARY).maxTokens)
+        assertEquals(4_000, registry.budgetOf(StudioTasks.SUMMARY).maxTokens)
+        assertEquals(8_000, registry.budgetOf(StudioTasks.CORRELATE).maxTokens)
         assertEquals(6, registry.all.size)
     }
 }

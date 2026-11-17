@@ -3,6 +3,34 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.15.0] — 2026-11-17
+
+### Validado con la API real (OpenCode Go)
+
+- **Chat, streaming y comparación** probados contra `deepseek-v4.1-flash` con la key del usuario:
+  C1, C2 y C7 devuelven respuestas citadas (hasta 17 citas) y C4 produce la tabla por eje y por obra
+  con 28 citas y celdas “no se pronuncia”. El proveedor exige la cabecera `x-opencode-session`, que
+  el cliente ya mandaba.
+- **Hallazgo y arreglo importante**: `deepseek-v4.1-flash` es un modelo de **razonamiento**
+  (`reasoning_content`). Con presupuestos cortos gastaba todos los tokens pensando y devolvía
+  `content` vacío con `finish_reason=length`. Ahora el cliente detecta ese caso, **reintenta con el
+  doble de tokens** (tope 16 000) y, si aun así no hay respuesta, explica el motivo. Presupuestos
+  nuevos: correlación 8 000, tareas 4 000–4 500, fichas 2 500.
+
+### Recuperación
+
+- **Bonus de bigramas** en `Retriever`: si dos términos seguidos de la pregunta aparecen juntos en el
+  fragmento (“salario doméstico”), suma; antes las palabras sueltas diluían la frase.
+- **Benchmark con el corpus real** (`CorpusBenchmarkTest`, 535 páginas): 4/5 casos con la página
+  esperada, C4 cubre 4 obras, C6 marca evidencia débil. C3 (“salario doméstico”) queda documentado
+  como fallo conocido de BM25. El test escribe `build/eval/contexts.json` y `diag.txt` para
+  inspección.
+
+### Notas
+
+- `docs/EVAL.md` con la medición, las respuestas reales y el detalle del razonamiento.
+- 139 tests en JVM (1 nuevo: benchmark del corpus).
+
 ## [0.14.1] — 2026-11-17
 
 ### Añadido
