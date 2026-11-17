@@ -124,9 +124,9 @@ private val homeApps = listOf(
         button = Color(0xFFD79A45),
     ),
     HomeApp(
-        serviceId = "tianguis",
-        title = "Bazar Trueque",
-        subtitle = "Compra, vende o intercambia",
+        serviceId = "bazar",
+        title = "Bazar/Trueque",
+        subtitle = "Publica, vende o truequea",
         art = R.drawable.px_icon_stall,
         fill = Color(0xFF7E2C44),
         deep = Color(0xFF5F1F32),

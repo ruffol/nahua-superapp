@@ -1,5 +1,6 @@
 package com.nahuanotoca.superapp.core.data.catalog
 
+import com.nahuanotoca.superapp.core.model.ServiceCategory
 import com.nahuanotoca.superapp.core.model.ServiceTarget
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -39,9 +40,27 @@ class ServiceCatalogTest {
     }
 
     @Test
+    fun bazarReplacesTheOldTianguisAndKeepsItsBundle() {
+        val bazar = ServiceCatalog.find("bazar")
+        assertNotNull("Falta el servicio bazar", bazar)
+        assertEquals("Bazar/Trueque", bazar!!.name)
+        assertEquals(ServiceCategory.MARKET, bazar.category)
+        assertNull("El tianguis anterior sigue en el catálogo", ServiceCatalog.find("tianguis"))
+
+        val moduleRoot = File("src/main/assets/miniapps/bazar")
+        assertTrue("Falta el bundle del bazar", File(moduleRoot, "index.html").isFile)
+        assertTrue("Falta la lógica del bazar", File(moduleRoot, "bazar.js").isFile)
+        assertTrue("Falta el estilo del bazar", File(moduleRoot, "bazar.css").isFile)
+
+        val manifest = File("src/main/assets/miniapps/index.json").readText()
+        assertTrue("El bazar no declara el aviso de trueques", manifest.contains("\"inbox.notify\""))
+        assertTrue("El bazar no declara almacenamiento local", manifest.contains("\"storage.local\""))
+    }
+
+    @Test
     fun remainingMiniAppsStayDeclared() {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
-        listOf("ride", "bills", "mapa", "tamagochi", "tianguis").forEach { id ->
+        listOf("ride", "bills", "mapa", "tamagochi", "bazar").forEach { id ->
             assertTrue("Falta la mini-app " + id, manifest.contains("\"" + id + "\""))
         }
     }

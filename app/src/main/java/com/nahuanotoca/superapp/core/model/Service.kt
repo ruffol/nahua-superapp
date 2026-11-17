@@ -9,7 +9,7 @@ enum class ServiceCategory(val label: String) {
     LIFESTYLE("Vida"),
     GOVERNMENT("Gobierno"),
     ENTERTAINMENT("Ocio"),
-    MARKET("Tianguis"),
+    MARKET("Bazar"),
 }
 
 /** Where a service sends the user when tapped. */

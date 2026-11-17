@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bazar/Trueque comunitario</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="bazar.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">⇄</span>
+      <div>
+        <div class="brand-name" id="brandName">Bazar/Trueque</div>
+        <div class="brand-sub">Comunitario</div>
+      </div>
+    </div>
+    <button class="link-help" data-act="how">Cómo funciona</button>
+  </header>
+
+  <main class="view" id="main"></main>
+
+  <nav class="tabbar">
+    <button data-act="tab" data-id="feed" class="active"><span class="tab-ico">▤</span>Bazar</button>
+    <button data-act="tab" data-id="trades"><span class="tab-ico">⇄</span>Trueques<span class="tab-badge" id="tradesBadge" style="display:none"></span></button>
+    <button data-act="tab" data-id="publish"><span class="tab-ico">＋</span>Publicar</button>
+    <button data-act="tab" data-id="me"><span class="tab-ico">☺</span>Perfil</button>
+  </nav>
+
+  <div id="flash"></div>
+</div>
+<script src="../nahua-sdk.js"></script>
+<script src="bazar.js"></script>
+</body>
+</html>

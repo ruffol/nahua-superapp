@@ -38,13 +38,13 @@
       "permissions": ["storage.local"]
     },
     {
-      "id": "tianguis",
-      "name": "Tianguis",
-      "tagline": "Productores de tu región",
-      "version": "1.0.0",
-      "entry": "miniapps/tianguis/index.html",
-      "accent": "#F2A100",
-      "permissions": ["wallet.pay", "user.profile"]
+      "id": "bazar",
+      "name": "Bazar/Trueque",
+      "tagline": "Compra, vende y truequea en tu colonia",
+      "version": "2.0.0",
+      "entry": "miniapps/bazar/index.html",
+      "accent": "#C94F74",
+      "permissions": ["wallet.pay", "user.profile", "storage.local", "inbox.notify"]
     }
   ]
 }

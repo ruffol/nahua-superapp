@@ -176,6 +176,10 @@ fun MiniAppScreen(
         bridge.onLocationWatchStop = { stopLocationWatch() }
         bridge.onDirectionsRequest = { request -> openDirections(context, request, onMessage) }
         bridge.onCopyToClipboard = { text -> copyToClipboard(context, text, onMessage) }
+        bridge.onBarterNotice = { notice ->
+            viewModel.announceBarter(notice)
+            onMessage(notice.title)
+        }
     }
 
     DisposableEffect(bridge) {
@@ -186,6 +190,7 @@ fun MiniAppScreen(
             bridge.onLocationWatchStop = {}
             bridge.onDirectionsRequest = {}
             bridge.onCopyToClipboard = {}
+            bridge.onBarterNotice = {}
         }
     }
 

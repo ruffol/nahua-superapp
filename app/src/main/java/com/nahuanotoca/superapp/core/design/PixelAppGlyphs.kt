@@ -296,7 +296,7 @@ object PixelAppGlyphs {
         "inbox" to bell,
         "profile" to person,
         "mapas" to map,
-        "tianguis" to store,
+        "bazar" to store,
         "tamagochi" to paw,
         "studio" to sparkleGlyph,
         "topup" to phone,

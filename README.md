@@ -6,13 +6,13 @@
 [![minSdk](https://img.shields.io/badge/minSdk-26-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Una **super app** hecha para **Colima**: pagos, transporte, tianguis de productores locales,
+Una **super app** hecha para **Colima**: pagos, transporte, un **bazar/trueque comunitario**,
 mapa **offline** con GPS, mascota virtual y **Nahuanotoka**, un estudio *pixel art* que convierte tus PDFs
 en mesas de trabajo por materia: resúmenes con página, ideas propias, correlación entre documentos,
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.7.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.8.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -21,22 +21,24 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 - **Mapa offline de Colima** con teselas propias (z9–16, Natural Earth + calles, edificios y
   parques de OSM), estilo de papel cálido, **GPS en vivo** con coordenadas, velocidad y rumbo, y
   ruta directa con navegación al destino en la app de mapas del teléfono.
-- **Tianguis de Colima**: productores de Colima, Villa de Álvarez, Comala, Tecomán, Manzanillo y
-  Armería, con canasta y pago desde la cartera.
+- **Bazar/Trueque comunitario**: cualquiera publica lo que ya no usa, la app lo **valora** (precio
+  nuevo, estado, uso y accesorios) y el dueño decide si lo vende o lo abre a **trueque**. El botón
+  **Truquear** avisa al dueño en su bandeja de Avisos; él ve el perfil del interesado con los objetos
+  que ofrece y cierran el trato, con compensación en efectivo cuando los valores no emparejan.
 - **Nahuanotoka (mesas de estudio)**: crea una mesa por materia, agrega varios PDFs, pide resumen,
   ideas, correlación o guion de exposición, revisa los tokens gastados y exporta el análisis a PDF.
 - **Actualizaciones OTA**: desde *Perfil → Versión* la app busca la última release en GitHub, la
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **74 tests unitarios** y CI en GitHub Actions.
+- **95 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
 | App | Tipo | Qué hace | Integración |
 | --- | --- | --- | --- |
 | **Mapas** | mini-app | mapa offline z9–16, GPS en vivo, coordenadas y rutas a tianguis | Leaflet + GPS |
-| **Tianguis** | mini-app | productores colimenses de seis municipios | `Nahua.pay` |
+| **Bazar/Trueque** | mini-app | publicar, valorar, vender y truequear entre vecinos | `Nahua.pay` · `Nahua.valuate` · `Nahua.announce` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
 | **Axolote** | mini-app | mascota virtual con hambre, ánimo y niveles | `localStorage` |
@@ -67,6 +69,38 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   de WebView; no hay peticiones de red para el mapa. Si una tesela falta, el hueco es transparente y
   se ve la capa inferior, nunca un error 403.
 - Atribución a OpenStreetMap en el mapa y en el pie.
+
+## Bazar/Trueque comunitario
+
+El tianguis de productores pasó a ser un **bazar de la comunidad**: cualquier persona publica lo que
+ya no usa, la app le pone precio y el trueque es una decisión explícita de quien publica.
+
+<p align="center">
+  <img src="docs/screens/bazar.png" width="330" alt="Bazar/Trueque: objetos de la comunidad con valor estimado" />
+  <img src="docs/screens/bazar-trueque.png" width="330" alt="Bazar/Trueque: ofrecer un objeto a cambio" />
+</p>
+
+1. **Publicar**: título, ícono, categoría, estado, meses de uso y precio de referencia (lo que costaba
+   nuevo). La valoración se recalcula en vivo mientras escribes.
+2. **Valorar**: `BarterValuator` combina el precio de referencia con la reventa de la categoría, el
+   estado, el uso, los accesorios y la factura, y devuelve un valor con rango, confianza y desglose
+   (*“−42 % reventa de bicis”*, *“−36 % por 3 años de uso”*). Además calcula el mínimo que conviene
+   aceptar en un trueque.
+3. **Habilitar trueque**: el interruptor sólo se enciende cuando el objeto ya está valorado. Sin ese
+   paso el objeto se publica como venta normal.
+4. **Truquear**: desde un objeto con trueque, el interesado elige qué de su bazar ofrece. La app
+   compara las dos valoraciones (*A tu favor*, *Parejo*, *Pide compensación*) y **avisa al dueño** con
+   un aviso nativo en **Avisos** y una propuesta en la pestaña **Trueques**.
+5. **Ver el perfil del interesado**: desde el trato se abre su perfil con los objetos que tiene
+   disponibles para truequear y el valor de cada uno.
+6. **Cerrar el trato**: aceptar, pedir la diferencia en efectivo, rechazar o cancelar. Al aceptar, los
+   dos objetos quedan apartados, la app propone punto de encuentro y el trueque se marca como
+   completado cuando se entrega.
+
+La aritmética vive en Kotlin (`core/model/Barter.kt`) y es la misma que expone el puente
+`Nahua.valuate`: la página nunca decide cuánto vale un objeto por su cuenta. El bundle
+(`assets/miniapps/bazar/`) guarda publicaciones y tratos en `localStorage`; el día que exista backend,
+esa capa se sustituye sin tocar la UI.
 
 ## Nahuanotoka (mesas de trabajo)
 
@@ -134,7 +168,7 @@ app/
    │  ├─ data/catalog/    catálogo de servicios
    │  ├─ design/          tema y componentes
    │  ├─ location/        LocationManager, fix puntual y flujo GPS en vivo
-   │  ├─ miniapp/         manifiestos, registro y puente JS (pago, GPS, rutas, portapapeles)
+   │  ├─ miniapp/         manifiestos, registro y puente JS (pago, GPS, rutas, bazar y avisos)
    │  ├─ model/           modelos + WalletLedger (aritmética pura)
    │  ├─ navigation/      rutas
    │  ├─ rag/             PDF (texto y figuras), índice, contexto, LLM, PDF de salida
@@ -181,7 +215,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 74 tests
+./gradlew testDebugUnitTest    # 95 tests
 ./gradlew installDebug
 ```
 

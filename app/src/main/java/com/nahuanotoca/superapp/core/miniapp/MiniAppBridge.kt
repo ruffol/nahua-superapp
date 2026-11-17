@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.JavascriptInterface
 import com.nahuanotoca.superapp.core.location.LocationFix
+import com.nahuanotoca.superapp.core.model.BarterValuator
 import org.json.JSONObject
 
 data class PayRequest(
@@ -18,6 +19,12 @@ data class DirectionsRequest(
     val latitude: Double,
     val longitude: Double,
     val label: String,
+)
+
+/** Aviso de trueque que la mini app manda a la bandeja del anfitrión (Avisos). */
+data class BarterNotice(
+    val title: String,
+    val body: String,
 )
 
 /**
@@ -52,6 +59,9 @@ class MiniAppBridge(
     var onDirectionsRequest: (DirectionsRequest) -> Unit = {}
 
     var onCopyToClipboard: (String) -> Unit = {}
+
+    /** "A <usuario> le interesa truequear tu <objeto>": termina en la bandeja nativa de Avisos. */
+    var onBarterNotice: (BarterNotice) -> Unit = {}
 
     @JavascriptInterface
     fun getSession(): String = sessionJson()
@@ -102,6 +112,43 @@ class MiniAppBridge(
     @JavascriptInterface
     fun copy(text: String) {
         mainHandler.post { onCopyToClipboard(text.take(500)) }
+    }
+
+    /**
+     * Valora un objeto del bazar. Es síncrona a propósito: el formulario de publicación recalcula
+     * el valor en cada tecla. La aritmética vive en Kotlin ([BarterValuator]), no en la página.
+     */
+    @JavascriptInterface
+    fun valuate(payloadJson: String): String {
+        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+            ?: return BarterCodec.errorJson("invalid_payload").toString()
+        return BarterCodec.valuationJson(
+            BarterValuator.valuate(BarterCodec.input(payload)),
+        ).toString()
+    }
+
+    /** ¿Me conviene el trueque? Compara mi objeto contra el que me ofrecen. */
+    @JavascriptInterface
+    fun compareBarter(payloadJson: String): String {
+        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+            ?: return BarterCodec.errorJson("invalid_payload").toString()
+        val mine = BarterValuator.valuate(BarterCodec.input(payload.optJSONObject("mine")))
+        val theirs = BarterValuator.valuate(BarterCodec.input(payload.optJSONObject("theirs")))
+        return BarterCodec.balanceJson(BarterValuator.compare(mine, theirs)).toString()
+    }
+
+    /** Deja un aviso en Avisos: la notificación de que a alguien le interesa un trueque. */
+    @JavascriptInterface
+    fun announceBarter(payloadJson: String, requestId: String) {
+        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+        val title = payload?.optString("title").orEmpty().trim().take(90)
+        val body = payload?.optString("body").orEmpty().trim().take(240)
+        if (payload == null || title.isEmpty() || body.isEmpty()) {
+            deliver(requestId, BarterCodec.errorJson("invalid_payload"))
+            return
+        }
+        mainHandler.post { onBarterNotice(BarterNotice(title = title, body = body)) }
+        deliver(requestId, JSONObject().put("status", "ok"))
     }
 
     @JavascriptInterface

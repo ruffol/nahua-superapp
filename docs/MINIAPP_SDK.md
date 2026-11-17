@@ -1,8 +1,9 @@
-# Nahua Mini App SDK (v1.1)
+# Nahua Mini App SDK (v1.2)
 
 Una mini app es un bundle web (HTML/CSS/JS) que vive en `app/src/main/assets/miniapps/<id>/` y se
 declara en `app/src/main/assets/miniapps/index.json`. La app anfitriona la carga en un WebView
-aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo y navegación.
+aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, valoración de
+objetos, avisos a la bandeja nativa y navegación.
 
 ## Manifiesto
 
@@ -26,7 +27,7 @@ aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo y
 | `version` | no | Semver mostrado en el chrome de la mini app |
 | `entry` | sí | Ruta relativa a `assets/` del HTML de entrada |
 | `accent` | no | Color de marca en formato `#RRGGBB` |
-| `permissions` | no | Scopes declarativos (informativo en v1) |
+| `permissions` | no | Scopes declarativos (`wallet.pay`, `user.profile`, `storage.local`, `inbox.notify`, `location`, `map.tiles`): documentan lo que usa el bundle |
 
 ## API de JavaScript
 
@@ -44,6 +45,61 @@ Devuelve el perfil de la sesión:
 const user = Nahua.user();
 // { name, handle, phone, tier, memberSince, initials }
 ```
+
+### `Nahua.valuate(item)`
+
+Valora un objeto del bazar. Devuelve el valor estimado, el rango, la confianza y el desglose del
+cálculo. Es **síncrona** a propósito: el formulario de publicación recalcula en cada tecla. La
+aritmética vive en el anfitrión (`BarterValuator` en Kotlin), no en la página.
+
+```js
+const valor = Nahua.valuate({
+  referenceCents: 650000,   // lo que cuesta nuevo, en centavos
+  category: 'BIKES',        // PHONES, COMPUTERS, TOOLS, FURNITURE, …
+  condition: 'GOOD',        // NEW, LIKE_NEW, GOOD, WORN, FOR_PARTS
+  ageMonths: 36,
+  complete: true,           // ¿conserva caja y accesorios?
+  hasReceipt: false
+});
+// { estimatedCents: 242500, lowCents: 213500, highCents: 271500,
+//   barterMinCents: 206000, confidence: 'alta',
+//   factors: [{ label: 'Reventa de bicis', percent: -42, tone: 'negative' }, …] }
+```
+
+Devuelve `null` cuando la página corre fuera de la app; la mini app usa entonces su estimación local
+(`bazar.js`) y sigue funcionando en el navegador.
+
+### `Nahua.compare(mine, theirs)`
+
+Compara el objeto que das con el que recibes y decide si el trueque conviene.
+
+```js
+const balance = Nahua.compare(
+  { referenceCents: 190000, category: 'SPORTS', condition: 'LIKE_NEW', ageMonths: 8 },
+  { referenceCents: 650000, category: 'BIKES', condition: 'GOOD', ageMonths: 36 }
+);
+// { verdict: 'favorable', verdictLabel: 'A tu favor', deltaCents: 139000,
+//   ratioPercent: 134, cashTopUpCents: 0,
+//   message: 'Recibes $1,390.00 más de valor (134 %). Te conviene truequear.' }
+```
+
+`verdict` es `favorable`, `justo` o `desfavorable`. Cuando el trato sale corto, `cashTopUpCents`
+trae la compensación sugerida en efectivo (redondeada a $50) para emparejar el valor.
+
+### `Nahua.announce({ title, body })`
+
+Deja un aviso en la bandeja nativa (**Avisos**). El bazar la usa para notificar que a alguien le
+interesa truequear un objeto publicado. Requiere el permiso `inbox.notify`.
+
+```js
+Nahua.announce({
+  title: 'Ana Nahua quiere truequear tu Bicicleta rodada 26',
+  body: 'Te ofrece Mochila de senderismo 40 L ($1,035). Recibes $1,390 más de valor.'
+}).then(() => Nahua.toast('Propuesta enviada'));
+```
+
+Los avisos entran sin leer, con su propio tipo (*Bazar*) y saltan en el contador del inicio; el texto
+se recorta a 90 caracteres de título y 240 de cuerpo.
 
 ### `Nahua.pay(options)`
 
@@ -151,6 +207,32 @@ Reglas:
 - Sin confirmación explícita no hay débito.
 - El historial guarda concepto, comercio, monto y timestamp; el `transactionId` es estable.
 - El puente **no** expone el saldo ni datos de otros usuarios a la página.
+
+## Flujo de un trueque
+
+```
+JS (bazar.js)                 Host (Kotlin)                        UI / almacenamiento
+ │ Publicar: cada tecla          │                                    │
+ ├── Nahua.valuate(item) ───────►│ MiniAppBridge.valuate              │
+ │◄── valor + desglose ──────────┤ BarterValuator.valuate             │
+ │                               │                                    │
+ │ Truquear                      │                                    │
+ ├── Nahua.compare(mío, suyo) ──►│ BarterValuator.compare             │
+ │◄── A tu favor / Pareja / … ───┤                                    │
+ ├── Nahua.announce({...}) ─────►│ MiniAppBridge.announceBarter       │
+ │                               ├──► InboxRepository.push ──────────►│ Avisos + contador
+ │                               │    NoticeKind.MARKET               │
+ │ guarda la propuesta en localStorage                                │
+ └── abre el trato con el perfil del interesado
+```
+
+Reglas:
+
+- La valoración y la comparación se calculan **en Kotlin**; la página sólo pinta el resultado. Sin
+  anfitrión (navegador) el bazar usa su espejo local y lo advierte.
+- El trueque sólo existe si quien publica lo habilitó **y** el objeto quedó valorado.
+- Avisar no cobra ni mueve saldo: sólo deja el aviso y la propuesta. El efectivo de una compensación
+  se acuerda en el trato, no se cobra automáticamente.
 
 ## Ubicación y privacidad
 

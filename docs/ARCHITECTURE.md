@@ -91,13 +91,33 @@ MiniAppScreen ──► MiniAppWebView ──► WebViewAssetLoader ──┘
 
 - **Origen seguro**: los assets se sirven en `https://appassets.androidplatform.net/assets/...`,
   así el WebView no necesita `file://` ni tráfico en claro.
-- **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`.
+- **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`, más `valuate`,
+  `compareBarter` y `announceBarter` para el bazar.
 - **Confirmación obligatoria**: ningún pago se ejecuta desde JS; siempre pasa por una hoja de
   confirmación en Compose y por `WalletRepository`.
 - **Resultado asíncrono**: el puente responde con `window.Nahua._resolve(id, payload)`, que resuelve
-  o rechaza el `Promise` del SDK.
+  o rechaza el `Promise` del SDK. `valuate` y `compareBarter` son la excepción: devuelven JSON de
+  forma síncrona porque el formulario de publicación recalcula al escribir.
 
 Más detalle en [MINIAPP_SDK.md](MINIAPP_SDK.md).
+
+## Bazar/Trueque
+
+El bazar no es una pantalla nativa: es una mini-app (§assets/miniapps/bazar/§) porque publica contenido,
+pero su dominio vive en Kotlin puro para que el precio no dependa del cliente.
+
+- §core/model/Barter.kt§: §BarterInput§, §ItemValuation§, §TradeBalance§ y §BarterValuator§. Sin
+  dependencias de Android y con tests propios (§BarterValuatorTest§).
+- **Valoración**: §referencia × reventa(categoría) × demanda × estado × uso × accesorios × factura§,
+  con piso por categoría y tope del 92 % del precio nuevo; se redondea a $5 y nunca baja de $20.
+  Devuelve rango, confianza y el desglose en porcentajes para que el número se pueda explicar.
+- **Comparación**: ±12 % se considera parejo; fuera de esa banda sugiere compensación en efectivo
+  redondeada a $50.
+- **Puente**: §valuate§ y §compareBarter§ devuelven JSON síncrono (el formulario recalcula al
+  escribir) y §announceBarter§ entra a §InboxRepository§ como §NoticeKind.MARKET§, así que sube el
+  contador del inicio sin que la mini-app toque la UI nativa.
+- **Persistencia**: publicaciones, propuestas y tratos viven en §localStorage§ del WebView
+  (§nahua.bazar.v2§). El día que exista backend se sustituye esa capa y el resto del bundle no cambia.
 
 ## Decisiones y alternativas
 
@@ -126,3 +146,5 @@ Más detalle en [MINIAPP_SDK.md](MINIAPP_SDK.md).
 - `MoneyTest`: formato MXN sin depender del locale del dispositivo.
 - `ServiceCatalogTest`: ids únicos y que cada mini-app tenga su bundle en assets.
 - `FormattersTest`: etiquetas relativas deterministas.
+- `BarterValuatorTest`: calibración de la valoración, pisos y topes, y veredictos del trueque.
+- `InboxRepositoryTest`: los avisos del bazar entran sin leer, con id propio.

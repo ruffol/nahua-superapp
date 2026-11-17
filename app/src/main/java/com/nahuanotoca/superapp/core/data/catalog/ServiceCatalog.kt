@@ -101,13 +101,13 @@ object ServiceCatalog {
             badge = "Nuevo",
         ),
         Service(
-            id = "tianguis",
-            name = "Tianguis",
-            tagline = "Productores de Colima",
+            id = "bazar",
+            name = "Bazar/Trueque",
+            tagline = "Compra, vende y truequea en tu colonia",
             category = ServiceCategory.MARKET,
             icon = Icons.Rounded.Storefront,
-            accent = Amber,
-            target = ServiceTarget.MiniApp("tianguis"),
+            accent = Violet,
+            target = ServiceTarget.MiniApp("bazar"),
         ),
         Service(
             id = "tamagochi",

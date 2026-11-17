@@ -3,6 +3,39 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.8.0] — 2026-11-16
+
+### Añadido
+
+- **Bazar/Trueque comunitario**: el tianguis de productores se convierte en un bazar donde cualquiera
+  de la comunidad publica lo que ya no usa. Cada publicación se **valora** (precio de referencia,
+  estado, meses de uso, accesorios y factura), muestra el rango estimado, el mínimo recomendado para
+  trueque y el desglose del cálculo.
+- **Trueque con aviso real**: el botón **Truquear** manda la propuesta al dueño y deja un aviso nativo
+  en **Avisos** (`Nahua.announce`). Desde el trato se abre el **perfil del interesado** con los objetos
+  que tiene disponibles para truequear.
+- **Cierre de trato**: aceptar, pedir la diferencia en efectivo, rechazar o cancelar; al aceptar los dos
+  objetos quedan apartados, se propone punto de encuentro y el trueque se marca como completado.
+- **Valoración en Kotlin** (`BarterValuator`): categoría, estado, uso y accesorios, con piso de
+  deprecación, tope de reventa y comparación entre dos objetos (*A tu favor / Parejo / Pide
+  compensación*, con compensación sugerida redondeada a $50). Se expone a las mini-apps con
+  `Nahua.valuate` y `Nahua.compare`.
+- **SDK 1.2**: `Nahua.valuate`, `Nahua.compare` y `Nahua.announce`; nueva mini-app `bazar` con
+  permisos `storage.local` e `inbox.notify`.
+- **Avisos del bazar**: nuevo tipo de aviso *Bazar* en la bandeja nativa, con su propio glifo y color.
+- 17 tests de valoración y trueque, y 3 del buzón de avisos.
+
+### Cambiado
+
+- El servicio **Tianguis** pasa a **Bazar/Trueque** (id `bazar`) en el catálogo, el inicio, el buscador
+  y el manifiesto de mini-apps; la categoría *Tianguis* ahora se llama *Bazar*.
+- La entrada del bazar en el inicio dice “Publica, vende o truequea” y usa el acento bugambilia.
+
+### Corregido
+
+- El aviso de trueque ya no se pierde: entra a la bandeja de Avisos en lugar de quedarse en la página.
+- La navegación del bazar conserva el historial, así que “Ver perfil” regresa al trato y no al inicio.
+
 ## [0.7.0] — 2026-11-16
 
 ### Añadido

@@ -12,6 +12,22 @@ class InboxRepository {
     private val _notices = MutableStateFlow(seed())
     val notices: StateFlow<List<Notice>> = _notices.asStateFlow()
 
+    /**
+     * Agrega un aviso al inicio de la bandeja. Lo usan las funciones que no son de la cartera: hoy el
+     * bazar, cuando alguien quiere truequear un objeto publicado.
+     */
+    fun push(title: String, body: String, kind: NoticeKind): Notice {
+        val notice = Notice(
+            id = "notice_" + clock.incrementAndGet(),
+            title = title,
+            body = body,
+            kind = kind,
+            timestamp = System.currentTimeMillis(),
+        )
+        _notices.update { listOf(notice) + it }
+        return notice
+    }
+
     fun markAllRead() {
         _notices.update { list -> list.map { it.copy(read = true) } }
     }
@@ -19,6 +35,8 @@ class InboxRepository {
     fun markRead(id: String) {
         _notices.update { list -> list.map { if (it.id == id) it.copy(read = true) else it } }
     }
+
+    private val clock = java.util.concurrent.atomic.AtomicLong(0L)
 
     private fun seed(): List<Notice> {
         val now = System.currentTimeMillis()
@@ -34,7 +52,7 @@ class InboxRepository {
             Notice(
                 id = "notice_promo",
                 title = "2x1 en café de productores de Comala",
-                body = "Disponible en el Tianguis de la app. Paga con tu cartera y gana puntos.",
+                body = "Café de Comala en el Bazar/Trueque de la app: paga con tu cartera o truequea tu objeto.",
                 kind = NoticeKind.PROMO,
                 timestamp = now - 95 * minute,
             ),

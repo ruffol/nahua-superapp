@@ -39,6 +39,7 @@ import com.nahuanotoca.superapp.core.design.PixelInk
 import com.nahuanotoca.superapp.core.design.PixelLabel
 import com.nahuanotoca.superapp.core.design.PixelMuted
 import com.nahuanotoca.superapp.core.design.PixelPanel
+import com.nahuanotoca.superapp.core.design.PixelPink
 import com.nahuanotoca.superapp.core.design.PixelRed
 import com.nahuanotoca.superapp.core.design.PixelScreen
 import com.nahuanotoca.superapp.core.design.PixelSun
@@ -86,7 +87,7 @@ fun InboxScreen(
                 item {
                     PixelEmptyState(
                         title = "Sin avisos",
-                        message = "Cuando haya pagos, promociones o avisos de seguridad aparecerán aquí.",
+                        message = "Cuando haya pagos, trueques, promociones o avisos de seguridad aparecerán aquí.",
                     )
                 }
             }
@@ -159,4 +160,5 @@ private fun noticeVisuals(kind: NoticeKind): Pair<List<String>, Color> = when (k
     NoticeKind.PROMO -> PixelAppGlyphs.store to PixelSun
     NoticeKind.SECURITY -> PixelAppGlyphs.shield to PixelRed
     NoticeKind.SERVICE -> PixelAppGlyphs.receipt to PixelCyan
+    NoticeKind.MARKET -> PixelAppGlyphs.refresh to PixelPink
 }

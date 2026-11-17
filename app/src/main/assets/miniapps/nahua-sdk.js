@@ -1,12 +1,13 @@
 /*
- * Nahua Mini App SDK (v1.1)
+ * Nahua Mini App SDK (v1.2)
  * -------------------------------------------------------------
  * The host injects window.NahuaNative (addJavascriptInterface). This script turns the raw
  * bridge into a small promise-based API: session, payments, one-shot and live location,
- * external directions, clipboard, toast and close.
+ * external directions, clipboard, barter valuation, inbox notices, toast and close.
  *
  * Location in the browser (dev) falls back to navigator.geolocation, so the map can be
- * tested outside the APK.
+ * tested outside the APK. Valuation returns null without a host: callers keep their own
+ * estimate and the page still renders.
  */
 (function () {
   'use strict';
@@ -100,7 +101,7 @@
   }
 
   window.Nahua = {
-    version: '1.1.0',
+    version: '1.2.0',
     _resolve: resolve,
     _emit: emit,
 
@@ -219,6 +220,59 @@
         // cae al catch del llamador
       }
       return Promise.reject(new Error('clipboard_unavailable'));
+    },
+
+    /**
+     * Valora un objeto del bazar. La aritmética vive en el anfitrión (BarterValuator.kt) y esta
+     * llamada es síncrona: el formulario de publicación recalcula al escribir.
+     *
+     * @param {{referenceCents: number, category?: string, condition?: string, ageMonths?: number,
+     *          complete?: boolean, hasReceipt?: boolean}} item
+     * @returns {{status: string, estimatedCents: number, lowCents: number, highCents: number,
+     *            barterMinCents: number, confidence: string, factors: Array}|null}
+     */
+    valuate: function (item) {
+      try {
+        if (window.NahuaNative && window.NahuaNative.valuate) {
+          return JSON.parse(window.NahuaNative.valuate(JSON.stringify(item || {})));
+        }
+      } catch (error) {
+        if (window.console) console.log('Nahua.valuate no disponible', error);
+      }
+      return null;
+    },
+
+    /**
+     * Compara dos objetos valorados y dice si el trueque conviene, está parejo o pide compensación.
+     *
+     * @param {object} mine    objeto que doy
+     * @param {object} theirs  objeto que recibo
+     * @returns {{verdict: string, deltaCents: number, cashTopUpCents: number, message: string}|null}
+     */
+    compare: function (mine, theirs) {
+      try {
+        if (window.NahuaNative && window.NahuaNative.compareBarter) {
+          return JSON.parse(window.NahuaNative.compareBarter(JSON.stringify({
+            mine: mine || {},
+            theirs: theirs || {}
+          })));
+        }
+      } catch (error) {
+        if (window.console) console.log('Nahua.compare no disponible', error);
+      }
+      return null;
+    },
+
+    /**
+     * Deja un aviso en la bandeja nativa (Avisos): "a <usuario> le interesa truequear tu <objeto>".
+     * @param {{title: string, body: string}} options
+     * @returns {Promise<{status: string}>}
+     */
+    announce: function (options) {
+      return post('announceBarter', {
+        title: String((options && options.title) || '').slice(0, 90),
+        body: String((options && options.body) || '').slice(0, 240)
+      });
     },
 
     /** Closes the mini app and returns to the Nahua home. */

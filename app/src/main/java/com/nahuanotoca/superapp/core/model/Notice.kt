@@ -5,6 +5,7 @@ enum class NoticeKind(val label: String) {
     PROMO("Promoción"),
     SECURITY("Seguridad"),
     SERVICE("Servicio"),
+    MARKET("Bazar"),
 }
 
 data class Notice(

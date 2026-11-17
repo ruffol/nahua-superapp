@@ -98,7 +98,7 @@ fun SearchScreen(
             if (results.isEmpty()) {
                 PixelEmptyState(
                     title = "Sin resultados",
-                    message = "No encontramos \"" + state.query + "\". Prueba con \"luz\", \"mapa\" o \"tianguis\".",
+                    message = "No encontramos \"" + state.query + "\". Prueba con \"luz\", \"mapa\" o \"bazar\".",
                 )
             } else {
                 LazyColumn(
