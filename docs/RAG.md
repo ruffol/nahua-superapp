@@ -295,7 +295,7 @@ primera vez que abres la app.
 | Límite | Motivo |
 | --- | --- |
 | 300 páginas por PDF | Tiempo de extracción en gama baja |
-| OCR hasta 120 páginas | 1–3 s por página en el dispositivo |
+| OCR hasta 120 páginas | 1–3 s por página; el modelo se descarga una vez vía Play Services |
 | PDFs con texto | Los escaneados necesitan OCR previo |
 | 3 fragmentos por libro / ~14 000 caracteres | Costo y ventana del proveedor |
 | 450 palabras por bloque | Coincide con la ruta de estudio (400–500) |

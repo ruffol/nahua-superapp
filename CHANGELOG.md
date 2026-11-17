@@ -19,8 +19,11 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ### Notas
 
-- Nueva dependencia `com.google.mlkit:text-recognition` 16.0.1 (modelo latino empaquetado): el APK
-  crece unos 8 MB y el OCR corre completamente en el teléfono.
+- El OCR usa **ML Kit sin modelo empaquetado** (`play-services-mlkit-text-recognition` 19.0.1): el
+  APK crece sólo ~2 MB (37.4 MB) y el modelo latino se descarga **una vez** vía Google Play Services
+  la primera vez que se usa OCR. Funciona sin conexión después de esa descarga.
+- Requiere Google Play Services en el teléfono; si no está o la descarga falla, el worker lo trata
+  como “sin texto” y muestra el error con la causa.
 - El OCR es lento (1–3 s por página) y por eso vive en el worker de fondo, nunca en la UI.
 
 ## [0.11.0] — 2026-11-17
