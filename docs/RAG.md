@@ -156,6 +156,19 @@ El micrófono del compositor usa `SpeechRecognizer` con `EXTRA_PREFER_OFFLINE`, 
 teléfono tiene el paquete de idioma español descargado, el audio no sale del dispositivo. Si no hay
 servicio de reconocimiento o falta permiso, la app lo dice y sigues escribiendo.
 
+## Comparación en dos pasadas
+
+La tarea **Correlación** con dos o más obras no manda todo el material en una sola llamada. Hace:
+
+1. **Ficha por obra**: para cada libro se eligen 4 fragmentos representativos y se pide una ficha de
+   3–5 viñetas con sus citas y sus “ejes que toca”. Si el libro no dice nada del tema, la ficha dice
+   *“No se pronuncia sobre el tema”*.
+2. **Cruce**: una segunda llamada recibe sólo las fichas y produce la tabla por eje y por obra, las
+   tensiones con las dos citas, la intersección y los huecos.
+
+Cuesta N+1 llamadas en vez de 1, pero la respuesta compara en lugar de resumir. El progreso muestra
+qué obra se está procesando y la tarjeta final se marca **2 PASADAS**.
+
 ## Evidencia y ventanas de contexto
 
 Cada fragmento recuperado se devuelve como **evidencia**: `RetrievedEvidence(chunkId, documento,

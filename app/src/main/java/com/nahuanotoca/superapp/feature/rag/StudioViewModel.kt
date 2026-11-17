@@ -14,8 +14,10 @@ import com.nahuanotoca.superapp.core.AppContainer
 import com.nahuanotoca.superapp.core.model.ChatRole
 import com.nahuanotoca.superapp.core.model.ChatTurn
 import com.nahuanotoca.superapp.core.model.Mesa
+import com.nahuanotoca.superapp.core.model.RagChunk
 import com.nahuanotoca.superapp.core.model.RagDocument
 import com.nahuanotoca.superapp.core.model.RagFigure
+import com.nahuanotoca.superapp.core.model.RagSource
 import com.nahuanotoca.superapp.core.model.RagSettings
 import com.nahuanotoca.superapp.core.model.StudioTask
 import com.nahuanotoca.superapp.core.model.StudioTasks
@@ -500,6 +502,25 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     return@launch
                 }
 
+                // Comparación en dos pasadas: una ficha por obra y luego el cruce.
+                if (correlation && task != null) {
+                    val documentsInScope = current.documents.filter { scope.isEmpty() || it.id in scope }
+                    if (documentsInScope.size >= 2) {
+                        runTwoPass(
+                            mesa = mesa,
+                            task = task,
+                            prompt = prompt,
+                            current = current,
+                            chunks = chunks,
+                            documents = documentsInScope,
+                            userTurn = userTurn,
+                            startedAt = startedAt,
+                            ignoreCache = ignoreCache,
+                        )
+                        return@launch
+                    }
+                }
+
                 val documentCount = current.documents.size
                 val context = ContextBuilder.build(
                     query = prompt,
@@ -676,6 +697,188 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         val lastUser = _state.value.turns.lastOrNull { it.role == ChatRole.USER } ?: return
         if (_state.value.isWorking) return
         generate(StudioTasks.find(lastUser.taskId), lastUser.text, ignoreCache = true)
+    }
+
+    /**
+     * Comparación en dos pasadas: primero una ficha por obra (una llamada barata por libro) y
+     * después una sola llamada que cruza las fichas. Cuesta más tokens que una consulta normal,
+     * pero evita que el modelo resuma cada libro en lugar de compararlos.
+     */
+    private suspend fun runTwoPass(
+        mesa: Mesa,
+        task: StudioTask,
+        prompt: String,
+        current: StudioUiState,
+        chunks: List<RagChunk>,
+        documents: List<RagDocument>,
+        userTurn: ChatTurn,
+        startedAt: Long,
+        ignoreCache: Boolean,
+    ) {
+        val indexVersion = documents.size.toString() + ":" + chunks.size
+        val cacheKey = CacheKey.of(
+            model = current.settings.model,
+            taskId = task.id,
+            prompt = prompt,
+            documentIds = documents.map { it.id }.toSet(),
+            contextBlocks = listOf("dos-pasadas", documents.joinToString(",") { it.id }),
+            history = emptyList(),
+            indexVersion = indexVersion,
+            scope = "twopass",
+        )
+
+        val cached = if (ignoreCache) null else container.answerCache.get(mesa.id, cacheKey)
+        if (cached != null) {
+            val turn = ChatTurn(
+                id = newId("turn"),
+                role = ChatRole.ASSISTANT,
+                text = cached.text,
+                taskId = task.id,
+                model = cached.model.ifBlank { current.settings.model },
+                usage = TokenUsage.Empty,
+                sources = cached.sources,
+                elapsedMillis = System.currentTimeMillis() - startedAt,
+                createdAt = System.currentTimeMillis(),
+                cacheHit = true,
+                strategy = "dos-pasadas",
+                weak = false,
+            )
+            container.studio.appendTurn(mesa.id, userTurn)
+            container.studio.appendTurn(mesa.id, turn)
+            container.studio.recordCacheHit(mesa.id, cached.totalTokens)
+            val stats = container.answerCache.stats(mesa.id)
+            _state.update {
+                it.copy(
+                    turns = it.turns + userTurn + turn,
+                    streamingText = "",
+                    cacheStats = stats,
+                )
+            }
+            _events.emit(StudioEvent.Toast("Acierto de caché: 0 tokens (ahorraste " + cached.totalTokens + ")"))
+            return
+        }
+
+        val digests = mutableListOf<Pair<String, String>>()
+        val sources = mutableListOf<RagSource>()
+        var usage = TokenUsage.Empty
+
+        for ((index, document) in documents.withIndex()) {
+            if (cancelling) return
+            _state.update {
+                it.copy(
+                    workingLabel = "Comparando " + (index + 1) + "/" + documents.size + " · " +
+                        ContextBuilder.labelOf(document.name),
+                )
+            }
+
+            val documentChunks = chunks.filter { it.documentId == document.id }
+            val context = if (documentChunks.isEmpty()) {
+                null
+            } else {
+                ContextBuilder.build(
+                    query = prompt,
+                    chunks = documentChunks,
+                    maxBlocks = 4,
+                    broad = true,
+                    blockChars = 1_200,
+                    maxChars = 6_000,
+                )
+            }
+
+            if (context == null || context.isEmpty) {
+                digests += document.name to "No se pronuncia sobre el tema."
+                continue
+            }
+
+            sources += context.sources
+            val messages = listOf(
+                ChatMessage.system(StudioPrompts.digestSystem()),
+                ChatMessage.user(StudioPrompts.digestUser(mesa, document.name, prompt, context.blocks)),
+            )
+            val result = container.chatClient.complete(current.settings, messages)
+            val reply = result.getOrNull()
+            if (reply == null) {
+                if (cancelling) return
+                _state.update { it.copy(error = apiErrorMessage(result.exceptionOrNull())) }
+                return
+            }
+            usage = usage.plus(reply.usage)
+            digests += document.name to reply.text
+        }
+
+        if (digests.size < 2) {
+            _state.update { it.copy(error = "No hay fichas suficientes para comparar: faltan fragmentos.") }
+            return
+        }
+
+        _state.update { it.copy(workingLabel = "Redactando la comparación") }
+        val messages = listOf(
+            ChatMessage.system(StudioPrompts.comparisonSystem(mesa)),
+            ChatMessage.user(StudioPrompts.comparisonUser(task, digests)),
+        )
+
+        val buffer = StringBuilder()
+        var lastPush = 0L
+        val result = container.chatClient.completeStreaming(
+            settings = current.settings,
+            messages = messages,
+        ) { delta ->
+            buffer.append(delta)
+            val now = System.currentTimeMillis()
+            if (now - lastPush > 120) {
+                lastPush = now
+                val snapshot = buffer.toString()
+                _state.update { it.copy(streamingText = snapshot) }
+            }
+        }
+
+        val reply = result.getOrNull()
+        if (reply == null) {
+            if (!cancelling) {
+                _state.update { it.copy(error = apiErrorMessage(result.exceptionOrNull())) }
+            }
+            return
+        }
+        usage = usage.plus(reply.usage)
+
+        val turn = ChatTurn(
+            id = newId("turn"),
+            role = ChatRole.ASSISTANT,
+            text = reply.text,
+            taskId = task.id,
+            model = reply.model,
+            usage = usage,
+            sources = sources.distinctBy { it.documentName to it.page },
+            elapsedMillis = System.currentTimeMillis() - startedAt,
+            createdAt = System.currentTimeMillis(),
+            strategy = "dos-pasadas",
+            weak = false,
+        )
+
+        container.studio.appendTurn(mesa.id, userTurn)
+        container.studio.appendTurn(mesa.id, turn)
+        container.studio.recordUsage(mesa.id, usage)
+        container.answerCache.put(
+            mesa.id,
+            CachedAnswer(
+                key = cacheKey,
+                text = reply.text,
+                model = reply.model,
+                promptTokens = usage.promptTokens,
+                completionTokens = usage.completionTokens,
+                sources = turn.sources,
+            ),
+        )
+
+        val stats = container.answerCache.stats(mesa.id)
+        _state.update {
+            it.copy(
+                turns = it.turns + userTurn + turn,
+                pendingTurn = null,
+                streamingText = "",
+                cacheStats = stats,
+            )
+        }
     }
 
     // --- exportación ------------------------------------------------------

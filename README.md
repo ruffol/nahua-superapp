@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.10.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.11.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -33,7 +33,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **121 tests unitarios** y CI en GitHub Actions.
+- **124 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -113,7 +113,8 @@ materia que guarda tus documentos, tu contexto, tus consultas y lo que llevas ga
 2. **Agregar PDF o EPUB** (varios a la vez). Se limpian encabezados y números de página, se parten
    en bloques de 450 palabras con 50 de traslape y las figuras de los PDFs quedan como galería.
 3. **Herramientas**: *Resumen*, *Ideas nuevas*, *Correlación*, *Guion de exposición*, *Glosario* y
-   *Preguntas de repaso*. Con varios libros se envían los 3 mejores fragmentos de cada uno.
+   *Preguntas de repaso*. Con varios libros se envían los 3 mejores fragmentos de cada uno y la
+   **Correlación** usa dos pasadas (una ficha por obra y luego el cruce).
    Las respuestas llegan **en streaming**, token por token.
 4. **Pregunta libre** en el compositor. Las respuestas citan `[Documento, p. N]`.
 5. **PDF** exporta el análisis (portada, encabezados, tablas, fuentes y paginación) y lo comparte.
@@ -220,7 +221,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 121 tests
+./gradlew testDebugUnitTest    # 124 tests
 ./gradlew installDebug
 ```
 

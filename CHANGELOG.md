@@ -3,6 +3,23 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.11.0] — 2026-11-17
+
+### Añadido
+
+- **Comparación en dos pasadas**: para la tarea de correlación con 2+ obras, primero se pide una
+  **ficha por obra** (una llamada barata por libro, con sus citas) y después una sola llamada que
+  cruza las fichas. Evita que el modelo resuma cada libro en lugar de compararlos.
+- Progreso visible por obra (“Comparando 2/5 · Paredes”) y estrategia `2 PASADAS` en la tarjeta.
+- La caché de dos pasadas usa una clave propia (sin historial) y guarda el consumo sumado de todas
+  las llamadas.
+- 3 tests nuevos de los prompts de ficha y de cruce; 124 en total.
+
+### Notas de costo
+
+- Una comparación de 5 obras pasa de 1 llamada a 6 (5 fichas + 1 cruce). Las fichas son cortas
+  (≈1–2k tokens de entrada cada una); a cambio la tabla resultante sí compara con citas por celda.
+
 ## [0.10.0] — 2026-11-17
 
 ### Añadido

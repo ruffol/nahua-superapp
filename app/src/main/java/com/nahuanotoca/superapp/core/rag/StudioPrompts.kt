@@ -69,6 +69,72 @@ object StudioPrompts {
         }
     }
 
+    // --- Comparación en dos pasadas -------------------------------------
+
+    /** Pasada 1: ficha breve de UNA obra para poder compararla después. */
+    fun digestSystem(): String = buildString {
+        appendLine(BASE)
+        appendLine()
+        appendLine(
+            "Tarea: leer los fragmentos de UNA sola obra y devolver una ficha breve para compararla " +
+                "con otras. No compares todavía ni resumas el libro completo: extrae sólo lo que esta " +
+                "obra sostiene sobre el tema.",
+        )
+        appendLine(
+            "Formato: entre 3 y 5 viñetas, cada una con la tesis o el concepto y su cita " +
+                "[Documento, p. N]. Cierra con una línea que empiece con 'Ejes que toca:' y 2 a 4 " +
+                "palabras clave separadas por comas.",
+        )
+        appendLine(
+            "Si la obra no dice nada del tema, responde exactamente: 'No se pronuncia sobre el tema'.",
+        )
+    }
+
+    fun digestUser(mesa: Mesa, documentName: String, topic: String, blocks: List<String>): String = buildString {
+        appendLine("Mesa: " + mesa.name + if (mesa.subject.isBlank()) "" else " (" + mesa.subject + ")")
+        appendLine("Obra: " + documentName)
+        appendLine("Tema de la comparación: " + topic)
+        appendLine()
+        appendLine("Fragmentos de esta obra:")
+        if (blocks.isEmpty()) {
+            appendLine("(sin fragmentos)")
+        } else {
+            blocks.forEachIndexed { index, block ->
+                appendLine()
+                appendLine("[Fragmento " + (index + 1) + "]")
+                appendLine(block)
+            }
+        }
+    }
+
+    /** Pasada 2: comparar las fichas, sin volver a los textos completos. */
+    fun comparisonSystem(mesa: Mesa): String = buildString {
+        appendLine(BASE)
+        appendLine()
+        appendLine("Mesa de trabajo: " + mesa.name + if (mesa.subject.isBlank()) "" else " (" + mesa.subject + ")")
+        if (mesa.context.isNotBlank()) {
+            appendLine("Contexto que dio el estudiante: " + mesa.context)
+        }
+        appendLine(
+            "Recibes una ficha por obra. Compara las obras entre sí; no resumas cada libro por " +
+                "separado. La tabla por eje y por obra es obligatoria, cada celda lleva su cita " +
+                "tomada de las fichas y las obras sin postura se marcan 'no se pronuncia'.",
+        )
+    }
+
+    fun comparisonUser(task: StudioTask, digests: List<Pair<String, String>>): String = buildString {
+        appendLine("Fichas de las obras:")
+        digests.forEach { (document, notes) ->
+            appendLine()
+            appendLine("## " + document)
+            appendLine(notes.trim())
+        }
+        appendLine()
+        appendLine("Tarea: " + task.prompt)
+        appendLine()
+        appendLine("Formato requerido: " + task.instruction)
+    }
+
     /**
      * Historial que se reenvía al modelo. Se recortan turnos largos para no inflar el costo: cada
      * turno del asistente entra como máximo con [maxChars] caracteres.

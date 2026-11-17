@@ -425,6 +425,7 @@ internal fun strategyLabel(strategy: String): String = when (strategy) {
     "busqueda" -> "BÚSQUEDA"
     "cobertura" -> "COBERTURA"
     "balanceado" -> "BALANCE"
+    "dos-pasadas" -> "2 PASADAS"
     else -> ""
 }
 
