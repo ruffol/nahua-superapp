@@ -3,6 +3,24 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.13.0] — 2026-11-17
+
+### Añadido
+
+- **Contratos del orquestador** (`core/agent`): `AssistantTool`, `ToolRegistry`, `ToolBudget` y
+  `ModelGateway` con un adaptador `ChatClientGateway`. La UI ya no construye prompts ni elige
+  modelo: pide una intención y el registro resuelve presupuesto y estrategia.
+- **Enrutador determinista** (`IntentRouter`): "compárame los libros", "hazme un resumen",
+  "prepara el guion"… se convierten en la herramienta correspondiente (sin acentos y sin gastar
+  tokens). Lo que no parece una orden sigue siendo pregunta libre.
+- **Presupuesto por herramienta**: correlación 6 llamadas / 3 000 tokens de salida; guion y
+  preguntas 2 800; el resto 2 400. Las fichas de la comparación usan 900 tokens cada una.
+- 4 tests nuevos del enrutador y del registro; 132 en total.
+
+### Documentación
+
+- `docs/AGENT.md`: contratos, reglas de enrutamiento, presupuestos y cómo añadir una herramienta.
+
 ## [0.12.0] — 2026-11-17
 
 ### Añadido

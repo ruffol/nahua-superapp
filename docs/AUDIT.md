@@ -225,7 +225,7 @@ de proveedor en el APK ni en cada teléfono.
 | NA-006 · caché y streaming | **Hecho** | Clave con alcance/versión, sin historial en tareas; `REGENERAR` y `DETENER` |
 | NA-007/008 · Room y versiones | **Hecho** | `LibraryDatabase` (documentos, fragmentos, figuras), migración desde JSON y esquema exportado |
 | NA-009 · WorkManager | **Hecho** | `ImportWorker` encadenado por archivo, permiso persistente y progreso por etapa |
-| NA-012 a NA-015 · herramientas | Parcial | La comparación en dos pasadas es el primer orquestador; falta ToolRegistry |
+| NA-012 a NA-015 · herramientas | **Hecho (base)** | `ToolRegistry`, `AssistantTool`, presupuestos y enrutador determinista; falta planificador generativo |
 | NA-010 · OCR | **Hecho** | `OcrExtractor` con PdfRenderer + ML Kit, mezcla por página y tope de 120 |
 
 ## 10.1 Siguiente conjunto mínimo de cambios

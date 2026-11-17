@@ -11,6 +11,9 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import androidx.lifecycle.viewModelScope
 import com.nahuanotoca.superapp.core.AppContainer
+import com.nahuanotoca.superapp.core.agent.ChatClientGateway
+import com.nahuanotoca.superapp.core.agent.IntentRouter
+import com.nahuanotoca.superapp.core.agent.ToolRegistry
 import com.nahuanotoca.superapp.core.model.ChatRole
 import com.nahuanotoca.superapp.core.model.ChatTurn
 import com.nahuanotoca.superapp.core.model.Mesa
@@ -100,6 +103,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _events = MutableSharedFlow<StudioEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<StudioEvent> = _events.asSharedFlow()
+
+    private val tools: ToolRegistry = ToolRegistry.default()
+    private val gateway = ChatClientGateway(container.chatClient)
+    private val digestTokens = 900
 
     private var generationJob: Job? = null
     private var importJob: Job? = null
@@ -435,14 +442,20 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
     // --- generación -------------------------------------------------------
 
     fun runTask(taskId: String) {
-        val task = StudioTasks.find(taskId) ?: return
-        generate(task, task.prompt)
+        val tool = tools.find(taskId) ?: return
+        generate(tool.task, tool.task.prompt)
     }
 
+    /**
+     * Pregunta libre. Si la frase es una orden reconocible ("compárame los libros", "hazme un
+     * resumen"), el enrutador la manda a la herramienta registrada; si no, es charla normal.
+     */
     fun ask(question: String) {
         val prompt = question.trim()
         if (prompt.length < 3) return
-        generate(null, prompt)
+        val route = IntentRouter.route(prompt)
+        val task = StudioTasks.find(route?.toolId)
+        generate(task, prompt)
     }
 
     /** Mensaje accionable cuando el proveedor falla: nunca se inventa una respuesta local. */
@@ -581,9 +594,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                 } else {
                     val buffer = StringBuilder()
                     var lastPush = 0L
-                    val result = container.chatClient.completeStreaming(
+                    val result = gateway.stream(
                         settings = current.settings,
                         messages = messages,
+                        maxTokens = tools.budgetOf(task?.id).maxTokens,
                     ) { delta ->
                         buffer.append(delta)
                         val now = System.currentTimeMillis()
@@ -798,7 +812,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                 ChatMessage.system(StudioPrompts.digestSystem()),
                 ChatMessage.user(StudioPrompts.digestUser(mesa, document.name, prompt, context.blocks)),
             )
-            val result = container.chatClient.complete(current.settings, messages)
+            val result = gateway.complete(current.settings, messages, digestTokens)
             val reply = result.getOrNull()
             if (reply == null) {
                 if (cancelling) return
@@ -822,9 +836,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
         val buffer = StringBuilder()
         var lastPush = 0L
-        val result = container.chatClient.completeStreaming(
+        val result = gateway.stream(
             settings = current.settings,
             messages = messages,
+            maxTokens = tools.budgetOf(task.id).maxTokens,
         ) { delta ->
             buffer.append(delta)
             val now = System.currentTimeMillis()
