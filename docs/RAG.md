@@ -1,5 +1,9 @@
 # Nahuanotoka · mesas de trabajo con tus PDFs
 
+> **Informe técnico completo (PDF):** [Nahuanotoka-Informe-RAG.pdf](Nahuanotoka-Informe-RAG.pdf)
+> — funcionamiento, tecnologías, infraestructura, límites y revisión con mejoras priorizadas.
+> Fuente editable: [informe-rag.html](informe-rag.html).
+
 ## El problema que resuelve
 
 Eres estudiante. Tienes una exposición en tres días y doce PDFs: tres capítulos del libro, dos

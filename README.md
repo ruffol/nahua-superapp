@@ -203,6 +203,8 @@ Decisiones: DI manual (`AppContainer`), DataStore y JSON en `filesDir` en lugar 
 centavos, mini-apps HTML, recuperación léxica por raíz + cobertura por documento (sin embeddings) y
 mapa raster offline para no depender de Google Play Services.
 
+Informe técnico del RAG: [docs/Nahuanotoka-Informe-RAG.pdf](docs/Nahuanotoka-Informe-RAG.pdf).
+
 Más detalle: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/MINIAPP_SDK.md](docs/MINIAPP_SDK.md)
 y [docs/RAG.md](docs/RAG.md).
 
