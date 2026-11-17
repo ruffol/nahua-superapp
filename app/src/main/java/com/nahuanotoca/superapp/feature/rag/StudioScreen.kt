@@ -777,7 +777,12 @@ private fun ImportProgressPanel(progress: ImportProgress) {
             )
         }
         Spacer(Modifier.height(6.dp))
-        PixelBodyText(text = progress.name, size = 14.sp, color = PixelMuted, maxLines = 1)
+        PixelBodyText(
+            text = progress.name + if (progress.stage.isBlank()) "" else " · " + progress.stage,
+            size = 14.sp,
+            color = PixelMuted,
+            maxLines = 1,
+        )
     }
 }
 

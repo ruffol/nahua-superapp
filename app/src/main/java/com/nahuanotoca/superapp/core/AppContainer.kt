@@ -12,6 +12,7 @@ import com.nahuanotoca.superapp.core.miniapp.MiniAppRegistry
 import com.nahuanotoca.superapp.core.rag.AnswerCache
 import com.nahuanotoca.superapp.core.rag.ChatClient
 import com.nahuanotoca.superapp.core.rag.EpubExtractor
+import com.nahuanotoca.superapp.core.rag.OcrExtractor
 import com.nahuanotoca.superapp.core.rag.PdfExtractor
 import com.nahuanotoca.superapp.core.rag.RagRepository
 import com.nahuanotoca.superapp.core.rag.RagSettingsRepository
@@ -39,6 +40,7 @@ class AppContainer(context: Context) {
     val rag = RagRepository(appContext)
     val pdfExtractor = PdfExtractor(appContext)
     val epubExtractor = EpubExtractor(appContext)
+    val ocrExtractor = OcrExtractor(appContext)
     val chatClient = ChatClient()
     val studio = StudioRepository(appContext)
     val answerCache = AnswerCache(appContext)

@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.11.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.12.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -29,11 +29,12 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   ideas, correlación o guion de exposición, revisa los tokens gastados y exporta el análisis a PDF.
 - **Importación en segundo plano** con WorkManager: cierra la app y la indexación sigue.
 - **Biblioteca en Room** con migración automática del índice anterior.
+- **OCR local** (ML Kit) para PDFs escaneados, en segundo plano.
 - **Actualizaciones OTA**: desde *Perfil → Versión* la app busca la última release en GitHub, la
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **124 tests unitarios** y CI en GitHub Actions.
+- **128 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -221,7 +222,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 124 tests
+./gradlew testDebugUnitTest    # 128 tests
 ./gradlew installDebug
 ```
 

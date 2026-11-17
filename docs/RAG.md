@@ -51,7 +51,7 @@ los fragmentos elegidos viajan a tu API.
 ## Flujo de uso
 
 1. **Servicios → Nahuanotoka → Nueva mesa.** Ponle nombre, materia y contexto.
-2. **Agregar PDF o EPUB** (varios a la vez). Cada archivo se indexa **en segundo plano** con WorkManager: puedes salir de la app y el trabajo continúa; al volver verás el progreso por libro.
+2. **Agregar PDF o EPUB** (varios a la vez). Cada archivo se indexa **en segundo plano** con WorkManager: puedes salir de la app y el trabajo continúa; al volver verás el progreso por libro. Si el PDF es un escaneo, el worker lo detecta y aplica **OCR local** página por página.
    se indexan en el dispositivo y, si tienen imágenes incrustadas, aparecen como **figuras** listas
    para tus diapositivas. Al final se resume cuántos entraron, cuántas páginas y cuántas figuras.
 3. **Herramientas de estudio** (una consulta cada una):
@@ -295,6 +295,7 @@ primera vez que abres la app.
 | Límite | Motivo |
 | --- | --- |
 | 300 páginas por PDF | Tiempo de extracción en gama baja |
+| OCR hasta 120 páginas | 1–3 s por página en el dispositivo |
 | PDFs con texto | Los escaneados necesitan OCR previo |
 | 3 fragmentos por libro / ~14 000 caracteres | Costo y ventana del proveedor |
 | 450 palabras por bloque | Coincide con la ruta de estudio (400–500) |

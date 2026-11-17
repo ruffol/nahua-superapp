@@ -7,6 +7,7 @@ import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.nahuanotoca.superapp.NahuaApplication
+import com.nahuanotoca.superapp.core.rag.OcrMerge
 import com.nahuanotoca.superapp.core.rag.TextChunker
 import com.nahuanotoca.superapp.core.util.Digest
 
@@ -48,14 +49,34 @@ class ImportWorker(
                 resolver.getType(uri)?.contains("epub", ignoreCase = true) == true
 
             setProgressAsync(progressFor(index, total, name, STAGE_EXTRACTING))
-            val extracted = if (isEpub) {
+            var extracted = if (isEpub) {
                 container.epubExtractor.extract(uri)
             } else {
                 container.pdfExtractor.extract(uri)
             }
-            if (extracted.pages.isEmpty()) {
+
+            // PDF escaneado: se renderiza cada página y se reconoce con ML Kit en el dispositivo.
+            if (!isEpub && OcrMerge.needsOcr(extracted.pages)) {
+                setProgressAsync(progressFor(index, total, name, STAGE_OCR))
+                val recognized = runCatching {
+                    container.ocrExtractor.extract(uri, maxPages = OCR_MAX_PAGES) { done, pages ->
+                        setProgressAsync(
+                            progressFor(index, total, name, STAGE_OCR + " " + done + "/" + pages),
+                        )
+                    }
+                }.getOrDefault(emptyList())
+
+                if (recognized.isNotEmpty()) {
+                    extracted = extracted.copy(pages = OcrMerge.merge(extracted.pages, recognized))
+                }
+            }
+
+            if (extracted.pages.isEmpty() || extracted.pages.all { it.isBlank() }) {
                 return Result.failure(
-                    workDataOf(KEY_ERROR to "«" + name + "» no tiene texto seleccionable (parece escaneado)."),
+                    workDataOf(
+                        KEY_ERROR to "«" + name + "» no tiene texto ni siquiera tras OCR. " +
+                            "Revisa que el escaneo sea legible.",
+                    ),
                 )
             }
 
@@ -109,7 +130,9 @@ class ImportWorker(
         const val STAGE_READING = "leyendo"
         const val STAGE_EXTRACTING = "extrayendo"
         const val STAGE_CHUNKING = "fragmentando"
+        const val STAGE_OCR = "ocr"
         const val STAGE_INDEXING = "guardando"
+        const val OCR_MAX_PAGES = 120
 
         fun uniqueName(mesaId: String): String = "import-" + mesaId
     }

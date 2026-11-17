@@ -60,6 +60,7 @@ data class ImportProgress(
     val books: Int,
     val pages: Int,
     val name: String,
+    val stage: String = "",
 )
 
 data class StudioUiState(
@@ -333,6 +334,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     val progress = running?.progress
                     val currentName = progress?.getString(ImportWorker.KEY_NAME).orEmpty()
                     val currentIndex = progress?.getInt(ImportWorker.KEY_INDEX, finished + 1) ?: (finished + 1)
+                    val currentStage = progress?.getString(ImportWorker.KEY_STAGE).orEmpty()
                     val pages = infos.sumOf { it.outputData.getInt(ImportWorker.KEY_PAGES, 0) }
 
                     _state.update {
@@ -344,6 +346,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                                     books = total,
                                     pages = pages,
                                     name = currentName.ifBlank { "Procesando…" },
+                                    stage = currentStage,
                                 )
                             } else {
                                 null

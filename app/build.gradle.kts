@@ -16,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Overridable from CI: -PnahuaVersionCode=301 -PnahuaVersionName=0.3.1
-        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "1100").toInt()
-        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.11.0"
+        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "1200").toInt()
+        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.12.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+    implementation(libs.mlkit.text.recognition)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

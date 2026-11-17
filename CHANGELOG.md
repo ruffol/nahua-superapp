@@ -3,6 +3,26 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.12.0] — 2026-11-17
+
+### Añadido
+
+- **OCR local para PDFs escaneados (NA-010)**: si más del 70 % de las páginas no traen texto
+  seleccionable, el worker renderiza cada página con `PdfRenderer` y la reconoce con **ML Kit Text
+  Recognition** (modelo empaquetado, sin red). El texto reconocido sustituye sólo las páginas vacías;
+  lo que el PDF sí traía se conserva.
+- Tope de 120 páginas por OCR y aviso de progreso por página (“ocr 12/80”) en la tarjeta de
+  importación.
+- Si tras el OCR el documento sigue sin texto, el error lo dice y sugiere revisar la calidad del
+  escaneo.
+- 4 tests nuevos del detector y de la mezcla de texto; 128 en total.
+
+### Notas
+
+- Nueva dependencia `com.google.mlkit:text-recognition` 16.0.1 (modelo latino empaquetado): el APK
+  crece unos 8 MB y el OCR corre completamente en el teléfono.
+- El OCR es lento (1–3 s por página) y por eso vive en el worker de fondo, nunca en la UI.
+
 ## [0.11.0] — 2026-11-17
 
 ### Añadido
