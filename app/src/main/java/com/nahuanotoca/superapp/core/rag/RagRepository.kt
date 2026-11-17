@@ -2,35 +2,50 @@ package com.nahuanotoca.superapp.core.rag
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.room.withTransaction
+import com.nahuanotoca.superapp.core.data.library.ChunkEntity
+import com.nahuanotoca.superapp.core.data.library.DocumentEntity
+import com.nahuanotoca.superapp.core.data.library.FigureEntity
+import com.nahuanotoca.superapp.core.data.library.LibraryDatabase
 import com.nahuanotoca.superapp.core.model.RagChunk
 import com.nahuanotoca.superapp.core.model.RagDocument
 import com.nahuanotoca.superapp.core.model.RagFigure
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Almacén local de documentos por mesa de trabajo: cada mesa tiene su carpeta
- * filesDir/rag/mesaId con el texto indexado y las figuras extraídas.
- * El PDF original nunca se copia: sólo su texto y sus imágenes.
+ * Biblioteca local en Room, separada por mesa.
+ *
+ * Cada mesa guarda sus documentos, fragmentos y figuras en la base `nahua-library.db`; los JPEG de
+ * las figuras siguen en `filesDir/rag/<mesa>/`. La API pública es la misma que la versión JSON, así
+ * que el ViewModel y el motor no cambiaron.
+ *
+ * Al abrir una mesa se migra, una sola vez, cualquier índice JSON anterior.
  */
 class RagRepository(private val context: Context) {
 
-    private val root: File = File(context.filesDir, "rag").apply { mkdirs() }
+    private val database: LibraryDatabase = LibraryDatabase.get(context)
+    private val dao = database.libraryDao()
+
+    private val root: File = File(context.filesDir, "rag")
+    private val legacyRoot: File = File(context.filesDir, "rag-legacy")
+    private val migrated = mutableSetOf<String>()
+    private val mutex = Mutex()
 
     private fun folder(mesaId: String): File = File(root, mesaId).apply { mkdirs() }
 
     private fun safeId(mesaId: String): String = mesaId.ifBlank { "default" }
 
-    suspend fun documents(mesaId: String): List<RagDocument> = withContext(Dispatchers.IO) {
+    suspend fun documents(mesaId: String): List<RagDocument> {
         val scope = safeId(mesaId)
-        folder(scope).listFiles { file -> file.name.endsWith(META_SUFFIX) }
-            ?.mapNotNull { readMeta(it, scope) }
-            ?.sortedByDescending { it.addedAt }
-            ?: emptyList()
+        migrateIfNeeded(scope)
+        return withContext(Dispatchers.IO) {
+            dao.documents(scope).map { it.toModel() }
+        }
     }
 
     suspend fun import(
@@ -48,37 +63,19 @@ class RagRepository(private val context: Context) {
         val characters = chunks.sumOf { it.text.length }
         val target = folder(scope)
 
-        val chunksJson = JSONArray().apply {
-            chunks.forEach { chunk ->
-                put(
-                    JSONObject()
-                        .put("id", CacheKey.sha256(chunk.text).take(12))
-                        .put("doc", name)
-                        .put("page", chunk.page)
-                        .put("text", chunk.text),
-                )
-            }
-        }
-        File(target, id + CHUNKS_SUFFIX).writeText(chunksJson.toString())
-
-        val figuresJson = JSONArray().apply {
-            figures.forEachIndexed { index, figure ->
-                val fileName = "fig_" + id + "_" + index + ".jpg"
-                val saved = runCatching {
-                    FileOutputStream(File(target, fileName)).use { out ->
-                        figure.bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
-                    }
-                }.getOrDefault(false)
-                if (saved) {
-                    put(JSONObject().put("file", fileName).put("page", figure.page))
+        val savedFigures = mutableListOf<Pair<String, Int>>()
+        figures.forEachIndexed { index, figure ->
+            val fileName = "fig_" + id + "_" + index + ".jpg"
+            val saved = runCatching {
+                FileOutputStream(File(target, fileName)).use { out ->
+                    figure.bitmap.compress(Bitmap.CompressFormat.JPEG, 82, out)
                 }
-                figure.bitmap.recycle()
-            }
+            }.getOrDefault(false)
+            if (saved) savedFigures += fileName to figure.page
+            figure.bitmap.recycle()
         }
 
-        val previousVersions = folder(scope).listFiles { file -> file.name.endsWith(META_SUFFIX) }
-            ?.count { file -> readMeta(file, scope)?.name == name }
-            ?: 0
+        val previousVersions = dao.documents(scope).count { it.name == name }
 
         val document = RagDocument(
             id = id,
@@ -88,62 +85,96 @@ class RagRepository(private val context: Context) {
             chunks = chunks.size,
             characters = characters,
             addedAt = addedAt,
-            figures = figuresJson.length(),
+            figures = savedFigures.size,
             sha256 = sha256,
             version = previousVersions + 1,
         )
 
-        val meta = JSONObject()
-            .put("id", document.id)
-            .put("mesa", document.mesaId)
-            .put("name", document.name)
-            .put("pages", document.pages)
-            .put("chunks", document.chunks)
-            .put("characters", document.characters)
-            .put("addedAt", document.addedAt)
-            .put("sha256", document.sha256)
-            .put("version", document.version)
-            .put("figures", figuresJson)
-        File(target, id + META_SUFFIX).writeText(meta.toString())
+        val chunkEntities = chunks.mapIndexed { index, chunk ->
+            ChunkEntity(
+                id = id + ":" + chunk.page + ":" + CacheKey.sha256(chunk.text).take(12),
+                documentId = id,
+                mesaId = scope,
+                documentName = name,
+                page = chunk.page,
+                position = index,
+                text = chunk.text,
+            )
+        }
+
+        database.withTransaction {
+            dao.insertDocument(document.toEntity())
+            dao.insertChunks(chunkEntities)
+            if (savedFigures.isNotEmpty()) {
+                dao.insertFigures(
+                    savedFigures.map { (fileName, page) ->
+                        FigureEntity(id = id + ":" + fileName, documentId = id, page = page, fileName = fileName)
+                    },
+                )
+            }
+        }
 
         document
     }
 
-    /** Documento ya indexado con la misma huella (mismo archivo, aunque tenga otro nombre). */
-    suspend fun findByHash(mesaId: String, sha256: String): RagDocument? = withContext(Dispatchers.IO) {
-        if (sha256.isBlank()) return@withContext null
-        documents(mesaId).firstOrNull { it.sha256 == sha256 }
+    suspend fun chunks(mesaId: String): List<RagChunk> {
+        val scope = safeId(mesaId)
+        migrateIfNeeded(scope)
+        return withContext(Dispatchers.IO) {
+            dao.chunks(scope).map { chunk ->
+                RagChunk(
+                    id = chunk.id,
+                    documentId = chunk.documentId,
+                    documentName = chunk.documentName,
+                    page = chunk.page,
+                    text = chunk.text,
+                )
+            }
+        }
     }
 
-    suspend fun chunks(mesaId: String): List<RagChunk> = withContext(Dispatchers.IO) {
-        folder(safeId(mesaId)).listFiles { file -> file.name.endsWith(CHUNKS_SUFFIX) }
-            ?.flatMap { file -> readChunks(file) }
-            ?: emptyList()
-    }
-
-    /** Figuras de la mesa, ordenadas por documento y página, listas para mostrar como galería. */
-    suspend fun figures(mesaId: String): List<RagFigure> = withContext(Dispatchers.IO) {
-        val target = folder(safeId(mesaId))
-        target.listFiles { file -> file.name.endsWith(META_SUFFIX) }
-            ?.flatMap { metaFile -> readFigures(metaFile, target) }
-            ?.sortedWith(compareBy({ it.documentName }, { it.page }))
-            ?: emptyList()
+    suspend fun figures(mesaId: String): List<RagFigure> {
+        val scope = safeId(mesaId)
+        migrateIfNeeded(scope)
+        return withContext(Dispatchers.IO) {
+            val names = dao.documents(scope).associate { it.id to it.name }
+            val target = folder(scope)
+            dao.figures(scope).mapNotNull { figure ->
+                val file = File(target, figure.fileName)
+                if (!file.exists()) return@mapNotNull null
+                RagFigure(
+                    documentId = figure.documentId,
+                    documentName = names[figure.documentId] ?: "Documento",
+                    page = figure.page,
+                    path = file.absolutePath,
+                )
+            }
+        }
     }
 
     suspend fun delete(mesaId: String, id: String) = withContext(Dispatchers.IO) {
-        val target = folder(safeId(mesaId))
-        val metaFile = File(target, id + META_SUFFIX)
-        readFigures(metaFile, target).forEach { figure ->
-            runCatching { File(figure.path).delete() }
+        val scope = safeId(mesaId)
+        val target = folder(scope)
+        dao.figuresOf(id).forEach { figure ->
+            runCatching { File(target, figure.fileName).delete() }
         }
-        metaFile.delete()
-        File(target, id + CHUNKS_SUFFIX).delete()
+        dao.deleteDocument(id)
         Unit
     }
 
     suspend fun deleteAll(mesaId: String) = withContext(Dispatchers.IO) {
-        folder(safeId(mesaId)).deleteRecursively()
+        val scope = safeId(mesaId)
+        dao.deleteMesa(scope)
+        folder(scope).deleteRecursively()
+        migrated += scope
         Unit
+    }
+
+    suspend fun findByHash(mesaId: String, sha256: String): RagDocument? {
+        if (sha256.isBlank()) return null
+        val scope = safeId(mesaId)
+        migrateIfNeeded(scope)
+        return withContext(Dispatchers.IO) { dao.findByHash(scope, sha256)?.toModel() }
     }
 
     /** ¿Quedan documentos del formato anterior (sin mesas) en la raíz? */
@@ -163,71 +194,126 @@ class RagRepository(private val context: Context) {
             if (destination.exists()) destination.delete()
             if (file.renameTo(destination)) moved++
         }
+        if (moved > 0) {
+            migrated -= safeId(mesaId)
+            migrateIfNeeded(safeId(mesaId))
+        }
         moved
     }
 
-    private fun readMeta(file: File, mesaId: String): RagDocument? = runCatching {
-        val json = JSONObject(file.readText())
-        RagDocument(
-            id = json.getString("id"),
-            mesaId = json.optString("mesa", mesaId),
-            name = json.getString("name"),
-            pages = json.optInt("pages", 0),
-            chunks = json.optInt("chunks", 0),
-            characters = json.optInt("characters", 0),
-            addedAt = json.optLong("addedAt", 0L),
-            figures = json.optJSONArray("figures")?.length() ?: 0,
-            sha256 = json.optString("sha256", ""),
-            version = json.optInt("version", 1),
-        )
-    }.getOrNull()
+    /**
+     * Migra el índice JSON de una mesa a Room una sola vez. Los JSON se apartan en
+     * `filesDir/rag-legacy`; las figuras se quedan donde están para no romper rutas.
+     */
+    private suspend fun migrateIfNeeded(mesaId: String) = mutex.withLock {
+        if (migrated.contains(mesaId)) return
+        val folder = File(root, mesaId)
+        val metas: Array<File> = folder.listFiles { file -> file.name.endsWith(META_SUFFIX) } ?: emptyArray()
+        if (metas.isEmpty()) {
+            migrated += mesaId
+            return
+        }
 
-    private fun readFigures(metaFile: File, folder: File): List<RagFigure> = runCatching {
-        if (!metaFile.exists()) return@runCatching emptyList()
-        val json = JSONObject(metaFile.readText())
-        val documentId = json.optString("id")
-        val documentName = json.optString("name", "Documento")
-        val array = json.optJSONArray("figures") ?: return@runCatching emptyList()
-        buildList {
-            for (index in 0 until array.length()) {
-                val item = array.optJSONObject(index) ?: continue
-                val fileName = item.optString("file")
-                if (fileName.isBlank()) continue
-                val file = File(folder, fileName)
-                if (!file.exists()) continue
-                add(
-                    RagFigure(
-                        documentId = documentId,
-                        documentName = documentName,
-                        page = item.optInt("page", 1),
-                        path = file.absolutePath,
-                    ),
-                )
+        withContext(Dispatchers.IO) {
+            for (metaFile in metas) {
+                val legacy = runCatching { LegacyLibrary.parseMeta(metaFile.readText()) }.getOrNull()
+                if (legacy == null) continue
+                if (dao.document(legacy.id) != null) continue
+
+                val chunkFile = File(folder, legacy.id + CHUNKS_SUFFIX)
+                val chunks = if (chunkFile.exists()) {
+                    runCatching { LegacyLibrary.parseChunks(chunkFile.readText(), legacy.id) }
+                        .getOrDefault(emptyList())
+                } else {
+                    emptyList()
+                }
+
+                runCatching {
+                    database.withTransaction {
+                        dao.insertDocument(
+                            DocumentEntity(
+                                id = legacy.id,
+                                mesaId = mesaId,
+                                name = legacy.name,
+                                sha256 = legacy.sha256,
+                                version = legacy.version,
+                                pages = legacy.pages,
+                                chunkCount = if (chunks.isNotEmpty()) chunks.size else legacy.chunks,
+                                characters = legacy.characters,
+                                addedAt = legacy.addedAt,
+                                figureCount = legacy.figures.size,
+                            ),
+                        )
+                        if (chunks.isNotEmpty()) {
+                            dao.insertChunks(
+                                chunks.mapIndexed { index, chunk ->
+                                    ChunkEntity(
+                                        id = chunk.id,
+                                        documentId = legacy.id,
+                                        mesaId = mesaId,
+                                        documentName = legacy.name,
+                                        page = chunk.page,
+                                        position = index,
+                                        text = chunk.text,
+                                    )
+                                },
+                            )
+                        }
+                        if (legacy.figures.isNotEmpty()) {
+                            dao.insertFigures(
+                                legacy.figures.map { figure ->
+                                    FigureEntity(
+                                        id = legacy.id + ":" + figure.fileName,
+                                        documentId = legacy.id,
+                                        page = figure.page,
+                                        fileName = figure.fileName,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Apartar los JSON migrados (las figuras se quedan).
+            val archive = File(legacyRoot, mesaId)
+            archive.mkdirs()
+            metas.forEach { metaFile ->
+                runCatching { metaFile.renameTo(File(archive, metaFile.name)) }
+                val chunkFile = File(folder, metaFile.name.removeSuffix(META_SUFFIX) + CHUNKS_SUFFIX)
+                if (chunkFile.exists()) {
+                    runCatching { chunkFile.renameTo(File(archive, chunkFile.name)) }
+                }
             }
         }
-    }.getOrDefault(emptyList())
+        migrated += mesaId
+    }
 
-    private fun readChunks(file: File): List<RagChunk> = runCatching {
-        val array = JSONArray(file.readText())
-        buildList {
-            for (index in 0 until array.length()) {
-                val item = array.optJSONObject(index) ?: continue
-                val text = item.optString("text")
-                add(
-                    RagChunk(
-                        id = item.optString("id").ifBlank {
-                            file.nameWithoutExtension.substringBefore('.') + ":" +
-                                item.optInt("page", 1) + ":" + CacheKey.sha256(text).take(12)
-                        },
-                        documentId = file.nameWithoutExtension.substringBefore('.'),
-                        documentName = item.optString("doc", "Documento"),
-                        page = item.optInt("page", 1),
-                        text = text,
-                    ),
-                )
-            }
-        }
-    }.getOrDefault(emptyList())
+    private fun RagDocument.toEntity(): DocumentEntity = DocumentEntity(
+        id = id,
+        mesaId = mesaId,
+        name = name,
+        sha256 = sha256,
+        version = version,
+        pages = pages,
+        chunkCount = chunks,
+        characters = characters,
+        addedAt = addedAt,
+        figureCount = figures,
+    )
+
+    private fun DocumentEntity.toModel(): RagDocument = RagDocument(
+        id = id,
+        mesaId = mesaId,
+        name = name,
+        pages = pages,
+        chunks = chunkCount,
+        characters = characters,
+        addedAt = addedAt,
+        figures = figureCount,
+        sha256 = sha256,
+        version = version,
+    )
 
     private companion object {
         const val META_SUFFIX = ".meta.json"

@@ -223,7 +223,7 @@ de proveedor en el APK ni en cada teléfono.
 | NA-004 · contexto por ventana | **Hecho** | `ContextBuilder.windows`: hasta 2 ventanas por fragmento con peso IDF, vecino al borde y dedupe por n-gramas |
 | NA-005 · contrato de evidencia | **Hecho** | `RetrievedEvidence`/`RetrievalResult`, `chunkId` estable, chip “EVIDENCIA DÉBIL” y estrategia en el turno |
 | NA-006 · caché y streaming | **Hecho** | Clave con alcance/versión, sin historial en tareas; `REGENERAR` y `DETENER` |
-| NA-007/008 · Room y versiones | Parcial | Hash y versión por documento sin Room; esquema pendiente |
+| NA-007/008 · Room y versiones | **Hecho** | `LibraryDatabase` (documentos, fragmentos, figuras), migración desde JSON y esquema exportado |
 | NA-009 · WorkManager | **Hecho** | `ImportWorker` encadenado por archivo, permiso persistente y progreso por etapa |
 | NA-010 en adelante | Pendiente | OCR, herramientas y orquestador |
 

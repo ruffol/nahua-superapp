@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -15,8 +16,8 @@ android {
         minSdk = 26
         targetSdk = 35
         // Overridable from CI: -PnahuaVersionCode=301 -PnahuaVersionName=0.3.1
-        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "900").toInt()
-        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.9.0"
+        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "1000").toInt()
+        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.10.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -72,6 +73,10 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
@@ -90,6 +95,9 @@ dependencies {
     implementation(libs.androidx.webkit)
     implementation(libs.pdfbox.android)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -99,6 +107,8 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     testImplementation(libs.junit)
+    // Implementación real de org.json para pruebas JVM (el stub de Android lanza "not mocked").
+    testImplementation(libs.org.json)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

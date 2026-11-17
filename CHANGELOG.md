@@ -3,6 +3,25 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.10.0] — 2026-11-17
+
+### Añadido
+
+- **Biblioteca en Room (NA-007/008)**: `LibraryDatabase` con `DocumentEntity`, `ChunkEntity` y
+  `FigureEntity` (claves foráneas en cascada, índices por mesa, documento y hash). El esquema se
+  exporta en `app/schemas/` para futuras migraciones.
+- **Migración automática desde JSON**: al abrir una mesa se importa una sola vez su índice anterior
+  a Room; los JSON se archivan en `filesDir/rag-legacy` y las figuras se quedan en su carpeta.
+- `RagRepository` mantiene la misma API pública, así que el motor y la UI no cambiaron.
+- Dependencias: `room-runtime`/`room-ktx` 2.7.2 con KSP 2.2.10-2.0.2; `org.json` real sólo para
+  pruebas JVM.
+
+### Verificado
+
+- En el emulador, con la app anterior instalada (índice JSON de 1 PDF), tras instalar esta versión la
+  mesa siguió mostrando “1 PDF · 4 pág · 4 frag”: la migración a Room se ejecutó sin perder datos.
+- 121 tests en JVM (4 nuevos del lector de JSON legado).
+
 ## [0.9.0] — 2026-11-17
 
 ### Añadido

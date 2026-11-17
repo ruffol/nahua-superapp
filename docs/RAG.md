@@ -248,11 +248,11 @@ ChatClient (POST /chat/completions)  → texto + usage
 ## Almacenamiento
 
 ```
+filesDir/nahua-library.db   Room: documents, chunks, figures (cascada + índices)
 filesDir/rag/<mesaId>/
-├─ doc_<id>.meta.json     { id, mesa, name, pages, chunks, characters, addedAt, figures[],
-│                           sha256, version }
-├─ doc_<id>.chunks.json   [ { doc, page, text }, ... ]
-└─ fig_<id>_<n>.jpg       figuras incrustadas
+└─ fig_<id>_<n>.jpg         figuras incrustadas (los JPEG siguen en disco)
+
+filesDir/rag-legacy/<mesa>/ JSON anterior, archivado tras migrar
 
 filesDir/studio/
 ├─ mesas.json             [ { id, name, subject, context, accent, usage, requests } ]
@@ -260,6 +260,8 @@ filesDir/studio/
 
 cacheDir/reports/*.pdf    PDF generado (compartido con FileProvider)
 ```
+
+La biblioteca vive en **Room** desde 0.10.0; el índice JSON anterior se migra una sola vez al abrir la mesa.
 
 Si importas el mismo archivo dos veces, la app compara la huella SHA-256 y **no lo indexa de nuevo**.
 Un archivo distinto con el mismo nombre se guarda como versión nueva del documento.
