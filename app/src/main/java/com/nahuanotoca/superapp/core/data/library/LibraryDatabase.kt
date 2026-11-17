@@ -12,6 +12,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Biblioteca local en Room: documentos, fragmentos y figuras.
@@ -79,6 +81,27 @@ data class FigureEntity(
     val fileName: String,
 )
 
+@Entity(
+    tableName = "chunk_embeddings",
+    primaryKeys = ["chunkId"],
+    indices = [Index("mesaId"), Index("chunkId")],
+    foreignKeys = [
+        ForeignKey(
+            entity = ChunkEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["chunkId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class EmbeddingEntity(
+    val chunkId: String,
+    val mesaId: String,
+    val model: String,
+    val dim: Int,
+    val vector: ByteArray,
+)
+
 @Dao
 interface LibraryDao {
 
@@ -106,6 +129,18 @@ interface LibraryDao {
     )
     suspend fun figures(mesaId: String): List<FigureEntity>
 
+    @Query("SELECT * FROM chunk_embeddings WHERE mesaId = :mesaId")
+    suspend fun embeddings(mesaId: String): List<EmbeddingEntity>
+
+    @Query("SELECT COUNT(*) FROM chunk_embeddings WHERE mesaId = :mesaId")
+    suspend fun embeddingCount(mesaId: String): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEmbeddings(embeddings: List<EmbeddingEntity>)
+
+    @Query("DELETE FROM chunk_embeddings WHERE mesaId = :mesaId")
+    suspend fun deleteEmbeddings(mesaId: String)
+
     @Query("SELECT COUNT(*) FROM documents WHERE mesaId = :mesaId")
     suspend fun count(mesaId: String): Int
 
@@ -126,8 +161,8 @@ interface LibraryDao {
 }
 
 @Database(
-    entities = [DocumentEntity::class, ChunkEntity::class, FigureEntity::class],
-    version = 1,
+    entities = [DocumentEntity::class, ChunkEntity::class, FigureEntity::class, EmbeddingEntity::class],
+    version = 2,
     exportSchema = true,
 )
 abstract class LibraryDatabase : RoomDatabase() {
@@ -135,6 +170,20 @@ abstract class LibraryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
 
     companion object {
+        /** Añade la tabla de embeddings sin perder documentos ni fragmentos. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS chunk_embeddings (" +
+                        "chunkId TEXT NOT NULL, mesaId TEXT NOT NULL, model TEXT NOT NULL, " +
+                        "dim INTEGER NOT NULL, vector BLOB NOT NULL, PRIMARY KEY(chunkId), " +
+                        "FOREIGN KEY(chunkId) REFERENCES chunks(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_chunk_embeddings_mesaId ON chunk_embeddings(mesaId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_chunk_embeddings_chunkId ON chunk_embeddings(chunkId)")
+            }
+        }
+
         @Volatile
         private var instance: LibraryDatabase? = null
 
@@ -143,7 +192,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 context.applicationContext,
                 LibraryDatabase::class.java,
                 "nahua-library.db",
-            ).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
     }
 }

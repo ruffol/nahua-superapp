@@ -537,6 +537,8 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     }
                 }
 
+                val (vectors, queryVector) = loadVectors(mesa.id, current.settings, prompt)
+
                 val documentCount = current.documents.size
                 val context = ContextBuilder.build(
                     query = prompt,
@@ -552,6 +554,8 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     },
                     blockChars = 1_000,
                     maxChars = if (task?.id == StudioTasks.CORRELATE) 16_000 else 14_000,
+                    vectors = vectors,
+                    queryVector = queryVector,
                 )
                 if (context.isEmpty) {
                     _state.update { it.copy(error = "No hay texto suficiente en esta mesa para responder.") }
@@ -775,6 +779,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             return
         }
 
+        val (vectors, queryVector) = loadVectors(mesa.id, current.settings, prompt)
         val digests = mutableListOf<Pair<String, String>>()
         val sources = mutableListOf<RagSource>()
         var usage = TokenUsage.Empty
@@ -799,6 +804,8 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     broad = true,
                     blockChars = 1_200,
                     maxChars = 6_000,
+                    vectors = vectors,
+                    queryVector = queryVector,
                 )
             }
 
@@ -899,6 +906,21 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /** Vectores de la mesa y del query, sólo si el proveedor de embeddings está configurado. */
+    private suspend fun loadVectors(
+        mesaId: String,
+        settings: com.nahuanotoca.superapp.core.model.RagSettings,
+        prompt: String,
+    ): Pair<Map<String, FloatArray>, FloatArray?> {
+        if (!settings.embeddingsConfigured) return emptyMap<String, FloatArray>() to null
+        val stored = runCatching { container.rag.embeddings(mesaId) }.getOrNull() ?: return emptyMap<String, FloatArray>() to null
+        if (stored.isEmpty || stored.model != settings.embeddingModel) return emptyMap<String, FloatArray>() to null
+        val queryVector = runCatching {
+            container.embeddingClient.embed(settings, listOf(prompt)).getOrNull()?.firstOrNull()
+        }.getOrNull()
+        return stored.vectors to queryVector
+    }
+
     // --- exportación ------------------------------------------------------
 
     /** Baja una sola respuesta como PDF, Markdown o texto. */
@@ -993,7 +1015,14 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     fun closeSettings() = _state.update { it.copy(settingsOpen = false) }
 
-    fun saveSettings(baseUrl: String, model: String, apiKey: String) {
+    fun saveSettings(
+        baseUrl: String,
+        model: String,
+        apiKey: String,
+        embeddingBaseUrl: String = "",
+        embeddingModel: String = "",
+        embeddingApiKey: String = "",
+    ) {
         viewModelScope.launch {
             val current = _state.value.settings
             container.ragSettings.save(
@@ -1002,6 +1031,9 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     model = model.ifBlank { RagSettings.DEFAULT_MODEL },
                     apiKey = apiKey,
                     topK = current.topK,
+                    embeddingBaseUrl = embeddingBaseUrl,
+                    embeddingModel = embeddingModel.ifBlank { RagSettings.DEFAULT_EMBEDDING_MODEL },
+                    embeddingApiKey = embeddingApiKey,
                 ),
             )
             _state.update { it.copy(settingsOpen = false) }

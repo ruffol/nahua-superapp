@@ -156,6 +156,21 @@ El micrófono del compositor usa `SpeechRecognizer` con `EXTRA_PREFER_OFFLINE`, 
 teléfono tiene el paquete de idioma español descargado, el audio no sale del dispositivo. Si no hay
 servicio de reconocimiento o falta permiso, la app lo dice y sigues escribiendo.
 
+## Búsqueda híbrida (opcional)
+
+Por defecto el motor es léxico (BM25 por raíz). Si en **Configuración → Embeddings** pones un
+proveedor con `/embeddings` (OpenAI, Ollama, vLLM, servidor propio), entonces:
+
+1. Al importar, el worker vectoriza cada fragmento por lotes de 32 (etapa “vectorizando 2/6”) y
+   guarda los vectores en Room (`chunk_embeddings`, BLOB de `FloatArray`).
+2. Al preguntar, se calcula el vector de la consulta y se fusionan los dos rankings con
+   **Reciprocal Rank Fusion**: `1/(60 + posición)` en cada lista. Sin normalizar puntajes
+   incompatibles, los aciertos de ambos mundos suben.
+3. Si el proveedor falla o no hay vectores, se usa BM25 y la respuesta sale igual.
+
+Costo: una llamada extra por consulta (el vector del query) y una por lote al importar. El modelo de
+embeddings y su key son independientes del modelo de chat.
+
 ## Comparación en dos pasadas
 
 La tarea **Correlación** con dos o más obras no manda todo el material en una sola llamada. Hace:

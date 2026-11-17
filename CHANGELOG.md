@@ -3,6 +3,29 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.14.0] — 2026-11-17
+
+### Añadido
+
+- **RAG híbrido opcional (NA-018/019)**: si configuras un proveedor con `/embeddings`, los fragmentos
+  se vectorizan al importar y la búsqueda combina **BM25 + vectores** con *Reciprocal Rank Fusion*.
+  Sin configurar nada, todo sigue siendo BM25 puro.
+- **Vectores en Room** (`chunk_embeddings`, esquema v2 con `MIGRATION_1_2`): BLOB de `FloatArray`,
+  modelo y dimensión; borrado en cascada con el fragmento.
+- **Vectorización en segundo plano**: el worker embebe por lotes de 32 con etapa
+  “vectorizando 2/6”; si el proveedor falla, la importación termina igual y se queda el índice léxico.
+- **Ajustes de embeddings** en la hoja de configuración (base URL, modelo, key opcional que hereda la del chat).
+- 6 tests nuevos (códec, coseno, fusión RRF, fallback y configuración); 138 en total.
+
+### Notas
+
+- Los embeddings son **opcionales a propósito**: OpenCode Zen/Go y OpenRouter sirven chat pero no
+  `/embeddings`; para activar el modo híbrido usa un proveedor que sí lo exponga (OpenAI, Ollama,
+  vLLM, un servidor propio). La chat puede seguir en el proveedor que prefieras: son endpoints
+  independientes.
+- El índice vectorial es un recorrido completo (coseno sobre los vectores de la mesa), suficiente
+  para decenas de libros; un índice HNSW queda para cuando haya cientos.
+
 ## [0.13.0] — 2026-11-17
 
 ### Añadido

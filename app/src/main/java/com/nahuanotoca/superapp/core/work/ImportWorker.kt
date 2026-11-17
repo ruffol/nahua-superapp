@@ -7,6 +7,8 @@ import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.nahuanotoca.superapp.NahuaApplication
+import com.nahuanotoca.superapp.core.AppContainer
+import kotlinx.coroutines.flow.first
 import com.nahuanotoca.superapp.core.rag.OcrMerge
 import com.nahuanotoca.superapp.core.rag.TextChunker
 import com.nahuanotoca.superapp.core.util.Digest
@@ -91,6 +93,11 @@ class ImportWorker(
             setProgressAsync(progressFor(index, total, name, STAGE_INDEXING))
             val document = container.rag.import(mesaId, name, chunks, extracted.figures, sha.orEmpty())
 
+            // Vectores opcionales: si falla el proveedor, la importación sigue con BM25.
+            runCatching {
+                embedDocument(container, mesaId, document.id, name, index, total)
+            }
+
             Result.success(
                 workDataOf(
                     KEY_INDEXED to true,
@@ -102,6 +109,38 @@ class ImportWorker(
         } catch (error: Exception) {
             Result.failure(
                 workDataOf(KEY_ERROR to "No pudimos leer " + name + ": " + (error.message ?: "error desconocido")),
+            )
+        }
+    }
+
+    private suspend fun embedDocument(
+        container: AppContainer,
+        mesaId: String,
+        documentId: String,
+        name: String,
+        index: Int,
+        total: Int,
+    ) {
+        val settings = container.ragSettings.settings.first()
+        if (!settings.embeddingsConfigured) return
+
+        val chunks = container.rag.chunksOf(documentId)
+        if (chunks.isEmpty()) return
+
+        val batchSize = 32
+        val batches = (chunks.size + batchSize - 1) / batchSize
+        for (batch in 0 until batches) {
+            if (isStopped) return
+            val slice = chunks.subList(batch * batchSize, minOf((batch + 1) * batchSize, chunks.size))
+            setProgressAsync(
+                progressFor(index, total, name, STAGE_EMBEDDING + " " + (batch + 1) + "/" + batches),
+            )
+            val embedded = container.embeddingClient.embed(settings, slice.map { it.text }).getOrNull()
+                ?: return
+            container.rag.saveEmbeddings(
+                mesaId = mesaId,
+                model = settings.embeddingModel,
+                items = slice.mapIndexed { position, chunk -> chunk.id to embedded[position] },
             )
         }
     }
@@ -131,6 +170,7 @@ class ImportWorker(
         const val STAGE_EXTRACTING = "extrayendo"
         const val STAGE_CHUNKING = "fragmentando"
         const val STAGE_OCR = "ocr"
+        const val STAGE_EMBEDDING = "vectorizando"
         const val STAGE_INDEXING = "guardando"
         const val OCR_MAX_PAGES = 120
 

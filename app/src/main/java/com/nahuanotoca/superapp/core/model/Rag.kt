@@ -10,9 +10,31 @@ data class RagSettings(
     val model: String = DEFAULT_MODEL,
     val apiKey: String = "",
     val topK: Int = 8,
+    /** Endpoint de embeddings (opcional). Si está vacío, el estudio usa sólo BM25. */
+    val embeddingBaseUrl: String = "",
+    val embeddingModel: String = DEFAULT_EMBEDDING_MODEL,
+    val embeddingApiKey: String = "",
 ) {
     val isConfigured: Boolean
         get() = apiKey.isNotBlank() && baseUrl.isNotBlank() && model.isNotBlank()
+
+    /** La búsqueda vectorial es opcional: requiere un proveedor con /embeddings configurado. */
+    val embeddingsConfigured: Boolean
+        get() = embeddingBaseUrl.isNotBlank() && embeddingModel.isNotBlank() &&
+            (embeddingApiKey.isNotBlank() || apiKey.isNotBlank())
+
+    val embeddingEndpoint: String
+        get() {
+            val base = embeddingBaseUrl.trim().trimEnd('/')
+            return when {
+                base.isEmpty() -> ""
+                base.endsWith("/embeddings") -> base
+                else -> base + "/embeddings"
+            }
+        }
+
+    val embeddingKey: String
+        get() = embeddingApiKey.ifBlank { apiKey }
 
     val chatEndpoint: String
         get() {
@@ -23,6 +45,7 @@ data class RagSettings(
     companion object {
         const val DEFAULT_BASE_URL: String = "https://opencode.ai/zen/go/v1"
         const val DEFAULT_MODEL: String = "deepseek-v4.1-flash"
+        const val DEFAULT_EMBEDDING_MODEL: String = "text-embedding-3-small"
 
         /**
          * Modelos sugeridos. Flash primero porque es el más barato para estudiar con muchos PDFs.

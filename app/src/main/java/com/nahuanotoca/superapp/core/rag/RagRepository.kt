@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.room.withTransaction
 import com.nahuanotoca.superapp.core.data.library.ChunkEntity
 import com.nahuanotoca.superapp.core.data.library.DocumentEntity
+import com.nahuanotoca.superapp.core.data.library.EmbeddingEntity
 import com.nahuanotoca.superapp.core.data.library.FigureEntity
 import com.nahuanotoca.superapp.core.data.library.LibraryDatabase
 import com.nahuanotoca.superapp.core.model.RagChunk
@@ -26,6 +27,13 @@ import java.io.FileOutputStream
  *
  * Al abrir una mesa se migra, una sola vez, cualquier índice JSON anterior.
  */
+data class StoredEmbeddings(
+    val model: String,
+    val vectors: Map<String, FloatArray>,
+) {
+    val isEmpty: Boolean get() = vectors.isEmpty()
+}
+
 class RagRepository(private val context: Context) {
 
     private val database: LibraryDatabase = LibraryDatabase.get(context)
@@ -131,6 +139,49 @@ class RagRepository(private val context: Context) {
                 )
             }
         }
+    }
+
+    suspend fun chunksOf(documentId: String): List<RagChunk> = withContext(Dispatchers.IO) {
+        dao.chunksOf(documentId).map { chunk ->
+            RagChunk(
+                id = chunk.id,
+                documentId = chunk.documentId,
+                documentName = chunk.documentName,
+                page = chunk.page,
+                text = chunk.text,
+            )
+        }
+    }
+
+    /** Guarda los vectores de un documento (uno por fragmento). */
+    suspend fun saveEmbeddings(
+        mesaId: String,
+        model: String,
+        items: List<Pair<String, FloatArray>>,
+    ) = withContext(Dispatchers.IO) {
+        if (items.isEmpty()) return@withContext
+        val scope = safeId(mesaId)
+        dao.insertEmbeddings(
+            items.map { (chunkId, vector) ->
+                EmbeddingEntity(
+                    chunkId = chunkId,
+                    mesaId = scope,
+                    model = model,
+                    dim = vector.size,
+                    vector = VectorCodec.encode(vector),
+                )
+            },
+        )
+        Unit
+    }
+
+    /** Vectores de la mesa, si ya se generaron. */
+    suspend fun embeddings(mesaId: String): StoredEmbeddings = withContext(Dispatchers.IO) {
+        val rows = dao.embeddings(safeId(mesaId))
+        StoredEmbeddings(
+            model = rows.firstOrNull()?.model.orEmpty(),
+            vectors = rows.associate { it.chunkId to VectorCodec.decode(it.vector) },
+        )
     }
 
     suspend fun figures(mesaId: String): List<RagFigure> {

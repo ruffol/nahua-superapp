@@ -60,6 +60,8 @@ object ContextBuilder {
         blockChars: Int = 1_200,
         includeNeighbors: Boolean = true,
         deduplicate: Boolean = true,
+        vectors: Map<String, FloatArray> = emptyMap(),
+        queryVector: FloatArray? = null,
     ): Context {
         val scoped = if (documentIds.isEmpty()) chunks else chunks.filter { it.documentId in documentIds }
         if (scoped.isEmpty()) return Context(emptyList(), emptyList(), MODE_COVERAGE, true, 0)
@@ -72,7 +74,7 @@ object ContextBuilder {
             picked = coverage(scoped, maxBlocks)
             mode = MODE_COVERAGE
         } else if (perDocument > 0) {
-            val balanced = balanced(scoped, query, perDocument)
+            val balanced = balanced(scoped, query, perDocument, vectors, queryVector)
             if (balanced.isEmpty()) {
                 picked = coverage(scoped, maxBlocks)
                 mode = MODE_COVERAGE
@@ -82,7 +84,7 @@ object ContextBuilder {
                 mode = MODE_BALANCED
             }
         } else {
-            val hits = Retriever.select(query, scoped, maxBlocks).map { it.chunk }
+            val hits = ranked(query, scoped, maxBlocks, vectors, queryVector).map { it.chunk }
             if (hits.isEmpty()) {
                 picked = coverage(scoped, maxBlocks)
                 mode = MODE_COVERAGE
@@ -247,6 +249,20 @@ object ContextBuilder {
         return if (withoutExtension.length > 48) withoutExtension.take(48) + "…" else withoutExtension
     }
 
+    /** Ranking léxico o híbrido según haya vectores para la mesa. */
+    private fun ranked(
+        query: String,
+        chunks: List<RagChunk>,
+        limit: Int,
+        vectors: Map<String, FloatArray>,
+        queryVector: FloatArray?,
+    ): List<Retriever.ScoredChunk> =
+        if (queryVector != null && vectors.isNotEmpty()) {
+            HybridRetriever.fuse(query, chunks, vectors, queryVector, limit)
+        } else {
+            Retriever.select(query, chunks, limit)
+        }
+
     private fun scoreOf(query: String, chunk: RagChunk): Double =
         Retriever.select(query, listOf(chunk), 1).firstOrNull()?.score ?: 0.0
 
@@ -257,11 +273,17 @@ object ContextBuilder {
      * Para cada documento se toman sus [perDocument] fragmentos mejor puntuados y luego se
      * intercalan en rondas: primero el mejor de cada libro, después el segundo, etc.
      */
-    fun balanced(chunks: List<RagChunk>, query: String, perDocument: Int): List<RagChunk> {
+    fun balanced(
+        chunks: List<RagChunk>,
+        query: String,
+        perDocument: Int,
+        vectors: Map<String, FloatArray> = emptyMap(),
+        queryVector: FloatArray? = null,
+    ): List<RagChunk> {
         if (perDocument <= 0) return emptyList()
         val byDocument = chunks.groupBy { it.documentId }.toSortedMap()
         val ranked = byDocument.map { (_, list) ->
-            Retriever.select(query, list, perDocument).map { it.chunk }
+            ranked(query, list, perDocument, vectors, queryVector).map { it.chunk }
         }
         if (ranked.all { it.isEmpty() }) return emptyList()
 

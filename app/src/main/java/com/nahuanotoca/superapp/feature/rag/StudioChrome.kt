@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Dialog
 import com.nahuanotoca.superapp.core.design.PixelBodyText
 import com.nahuanotoca.superapp.core.design.PixelButton
 import com.nahuanotoca.superapp.core.design.PixelChip
+import com.nahuanotoca.superapp.core.design.PixelCyan
 import com.nahuanotoca.superapp.core.design.PixelGlyph
 import com.nahuanotoca.superapp.core.design.PixelIcons
 import com.nahuanotoca.superapp.core.design.PixelIconButton
@@ -173,12 +174,15 @@ internal fun MesaEditorDialog(
 @Composable
 internal fun SettingsDialog(
     settings: RagSettings,
-    onSave: (String, String, String) -> Unit,
+    onSave: (String, String, String, String, String, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var baseUrl by remember(settings) { mutableStateOf(settings.baseUrl) }
     var model by remember(settings) { mutableStateOf(settings.model) }
     var apiKey by remember(settings) { mutableStateOf(settings.apiKey) }
+    var embeddingBaseUrl by remember(settings) { mutableStateOf(settings.embeddingBaseUrl) }
+    var embeddingModel by remember(settings) { mutableStateOf(settings.embeddingModel) }
+    var embeddingApiKey by remember(settings) { mutableStateOf(settings.embeddingApiKey) }
     var showKey by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -244,11 +248,47 @@ internal fun SettingsDialog(
                     size = 14.sp,
                     color = PixelMuted,
                 )
+
+                Spacer(Modifier.height(16.dp))
+                PixelLabel(text = "EMBEDDINGS · OPCIONAL", size = 6.sp, color = PixelCyan)
+                Spacer(Modifier.height(4.dp))
+                PixelBodyText(
+                    text = "Con un proveedor que tenga /embeddings la búsqueda se vuelve híbrida " +
+                        "(BM25 + vectores). Si lo dejas vacío, el estudio usa sólo BM25.",
+                    size = 14.sp,
+                    color = PixelMuted,
+                )
+                Spacer(Modifier.height(6.dp))
+                PixelTextField(
+                    value = embeddingBaseUrl,
+                    onValueChange = { embeddingBaseUrl = it },
+                    placeholder = "https://api.openai.com/v1",
+                    maxLines = 1,
+                )
+                Spacer(Modifier.height(6.dp))
+                PixelTextField(
+                    value = embeddingModel,
+                    onValueChange = { embeddingModel = it },
+                    placeholder = RagSettings.DEFAULT_EMBEDDING_MODEL,
+                    maxLines = 1,
+                )
+                Spacer(Modifier.height(6.dp))
+                PixelTextField(
+                    value = embeddingApiKey,
+                    onValueChange = { embeddingApiKey = it },
+                    placeholder = "vacío = usa la misma key del chat",
+                    maxLines = 1,
+                    visualTransformation = if (showKey) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                )
             }
             Spacer(Modifier.height(14.dp))
             PixelButton(
                 text = "GUARDAR",
-                onClick = { onSave(baseUrl, model, apiKey) },
+                onClick = { onSave(baseUrl, model, apiKey, embeddingBaseUrl, embeddingModel, embeddingApiKey) },
                 expand = true,
                 modifier = Modifier.fillMaxWidth(),
                 color = PixelPurple,

@@ -18,6 +18,9 @@ class RagSettingsRepository(private val context: Context) {
             model = preferences[MODEL] ?: RagSettings.DEFAULT_MODEL,
             apiKey = preferences[API_KEY].orEmpty(),
             topK = preferences[TOP_K]?.toIntOrNull() ?: 4,
+            embeddingBaseUrl = preferences[EMBEDDING_BASE_URL].orEmpty(),
+            embeddingModel = preferences[EMBEDDING_MODEL] ?: RagSettings.DEFAULT_EMBEDDING_MODEL,
+            embeddingApiKey = preferences[EMBEDDING_API_KEY].orEmpty(),
         )
     }
 
@@ -27,6 +30,9 @@ class RagSettingsRepository(private val context: Context) {
             preferences[MODEL] = settings.model.trim()
             preferences[API_KEY] = settings.apiKey.trim()
             preferences[TOP_K] = settings.topK.toString()
+            preferences[EMBEDDING_BASE_URL] = settings.embeddingBaseUrl.trim()
+            preferences[EMBEDDING_MODEL] = settings.embeddingModel.trim()
+            preferences[EMBEDDING_API_KEY] = settings.embeddingApiKey.trim()
         }
     }
 
@@ -35,5 +41,8 @@ class RagSettingsRepository(private val context: Context) {
         val MODEL = stringPreferencesKey("rag_model")
         val API_KEY = stringPreferencesKey("rag_api_key")
         val TOP_K = stringPreferencesKey("rag_top_k")
+        val EMBEDDING_BASE_URL = stringPreferencesKey("rag_embedding_base_url")
+        val EMBEDDING_MODEL = stringPreferencesKey("rag_embedding_model")
+        val EMBEDDING_API_KEY = stringPreferencesKey("rag_embedding_api_key")
     }
 }
