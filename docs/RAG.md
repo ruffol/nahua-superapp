@@ -168,6 +168,9 @@ proveedor con `/embeddings` (OpenAI, Ollama, vLLM, servidor propio), entonces:
    incompatibles, los aciertos de ambos mundos suben.
 3. Si el proveedor falla o no hay vectores, se usa BM25 y la respuesta sale igual.
 
+Los libros que ya estaban indexados no se vectorizan solos: en la mesa hay un botón **VECTORES** que
+hace el relleno por lotes con progreso, sin reimportar (el dedupe por hash lo impediría).
+
 Costo: una llamada extra por consulta (el vector del query) y una por lote al importar. El modelo de
 embeddings y su key son independientes del modelo de chat.
 

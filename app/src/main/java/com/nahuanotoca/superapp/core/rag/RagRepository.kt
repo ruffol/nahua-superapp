@@ -175,6 +175,27 @@ class RagRepository(private val context: Context) {
         Unit
     }
 
+    /** Fragmentos que todavía no tienen vector para este modelo (para la acción "Vectorizar"). */
+    suspend fun chunksPendingEmbeddings(mesaId: String, model: String): List<RagChunk> =
+        withContext(Dispatchers.IO) {
+            val scope = safeId(mesaId)
+            val embedded = dao.embeddings(scope)
+                .filter { it.model == model }
+                .map { it.chunkId }
+                .toSet()
+            dao.chunks(scope)
+                .filter { it.id !in embedded }
+                .map { chunk ->
+                    RagChunk(
+                        id = chunk.id,
+                        documentId = chunk.documentId,
+                        documentName = chunk.documentName,
+                        page = chunk.page,
+                        text = chunk.text,
+                    )
+                }
+        }
+
     /** Vectores de la mesa, si ya se generaron. */
     suspend fun embeddings(mesaId: String): StoredEmbeddings = withContext(Dispatchers.IO) {
         val rows = dao.embeddings(safeId(mesaId))

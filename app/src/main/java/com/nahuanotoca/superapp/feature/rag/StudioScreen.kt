@@ -452,6 +452,7 @@ private fun MesaDetailScreen(
                     onToggle = viewModel::toggleDocumentSelection,
                     onDelete = viewModel::deleteDocument,
                     onClearSelection = viewModel::clearSelection,
+                    onVectorize = if (state.settings.embeddingsConfigured) viewModel::vectorizeMesa else null,
                 )
             }
 
@@ -612,6 +613,7 @@ private fun DocumentsPanel(
     onToggle: (String) -> Unit,
     onDelete: (String) -> Unit,
     onClearSelection: () -> Unit,
+    onVectorize: (() -> Unit)? = null,
 ) {
     PixelPanel(cut = 4.dp, contentPadding = PaddingValues(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -626,6 +628,17 @@ private fun DocumentsPanel(
                     size = 14.sp,
                     color = PixelMuted,
                 )
+            }
+            if (onVectorize != null) {
+                PixelButton(
+                    text = "VECTORES",
+                    onClick = onVectorize,
+                    enabled = !importing,
+                    color = PixelPurple,
+                    fontSize = 6.sp,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                )
+                Spacer(Modifier.width(6.dp))
             }
             PixelButton(
                 text = if (importing) "INDEXANDO…" else "+ PDF",

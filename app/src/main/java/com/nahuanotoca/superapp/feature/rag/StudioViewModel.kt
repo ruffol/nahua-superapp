@@ -921,6 +921,83 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         return stored.vectors to queryVector
     }
 
+    /**
+     * Vectoriza los fragmentos que aún no tienen embedding (libros importados antes de configurar
+     * el proveedor). Trabaja por lotes y reutiliza la barra de progreso de la importación.
+     */
+    fun vectorizeMesa() {
+        val mesa = _state.value.activeMesa ?: return
+        val settings = _state.value.settings
+        if (!settings.embeddingsConfigured) {
+            _state.update {
+                it.copy(
+                    settingsOpen = true,
+                    error = "Configura el endpoint de embeddings para vectorizar la mesa.",
+                )
+            }
+            return
+        }
+        if (_state.value.isWorking || _state.value.isImporting) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val pending = runCatching {
+                container.rag.chunksPendingEmbeddings(mesa.id, settings.embeddingModel)
+            }.getOrElse { failure ->
+                _state.update { it.copy(error = "No pudimos leer los fragmentos: " + (failure.message ?: "error")) }
+                return@launch
+            }
+
+            if (pending.isEmpty()) {
+                _events.emit(StudioEvent.Toast("Esta mesa ya está vectorizada"))
+                return@launch
+            }
+
+            val total = pending.size
+            var done = 0
+            _state.update {
+                it.copy(
+                    isImporting = true,
+                    importProgress = ImportProgress(1, total, 0, "Vectorizando", "vectores 0/" + total),
+                )
+            }
+
+            var failureMessage: String? = null
+            pending.chunked(32).forEach { batch ->
+                if (cancelling) return@forEach
+                val result = container.embeddingClient.embed(settings, batch.map { it.text })
+                result.onSuccess { vectors ->
+                    container.rag.saveEmbeddings(
+                        mesaId = mesa.id,
+                        model = settings.embeddingModel,
+                        items = batch.mapIndexed { index, chunk -> chunk.id to vectors[index] },
+                    )
+                    done += batch.size
+                    _state.update {
+                        it.copy(
+                            importProgress = ImportProgress(
+                                book = done.coerceAtMost(total),
+                                books = total,
+                                pages = 0,
+                                name = "Vectorizando",
+                                stage = "vectores " + done + "/" + total,
+                            ),
+                        )
+                    }
+                }.onFailure { failure ->
+                    failureMessage = failure.message ?: "el proveedor de embeddings falló"
+                }
+                if (failureMessage != null) return@forEach
+            }
+
+            _state.update { it.copy(isImporting = false, importProgress = null) }
+            if (failureMessage != null) {
+                _state.update { it.copy(error = "Vectorización incompleta: " + failureMessage) }
+            } else {
+                _events.emit(StudioEvent.Toast("Vectores listos: " + done + " fragmentos"))
+            }
+        }
+    }
+
     // --- exportación ------------------------------------------------------
 
     /** Baja una sola respuesta como PDF, Markdown o texto. */

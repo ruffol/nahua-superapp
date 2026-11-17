@@ -3,6 +3,19 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.14.1] — 2026-11-17
+
+### Añadido
+
+- **Botón VECTORES en la mesa**: vectoriza los fragmentos que ya estaban indexados (libros subidos
+  antes de configurar el proveedor de embeddings), por lotes de 32, con progreso “vectores 40/180”
+  y sin reimportar nada.
+
+### Corregido
+
+- Un libro ya indexado nunca se vectorizaba al configurar embeddings después: la deduplicación por
+  SHA-256 impide reimportarlo y el worker sólo vectoriza al importar. Ahora la acción es explícita.
+
 ## [0.14.0] — 2026-11-17
 
 ### Añadido
