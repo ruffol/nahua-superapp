@@ -1,8 +1,14 @@
 package com.nahuanotoca.superapp.feature.rag
 
+import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import androidx.lifecycle.viewModelScope
 import com.nahuanotoca.superapp.core.AppContainer
 import com.nahuanotoca.superapp.core.model.ChatRole
@@ -26,7 +32,7 @@ import com.nahuanotoca.superapp.core.rag.ContextBuilder
 import com.nahuanotoca.superapp.core.rag.ReportRequest
 import com.nahuanotoca.superapp.core.rag.StudioPrompts
 import com.nahuanotoca.superapp.core.rag.TextChunker
-import com.nahuanotoca.superapp.core.util.Digest
+import com.nahuanotoca.superapp.core.work.ImportWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -93,6 +99,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
     val events: SharedFlow<StudioEvent> = _events.asSharedFlow()
 
     private var generationJob: Job? = null
+    private var importJob: Job? = null
     @Volatile private var cancelling: Boolean = false
 
     init {
@@ -179,6 +186,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             val turns = container.studio.turns(mesaId)
             val cache = container.answerCache.stats(mesaId)
             _state.update { it.copy(documents = documents, figures = figures, turns = turns, cacheStats = cache) }
+            observeImports(mesaId)
         }
     }
 
@@ -216,6 +224,11 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun deleteMesa(mesaId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                WorkManager.getInstance(container.appContext).cancelUniqueWork(ImportWorker.uniqueName(mesaId))
+            }
+        }
         viewModelScope.launch {
             container.rag.deleteAll(mesaId)
             container.studio.delete(mesaId)
@@ -227,7 +240,11 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     // --- documentos -------------------------------------------------------
 
-    /** Importa uno o varios PDFs de golpe (el selector del sistema permite multi-selección). */
+    /**
+     * Importa uno o varios archivos encolando un worker por archivo en WorkManager. El trabajo
+     * sobrevive a cerrar la app, se reintenta si el sistema lo interrumpe y muestra progreso por
+     * libro.
+     */
     fun importPdfs(uris: List<Uri>) {
         if (uris.isEmpty()) return
         val mesaId = _state.value.activeMesaId
@@ -235,106 +252,149 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             _state.update { it.copy(error = "Crea una mesa antes de agregar PDFs.") }
             return
         }
-        viewModelScope.launch {
-            _state.update { it.copy(isImporting = true, error = null) }
 
-            var indexed = 0
-            var failed = 0
-            var duplicates = 0
-            var pageCount = 0
-            var chunkCount = 0
-            var figureCount = 0
-            var lastError: String? = null
+        val workManager = WorkManager.getInstance(container.appContext)
+        val requests = uris.mapIndexed { index, uri ->
+            OneTimeWorkRequestBuilder<ImportWorker>()
+                .setInputData(
+                    workDataOf(
+                        ImportWorker.KEY_MESA to mesaId,
+                        ImportWorker.KEY_URI to uri.toString(),
+                        ImportWorker.KEY_NAME to resolveDisplayName(uri),
+                        ImportWorker.KEY_INDEX to (index + 1),
+                        ImportWorker.KEY_TOTAL to uris.size,
+                    ),
+                )
+                .addTag("nahua-import")
+                .build()
+        }
 
-            uris.forEachIndexed { index, uri ->
-                val name = resolveDisplayName(uri)
-                _state.update {
-                    it.copy(
-                        importProgress = ImportProgress(
-                            book = index + 1,
-                            books = uris.size,
-                            pages = pageCount,
-                            name = name,
-                        ),
-                    )
-                }
-                val isEpub = name.endsWith(".epub", ignoreCase = true) ||
-                    container.appContext.contentResolver.getType(uri)?.contains("epub", ignoreCase = true) == true
-
-                // Huella del archivo: si ya está indexado, no se procesa dos veces.
-                val sha = withContext(Dispatchers.IO) {
-                    runCatching {
-                        container.appContext.contentResolver.openInputStream(uri)?.use { Digest.sha256(it) }
-                    }.getOrNull()
-                }
-                if (sha != null && container.rag.findByHash(mesaId, sha) != null) {
-                    duplicates++
-                    return@forEachIndexed
-                }
-
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        val document = if (isEpub) {
-                            container.epubExtractor.extract(uri)
-                        } else {
-                            container.pdfExtractor.extract(uri)
-                        }
-                        Triple(document, TextChunker.chunk(document.pages), name)
-                    }
-                }.onSuccess { (pdf, chunks, displayName) ->
-                    if (chunks.isEmpty()) {
-                        failed++
-                        lastError = "\"" + displayName + "\" no tiene texto seleccionable (parece escaneado). " +
-                            "Pásalo por OCR y vuelve a intentarlo."
-                    } else {
-                        runCatching {
-                            container.rag.import(mesaId, displayName, chunks, pdf.figures, sha.orEmpty())
-                        }.onSuccess { document ->
-                            indexed++
-                            pageCount += pdf.totalPages
-                            chunkCount += chunks.size
-                            figureCount += document.figures
-                        }.onFailure { failure ->
-                            failed++
-                            lastError = "No pudimos guardar " + displayName + ": " +
-                                (failure.message ?: "error desconocido")
-                        }
-                    }
-                }.onFailure { failure ->
-                    failed++
-                    lastError = "No pudimos leer el PDF: " + (failure.message ?: "error desconocido")
-                }
-            }
-
-            val documents = container.rag.documents(mesaId)
-            val figures = container.rag.figures(mesaId)
-            _state.update {
-                it.copy(
-                    documents = documents,
-                    figures = figures,
-                    isImporting = false,
-                    importProgress = null,
-                    documentCounts = it.documentCounts + (mesaId to documents.size),
-                    error = if (indexed == 0 && lastError != null) lastError else null,
+        // El permiso temporal del selector se pierde si el proceso muere mientras el worker corre:
+        // se toma permiso persistente para que WorkManager pueda reabrir el archivo después.
+        uris.forEach { uri ->
+            runCatching {
+                container.appContext.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
+        }
 
-            val summary = buildString {
-                if (indexed > 0) {
-                    append(indexed).append(if (indexed == 1) " PDF indexado" else " PDFs indexados")
-                    append(": ").append(pageCount).append(" páginas, ").append(chunkCount).append(" fragmentos")
-                    if (figureCount > 0) append(", ").append(figureCount).append(" figuras")
+        _state.update {
+            it.copy(
+                isImporting = true,
+                error = null,
+                importProgress = ImportProgress(1, uris.size, 0, "En cola…"),
+            )
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                var continuation = workManager.beginUniqueWork(
+                    ImportWorker.uniqueName(mesaId),
+                    ExistingWorkPolicy.REPLACE,
+                    requests.first(),
+                )
+                requests.drop(1).forEach { request ->
+                    continuation = continuation.then(request)
                 }
-                if (duplicates > 0) {
-                    if (isNotEmpty()) append(" · ")
-                    append(duplicates).append(if (duplicates == 1) " ya estaba indexado" else " ya estaban indexados")
-                }
-                if (failed > 0) {
-                    if (isNotEmpty()) append(" · ")
-                    append(failed).append(if (failed == 1) " archivo falló" else " archivos fallaron")
+                continuation.enqueue()
+            }.onFailure { failure ->
+                _state.update {
+                    it.copy(
+                        isImporting = false,
+                        importProgress = null,
+                        error = "No pudimos encolar la importación: " + (failure.message ?: "error"),
+                    )
                 }
             }
-            if (summary.isNotBlank()) _events.emit(StudioEvent.Toast(summary))
+        }
+        observeImports(mesaId)
+    }
+
+    /** Observa la cadena de importación de una mesa y refleja el progreso en la UI. */
+    fun observeImports(mesaId: String) {
+        importJob?.cancel()
+        importJob = viewModelScope.launch(Dispatchers.IO) {
+            var reported = false
+            WorkManager.getInstance(container.appContext)
+                .getWorkInfosForUniqueWorkFlow(ImportWorker.uniqueName(mesaId))
+                .collect { infos ->
+                    if (infos.isEmpty()) {
+                        _state.update { it.copy(isImporting = false, importProgress = null) }
+                        return@collect
+                    }
+
+                    val total = infos.size
+                    val finished = infos.count { it.state.isFinished }
+                    val running = infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
+                    val progress = running?.progress
+                    val currentName = progress?.getString(ImportWorker.KEY_NAME).orEmpty()
+                    val currentIndex = progress?.getInt(ImportWorker.KEY_INDEX, finished + 1) ?: (finished + 1)
+                    val pages = infos.sumOf { it.outputData.getInt(ImportWorker.KEY_PAGES, 0) }
+
+                    _state.update {
+                        it.copy(
+                            isImporting = finished < total,
+                            importProgress = if (finished < total) {
+                                ImportProgress(
+                                    book = currentIndex.coerceIn(1, total),
+                                    books = total,
+                                    pages = pages,
+                                    name = currentName.ifBlank { "Procesando…" },
+                                )
+                            } else {
+                                null
+                            },
+                        )
+                    }
+
+                    if (finished < total) {
+                        reported = false
+                        return@collect
+                    }
+                    if (reported) return@collect
+                    reported = true
+
+                    val indexed = infos.count { it.outputData.getBoolean(ImportWorker.KEY_INDEXED, false) }
+                    val duplicates = infos.count { it.outputData.getBoolean(ImportWorker.KEY_DUPLICATE, false) }
+                    val chunks = infos.sumOf { it.outputData.getInt(ImportWorker.KEY_CHUNKS, 0) }
+                    val figures = infos.sumOf { it.outputData.getInt(ImportWorker.KEY_FIGURES, 0) }
+                    val failure = infos
+                        .asSequence()
+                        .mapNotNull { it.outputData.getString(ImportWorker.KEY_ERROR) }
+                        .firstOrNull()
+
+                    val documents = container.rag.documents(mesaId)
+                    val mesaFigures = container.rag.figures(mesaId)
+                    _state.update {
+                        it.copy(
+                            documents = documents,
+                            figures = mesaFigures,
+                            isImporting = false,
+                            importProgress = null,
+                            documentCounts = it.documentCounts + (mesaId to documents.size),
+                            error = if (indexed == 0 && failure != null) failure else it.error,
+                        )
+                    }
+
+                    val summary = buildString {
+                        if (indexed > 0) {
+                            append(indexed).append(if (indexed == 1) " archivo indexado" else " archivos indexados")
+                            append(": ").append(pages).append(" páginas, ").append(chunks).append(" fragmentos")
+                            if (figures > 0) append(", ").append(figures).append(" figuras")
+                        }
+                        if (duplicates > 0) {
+                            if (isNotEmpty()) append(" · ")
+                            append(duplicates).append(if (duplicates == 1) " ya estaba" else " ya estaban")
+                        }
+                        if (indexed == 0 && duplicates == 0 && failure != null) {
+                            if (isNotEmpty()) append(" · ")
+                            append("falló la importación")
+                        }
+                    }
+                    if (summary.isNotBlank()) _events.emit(StudioEvent.Toast(summary))
+                }
         }
     }
 

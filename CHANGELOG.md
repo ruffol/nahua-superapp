@@ -3,6 +3,32 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.9.0] — 2026-11-17
+
+### Añadido
+
+- **Importación en segundo plano (NA-009)**: cada archivo se indexa en un `ImportWorker` de
+  WorkManager, encadenados uno por libro. El trabajo sobrevive a cerrar la app, se reanuda si el
+  sistema interrumpe el proceso y muestra progreso por libro con su etapa (leyendo, extrayendo,
+  fragmentando, guardando).
+- **Permiso persistente del selector**: se toma `takePersistableUriPermission` antes de encolar,
+  así el worker puede reabrir el archivo aunque el proceso muera.
+- La observación de la cola usa `getWorkInfosForUniqueWorkFlow`, fuera del hilo principal, y se
+  cancela al borrar la mesa.
+
+### Cambiado
+
+- La importación ya no vive en el ViewModel: la UI encola y observa; el trabajo pesado corre en
+  `WorkManager`.
+- `work-runtime-ktx` 2.10.1 como nueva dependencia (trae Room 2.6.1 y Lifecycle transitivos).
+
+### Notas
+
+- Room sigue pendiente (NA-007/008): hoy la biblioteca es JSON con hash y versión por documento.
+- La sustitución del motor de importación no se pudo probar de punta a punta en el emulador de esta
+  sesión (el selector de archivos y el inicio pixel art son muy lentos); sí compila, pasa las 117
+  pruebas y la app arranca y abre el estudio.
+
 ## [0.8.2] — 2026-11-17
 
 ### Cambiado

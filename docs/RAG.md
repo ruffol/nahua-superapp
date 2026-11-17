@@ -51,7 +51,7 @@ los fragmentos elegidos viajan a tu API.
 ## Flujo de uso
 
 1. **Servicios → Nahuanotoka → Nueva mesa.** Ponle nombre, materia y contexto.
-2. **Agregar PDF** (texto seleccionable, hasta 300 páginas). Puedes **seleccionar varios a la vez**:
+2. **Agregar PDF o EPUB** (varios a la vez). Cada archivo se indexa **en segundo plano** con WorkManager: puedes salir de la app y el trabajo continúa; al volver verás el progreso por libro.
    se indexan en el dispositivo y, si tienen imágenes incrustadas, aparecen como **figuras** listas
    para tus diapositivas. Al final se resume cuántos entraron, cuántas páginas y cuántas figuras.
 3. **Herramientas de estudio** (una consulta cada una):
