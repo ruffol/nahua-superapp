@@ -94,12 +94,13 @@ internal fun ChatTurnCard(
     turn: ChatTurn,
     onCopy: () -> Unit,
     onExport: (ExportFormat) -> Unit,
+    onRegenerate: (() -> Unit)? = null,
 ) {
     if (turn.role == ChatRole.USER) {
         UserBubble(turn)
         return
     }
-    AssistantCard(turn = turn, onCopy = onCopy, onExport = onExport)
+    AssistantCard(turn = turn, onCopy = onCopy, onExport = onExport, onRegenerate = onRegenerate)
 }
 
 @Composable
@@ -138,6 +139,7 @@ private fun AssistantCard(
     turn: ChatTurn,
     onCopy: () -> Unit,
     onExport: (ExportFormat) -> Unit,
+    onRegenerate: (() -> Unit)? = null,
 ) {
     val task = StudioTasks.find(turn.taskId)
     val trimmed = previewOf(turn.text)
@@ -266,6 +268,15 @@ private fun AssistantCard(
                     fontSize = 6.sp,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 )
+                if (onRegenerate != null) {
+                    PixelButton(
+                        text = "REGENERAR",
+                        onClick = onRegenerate,
+                        color = PixelPanelAlt,
+                        fontSize = 6.sp,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    )
+                }
             }
         }
     }
@@ -458,7 +469,7 @@ internal fun StreamingCard(text: String) {
 }
 
 @Composable
-internal fun WorkingPanel(label: String) {
+internal fun WorkingPanel(label: String, onCancel: (() -> Unit)? = null) {
     val transition = rememberInfiniteTransition(label = "dots")
     val phase by transition.animateFloat(
         initialValue = 0f,
@@ -504,6 +515,16 @@ internal fun WorkingPanel(label: String) {
                 size = 15.sp,
                 color = PixelMuted,
             )
+            if (onCancel != null) {
+                Spacer(Modifier.height(8.dp))
+                PixelButton(
+                    text = "DETENER",
+                    onClick = onCancel,
+                    color = PixelPanel,
+                    fontSize = 6.sp,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
         }
     }
 }

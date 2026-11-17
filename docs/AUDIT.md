@@ -222,7 +222,7 @@ de proveedor en el APK ni en cada teléfono.
 | NA-003 · corpus | **Hecho** | `docs/eval/fixtures` (5 obras, 535 págs, 6.1 MB) + `docs/eval/cases.json` (7 casos) |
 | NA-004 · contexto por ventana | **Hecho** | `ContextBuilder.windows`: hasta 2 ventanas por fragmento con peso IDF, vecino al borde y dedupe por n-gramas |
 | NA-005 · contrato de evidencia | **Hecho** | `RetrievedEvidence`/`RetrievalResult`, `chunkId` estable, chip “EVIDENCIA DÉBIL” y estrategia en el turno |
-| NA-006 · caché y streaming | **Pendiente** | Clave aún incluye historial; sin botón de detener |
+| NA-006 · caché y streaming | **Hecho** | Clave con alcance/versión, sin historial en tareas; `REGENERAR` y `DETENER` |
 | NA-007 en adelante | Pendiente | Room, WorkManager, OCR, herramientas |
 
 ## 10.1 Siguiente conjunto mínimo de cambios

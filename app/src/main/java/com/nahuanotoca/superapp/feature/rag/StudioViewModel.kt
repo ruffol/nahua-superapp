@@ -27,6 +27,7 @@ import com.nahuanotoca.superapp.core.rag.ReportRequest
 import com.nahuanotoca.superapp.core.rag.StudioPrompts
 import com.nahuanotoca.superapp.core.rag.TextChunker
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -89,6 +90,9 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _events = MutableSharedFlow<StudioEvent>(extraBufferCapacity = 8)
     val events: SharedFlow<StudioEvent> = _events.asSharedFlow()
+
+    private var generationJob: Job? = null
+    @Volatile private var cancelling: Boolean = false
 
     init {
         viewModelScope.launch {
@@ -365,7 +369,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
         else -> failure.message ?: "No pudimos conectar con la API."
     }
 
-    private fun generate(task: StudioTask?, prompt: String) {
+    private fun generate(task: StudioTask?, prompt: String, ignoreCache: Boolean = false) {
         val mesa = _state.value.activeMesa
         if (mesa == null) {
             _state.update { it.copy(error = "Abre o crea una mesa de trabajo.") }
@@ -390,6 +394,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             taskId = task?.id,
             createdAt = startedAt,
         )
+        cancelling = false
         _state.update {
             it.copy(
                 isWorking = true,
@@ -400,7 +405,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
             )
         }
 
-        viewModelScope.launch {
+        generationJob = viewModelScope.launch {
             try {
                 val chunks = container.rag.chunks(mesa.id)
                 if (chunks.isEmpty()) {
@@ -438,8 +443,14 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     add(ChatMessage.user(StudioPrompts.user(task, prompt, context)))
                 }
 
-                // Acierto de caché: mismo modelo, tarea, pregunta, documentos e historial.
-                val historyDigest = StudioPrompts.history(current.turns).map { it.role + ":" + it.content }
+                // Acierto de caché. En tareas de estudio el historial no forma parte de la clave:
+                // repetir "resumen" debe acertar aunque después se hayan hecho otras consultas.
+                val historyDigest = if (task == null) {
+                    StudioPrompts.history(current.turns).map { it.role + ":" + it.content }
+                } else {
+                    emptyList()
+                }
+                val indexVersion = current.documents.size.toString() + ":" + chunks.size
                 val cacheKey = CacheKey.of(
                     model = current.settings.model,
                     taskId = task?.id,
@@ -447,8 +458,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     documentIds = scope.ifEmpty { current.documents.map { it.id }.toSet() },
                     contextBlocks = context.blocks,
                     history = historyDigest,
+                    indexVersion = indexVersion,
+                    scope = scope.sorted().joinToString(","),
                 )
-                val cached = container.answerCache.get(mesa.id, cacheKey)
+                val cached = if (ignoreCache) null else container.answerCache.get(mesa.id, cacheKey)
 
                 val reply: ChatReply
                 if (cached != null) {
@@ -474,6 +487,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     }
                     val remote = result.getOrNull()
                     if (remote == null) {
+                        if (cancelling) return@launch
                         val failure = result.exceptionOrNull()
                         val status = (failure as? ChatException)?.statusCode
                         _state.update {
@@ -540,13 +554,44 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                _state.update {
-                    it.copy(error = e.message ?: "Ocurrió un error al procesar")
+                if (!cancelling) {
+                    _state.update {
+                        it.copy(error = e.message ?: "Ocurrió un error al procesar")
+                    }
                 }
             } finally {
-                _state.update { it.copy(isWorking = false, workingLabel = "", pendingTurn = null) }
+                cancelling = false
+                generationJob = null
+                _state.update {
+                    it.copy(
+                        isWorking = false,
+                        workingLabel = "",
+                        pendingTurn = null,
+                        streamingText = "",
+                    )
+                }
             }
         }
+    }
+
+    /** Detiene la generación en curso y corta la conexión con el proveedor. */
+    fun cancelGeneration() {
+        if (!_state.value.isWorking) return
+        cancelling = true
+        container.chatClient.cancelActive()
+        generationJob?.cancel()
+        generationJob = null
+        _state.update {
+            it.copy(isWorking = false, workingLabel = "", pendingTurn = null, streamingText = "")
+        }
+        viewModelScope.launch { _events.emit(StudioEvent.Toast("Generación detenida")) }
+    }
+
+    /** Repite la última petición ignorando la caché. */
+    fun regenerateLast() {
+        val lastUser = _state.value.turns.lastOrNull { it.role == ChatRole.USER } ?: return
+        if (_state.value.isWorking) return
+        generate(StudioTasks.find(lastUser.taskId), lastUser.text, ignoreCache = true)
     }
 
     // --- exportación ------------------------------------------------------

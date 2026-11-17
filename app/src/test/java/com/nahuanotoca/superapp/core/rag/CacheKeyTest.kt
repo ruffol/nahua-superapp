@@ -13,7 +13,9 @@ class CacheKeyTest {
         documents: Set<String> = setOf("doc_1", "doc_2"),
         context: List<String> = listOf("[A, p. 1] hola", "[B, p. 2] mundo"),
         history: List<String> = listOf("user: antes"),
-    ) = CacheKey.of(model, task, prompt, documents, context, history)
+        indexVersion: String = "",
+        scope: String = "",
+    ) = CacheKey.of(model, task, prompt, documents, context, history, indexVersion, scope)
 
     @Test
     fun sameInputsProduceSameKey() {
@@ -48,6 +50,32 @@ class CacheKeyTest {
         assertEquals(
             key(documents = setOf("doc_1", "doc_2")),
             key(documents = setOf("doc_2", "doc_1")),
+        )
+    }
+
+    @Test
+    fun indexVersionInvalidatesCache() {
+        assertNotEquals(key(), key(indexVersion = "3:120"))
+        assertEquals(key(indexVersion = "3:120"), key(indexVersion = "3:120"))
+    }
+
+    @Test
+    fun documentScopeInvalidatesCache() {
+        assertNotEquals(key(), key(scope = "doc_2"))
+    }
+
+    @Test
+    fun normalizationIgnoresSpacing() {
+        assertEquals(CacheKey.normalize("  Dame   un\nresumen "), "dame un resumen")
+        assertEquals(key(prompt = "Dame un resumen"), key(prompt = "  dame   un resumen  "))
+    }
+
+    @Test
+    fun taskWithoutHistoryMatchesItself() {
+        // El ViewModel pasa historial vacío en tareas: la clave debe ser estable entre repeticiones.
+        assertEquals(
+            key(task = "resumen", history = emptyList()),
+            key(task = "resumen", history = emptyList(), prompt = "  DAME UN RESUMEN "),
         )
     }
 

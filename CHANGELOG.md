@@ -18,14 +18,18 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 - 12 tests nuevos de ventanas, deduplicación, vecinos y evidencia, más 4 con prosa real
   (Cabnal, Segato y Federici); **107 tests** en total.
 
+- **Caché por tarea (NA-006)**: en las tareas de estudio el historial ya no forma parte de la clave,
+  y la clave incluye versión de índice y alcance de documentos; repetir “resumen” acierta aunque
+  después hayan pasado otras consultas.
+- **Regenerar**: botón en la última respuesta que repite la petición ignorando la caché.
+- **Detener**: botón en la tarjeta de progreso que cancela el `Job` y corta la conexión con el
+  proveedor (`ChatClient.cancelActive()`).
+
 ### Cambiado
 
 - `RagChunk` lleva `id` estable (sha-256 corto del texto). Los índices anteriores siguen leyéndose:
   el id se calcula al vuelo si falta.
-
-### Pendiente
-
-- NA-006: clave de caché sin historial en tareas, botón “regenerar” y cancelación de la generación.
+- 4 tests nuevos de la clave de caché; **111 tests** en total.
 
 ## [0.8.0] — 2026-11-16
 

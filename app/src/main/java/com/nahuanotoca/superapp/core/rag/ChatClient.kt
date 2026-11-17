@@ -38,6 +38,16 @@ class ChatClient {
     /** Identificador de sesión propio, para proxies que lo pidan. Nunca contiene la API key. */
     private val sessionId: String = UUID.randomUUID().toString()
 
+    /** Conexión en curso, para poder cortarla cuando el usuario pulsa DETENER. */
+    @Volatile
+    private var activeConnection: HttpURLConnection? = null
+
+    /** Corta la petición en curso. El hilo de lectura recibe un IOException y termina. */
+    fun cancelActive() {
+        runCatching { activeConnection?.disconnect() }
+        activeConnection = null
+    }
+
     suspend fun complete(
         settings: RagSettings,
         messages: List<ChatMessage>,
@@ -163,6 +173,7 @@ class ChatClient {
             }
 
             val connection = openPost(settings)
+            activeConnection = connection
             try {
                 connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
 
@@ -245,6 +256,7 @@ class ChatClient {
                 }
                 ChatReply(text = text, usage = finalUsage, model = modelName)
             } finally {
+                if (activeConnection === connection) activeConnection = null
                 connection.disconnect()
             }
         }

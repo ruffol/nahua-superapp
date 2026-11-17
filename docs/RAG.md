@@ -123,8 +123,10 @@ ronda 14 000 caracteres. Con un solo libro se usa `topK` (8 por defecto).
 
 ## Caché de respuestas (ahorrar tokens)
 
-Cada consulta genera una clave determinista con el modelo, la tarea, la pregunta, los documentos
-seleccionados, los fragmentos enviados y el historial. Si repites exactamente la misma consulta:
+Cada consulta genera una clave determinista con el modelo, la tarea, la pregunta normalizada, el
+alcance de documentos, la versión del índice y —sólo en el chat— el historial. En las tareas de
+estudio el historial queda fuera: repetir “resumen” acierta aunque después hayan pasado otras
+consultas. Si repites exactamente la misma consulta:
 
 - no se llama a la API,
 - la respuesta sale de la caché local (`filesDir/studio/cache/<mesa>.json`),
@@ -132,7 +134,8 @@ seleccionados, los fragmentos enviados y el historial. Si repites exactamente la
 - la mesa acumula *aciertos de caché* y *tokens ahorrados*, visibles en el panel de consumo.
 
 La caché caduca a los 14 días, guarda hasta 40 respuestas por mesa y se puede vaciar desde el
-botón **VACIAR** del panel de consumo.
+botón **VACIAR** del panel de consumo. La última respuesta tiene **REGENERAR** (ignora la caché) y la
+tarjeta de progreso tiene **DETENER**, que cancela la petición y cierra la conexión.
 
 ## Exportar cada respuesta
 

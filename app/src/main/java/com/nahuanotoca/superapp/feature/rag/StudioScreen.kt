@@ -64,6 +64,7 @@ import com.nahuanotoca.superapp.core.design.PixelTitle
 import com.nahuanotoca.superapp.core.design.PixelYellow
 import com.nahuanotoca.superapp.core.design.pixelMascot
 import com.nahuanotoca.superapp.core.design.pixelMascotPalette
+import com.nahuanotoca.superapp.core.model.ChatRole
 import com.nahuanotoca.superapp.core.model.Mesa
 import com.nahuanotoca.superapp.core.model.RagDocument
 import com.nahuanotoca.superapp.core.model.RagFigure
@@ -473,11 +474,13 @@ private fun MesaDetailScreen(
                 item { ChatHint() }
             }
 
+            val lastAssistantId = state.turns.lastOrNull { it.role == ChatRole.ASSISTANT }?.id
             items(state.turns, key = { it.id }) { turn ->
                 ChatTurnCard(
                     turn = turn,
                     onCopy = { onCopy(turn.text) },
                     onExport = { format -> viewModel.exportTurn(turn.id, format) },
+                    onRegenerate = if (turn.id == lastAssistantId) viewModel::regenerateLast else null,
                 )
             }
 
@@ -490,7 +493,7 @@ private fun MesaDetailScreen(
             }
 
             if (state.isWorking) {
-                item { WorkingPanel(state.workingLabel) }
+                item { WorkingPanel(state.workingLabel, viewModel::cancelGeneration) }
             }
 
             state.error?.let { message ->
