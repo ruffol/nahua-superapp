@@ -60,7 +60,7 @@ los fragmentos elegidos viajan a tu API.
    | --- | --- |
    | Resumen | Idea central, 5–8 puntos con página y 3 conceptos para explicar con tus palabras |
    | Ideas nuevas | 6 ideas con etiqueta *apoyo textual* o *inferencia propia* |
-   | Correlación | Coincidencias, diferencias/contradicciones, exclusivo de cada documento, intersección y huecos |
+   | Correlación | Tabla por eje y por obra con cita por celda (“no se pronuncia” si falta), tensiones, intersección y huecos |
    | Guion de exposición | Apertura, bloques con diapositiva + qué decir + cita, cierre y preguntas del público |
    | Glosario | 10–15 términos definidos con el texto y su página |
    | Preguntas de repaso | 8 preguntas con respuesta modelo y cita |
@@ -249,7 +249,8 @@ ChatClient (POST /chat/completions)  → texto + usage
 
 ```
 filesDir/rag/<mesaId>/
-├─ doc_<id>.meta.json     { id, mesa, name, pages, chunks, characters, addedAt, figures[] }
+├─ doc_<id>.meta.json     { id, mesa, name, pages, chunks, characters, addedAt, figures[],
+│                           sha256, version }
 ├─ doc_<id>.chunks.json   [ { doc, page, text }, ... ]
 └─ fig_<id>_<n>.jpg       figuras incrustadas
 
@@ -259,6 +260,9 @@ filesDir/studio/
 
 cacheDir/reports/*.pdf    PDF generado (compartido con FileProvider)
 ```
+
+Si importas el mismo archivo dos veces, la app compara la huella SHA-256 y **no lo indexa de nuevo**.
+Un archivo distinto con el mismo nombre se guarda como versión nueva del documento.
 
 Los documentos del formato anterior (sin mesas) se migran solos a la mesa *“Mis documentos”* la
 primera vez que abres la app.

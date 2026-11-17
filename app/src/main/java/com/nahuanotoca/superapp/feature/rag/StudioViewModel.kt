@@ -26,6 +26,7 @@ import com.nahuanotoca.superapp.core.rag.ContextBuilder
 import com.nahuanotoca.superapp.core.rag.ReportRequest
 import com.nahuanotoca.superapp.core.rag.StudioPrompts
 import com.nahuanotoca.superapp.core.rag.TextChunker
+import com.nahuanotoca.superapp.core.util.Digest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -239,6 +240,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
 
             var indexed = 0
             var failed = 0
+            var duplicates = 0
             var pageCount = 0
             var chunkCount = 0
             var figureCount = 0
@@ -258,6 +260,18 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                 }
                 val isEpub = name.endsWith(".epub", ignoreCase = true) ||
                     container.appContext.contentResolver.getType(uri)?.contains("epub", ignoreCase = true) == true
+
+                // Huella del archivo: si ya está indexado, no se procesa dos veces.
+                val sha = withContext(Dispatchers.IO) {
+                    runCatching {
+                        container.appContext.contentResolver.openInputStream(uri)?.use { Digest.sha256(it) }
+                    }.getOrNull()
+                }
+                if (sha != null && container.rag.findByHash(mesaId, sha) != null) {
+                    duplicates++
+                    return@forEachIndexed
+                }
+
                 runCatching {
                     withContext(Dispatchers.IO) {
                         val document = if (isEpub) {
@@ -274,7 +288,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                             "Pásalo por OCR y vuelve a intentarlo."
                     } else {
                         runCatching {
-                            container.rag.import(mesaId, displayName, chunks, pdf.figures)
+                            container.rag.import(mesaId, displayName, chunks, pdf.figures, sha.orEmpty())
                         }.onSuccess { document ->
                             indexed++
                             pageCount += pdf.totalPages
@@ -310,6 +324,10 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     append(indexed).append(if (indexed == 1) " PDF indexado" else " PDFs indexados")
                     append(": ").append(pageCount).append(" páginas, ").append(chunkCount).append(" fragmentos")
                     if (figureCount > 0) append(", ").append(figureCount).append(" figuras")
+                }
+                if (duplicates > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append(duplicates).append(if (duplicates == 1) " ya estaba indexado" else " ya estaban indexados")
                 }
                 if (failed > 0) {
                     if (isNotEmpty()) append(" · ")
@@ -422,15 +440,21 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     return@launch
                 }
 
+                val documentCount = current.documents.size
                 val context = ContextBuilder.build(
                     query = prompt,
                     chunks = chunks,
                     maxBlocks = current.settings.topK.coerceIn(3, 14),
                     broad = task?.broad ?: false,
                     documentIds = scope,
-                    // Con varios libros: los 3 mejores fragmentos de cada uno (máx. 12 bloques).
-                    perDocument = if (current.documents.size >= 2) 3 else 0,
-                    blockChars = 1_200,
+                    // Varios libros: al menos 2 fragmentos por obra; con 5 obras son 10 bloques.
+                    perDocument = if (documentCount >= 2) {
+                        (12 / documentCount).coerceIn(2, 3)
+                    } else {
+                        0
+                    },
+                    blockChars = 1_000,
+                    maxChars = if (task?.id == StudioTasks.CORRELATE) 16_000 else 14_000,
                 )
                 if (context.isEmpty) {
                     _state.update { it.copy(error = "No hay texto suficiente en esta mesa para responder.") }
@@ -438,7 +462,7 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                 }
 
                 val messages = buildList {
-                    add(ChatMessage.system(StudioPrompts.system(mesa, context)))
+                    add(ChatMessage.system(StudioPrompts.system(mesa, context, task?.id)))
                     addAll(StudioPrompts.history(current.turns))
                     add(ChatMessage.user(StudioPrompts.user(task, prompt, context)))
                 }

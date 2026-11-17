@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.8.1 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.8.2 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -31,7 +31,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **111 tests unitarios** y CI en GitHub Actions.
+- **117 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -218,7 +218,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 111 tests
+./gradlew testDebugUnitTest    # 117 tests
 ./gradlew installDebug
 ```
 

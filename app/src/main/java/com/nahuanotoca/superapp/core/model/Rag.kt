@@ -48,6 +48,8 @@ data class RagDocument(
     val characters: Int,
     val addedAt: Long,
     val figures: Int = 0,
+    val sha256: String = "",
+    val version: Int = 1,
 )
 
 /** Imagen incrustada en un PDF, guardada como JPEG dentro de la mesa. */

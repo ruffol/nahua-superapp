@@ -38,6 +38,7 @@ class RagRepository(private val context: Context) {
         name: String,
         chunks: List<TextChunker.Chunk>,
         figures: List<ExtractedFigure> = emptyList(),
+        sha256: String = "",
     ): RagDocument = withContext(Dispatchers.IO) {
         require(chunks.isNotEmpty()) { "El documento no produjo fragmentos de texto" }
 
@@ -75,6 +76,10 @@ class RagRepository(private val context: Context) {
             }
         }
 
+        val previousVersions = folder(scope).listFiles { file -> file.name.endsWith(META_SUFFIX) }
+            ?.count { file -> readMeta(file, scope)?.name == name }
+            ?: 0
+
         val document = RagDocument(
             id = id,
             mesaId = scope,
@@ -84,6 +89,8 @@ class RagRepository(private val context: Context) {
             characters = characters,
             addedAt = addedAt,
             figures = figuresJson.length(),
+            sha256 = sha256,
+            version = previousVersions + 1,
         )
 
         val meta = JSONObject()
@@ -94,10 +101,18 @@ class RagRepository(private val context: Context) {
             .put("chunks", document.chunks)
             .put("characters", document.characters)
             .put("addedAt", document.addedAt)
+            .put("sha256", document.sha256)
+            .put("version", document.version)
             .put("figures", figuresJson)
         File(target, id + META_SUFFIX).writeText(meta.toString())
 
         document
+    }
+
+    /** Documento ya indexado con la misma huella (mismo archivo, aunque tenga otro nombre). */
+    suspend fun findByHash(mesaId: String, sha256: String): RagDocument? = withContext(Dispatchers.IO) {
+        if (sha256.isBlank()) return@withContext null
+        documents(mesaId).firstOrNull { it.sha256 == sha256 }
     }
 
     suspend fun chunks(mesaId: String): List<RagChunk> = withContext(Dispatchers.IO) {
@@ -162,6 +177,8 @@ class RagRepository(private val context: Context) {
             characters = json.optInt("characters", 0),
             addedAt = json.optLong("addedAt", 0L),
             figures = json.optJSONArray("figures")?.length() ?: 0,
+            sha256 = json.optString("sha256", ""),
+            version = json.optInt("version", 1),
         )
     }.getOrNull()
 

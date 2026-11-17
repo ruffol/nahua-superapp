@@ -19,7 +19,7 @@ object StudioPrompts {
         "(5) separas explícitamente lo que dice la fuente de lo que es inferencia tuya; " +
         "(6) escribes en Markdown con encabezados, listas y tablas cuando ayudan a estudiar."
 
-    fun system(mesa: Mesa, context: ContextBuilder.Context): String = buildString {
+    fun system(mesa: Mesa, context: ContextBuilder.Context, taskId: String? = null): String = buildString {
         appendLine(BASE)
         appendLine()
         appendLine("Mesa de trabajo: " + mesa.name + if (mesa.subject.isBlank()) "" else " (" + mesa.subject + ")")
@@ -27,6 +27,12 @@ object StudioPrompts {
             appendLine("Contexto que dio el estudiante para esta mesa: " + mesa.context)
         }
         appendLine("Documentos disponibles en esta consulta: " + context.documentCount + ".")
+        if (taskId == com.nahuanotoca.superapp.core.model.StudioTasks.CORRELATE) {
+            appendLine(
+                "En esta consulta compara, no resumas: la tabla por eje y por obra es obligatoria, " +
+                    "cada celda debe llevar su cita y las obras sin postura se marcan 'no se pronuncia'.",
+            )
+        }
         if (context.weak) {
             appendLine(
                 "Aviso: la búsqueda no encontró coincidencias literales con la pregunta. El contexto " +

@@ -3,6 +3,23 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.8.2] — 2026-11-17
+
+### Cambiado
+
+- **Correlación rediseñada**: la tarea ahora exige una **tabla por eje y por obra** (no un resumen de
+  cada libro), una cita por celda y la etiqueta explícita “no se pronuncia” cuando una obra no dice
+  nada del eje. Después: coincidencias, tensiones con las dos citas, intersección y huecos.
+- El contexto de correlación sube a **16 000 caracteres** y usa 2 fragmentos por obra; la primera
+  vuelta toma **una sola ventana por libro**, así ninguna obra queda fuera por presupuesto.
+- Las citas usan el nombre de la obra **sin extensión**.
+
+### Añadido
+
+- **Huella SHA-256 al importar**: si el mismo archivo ya está indexado, se omite y se avisa (“ya
+  estaba indexado”). Cada documento guarda su hash y su versión por nombre.
+- 6 tests nuevos (comparación, cobertura por obra, etiquetas y huella); **117** en total.
+
 ## [0.8.1] — 2026-11-17
 
 ### Añadido

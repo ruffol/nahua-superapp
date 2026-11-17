@@ -96,10 +96,15 @@ object ContextBuilder {
         val terms = Retriever.tokenize(query)
         val items = mutableListOf<RetrievedEvidence>()
         val chosenTexts = mutableListOf<String>()
+        val documentsSeen = mutableSetOf<String>()
+        val documentTotal = picked.map { it.documentId }.distinct().size
         var budget = 0
 
         picked.forEach { chunk ->
-            val chunkWindows = windows(chunk.text, blockChars, terms)
+            // En la primera vuelta se toma una sola ventana por obra: así ninguna queda fuera por
+            // presupuesto antes de haber aportado evidencia.
+            val allowSecondWindow = documentTotal <= 1 || documentsSeen.size >= documentTotal
+            val chunkWindows = windows(chunk.text, blockChars, terms, if (allowSecondWindow) 2 else 1)
             chunkWindows.forEachIndexed { windowIndex, window ->
                 if (items.size >= maxBlocks * 2) return@forEachIndexed
                 var text = window.text
@@ -117,6 +122,7 @@ object ContextBuilder {
                 val blockLength = text.length + chunk.documentName.length + 16
                 if (items.isNotEmpty() && budget + blockLength > maxChars) return@forEachIndexed
 
+                documentsSeen += chunk.documentId
                 items += RetrievedEvidence(
                     chunkId = chunk.id.ifBlank { fallbackId(chunk) } +
                         (if (windowIndex == 0) "" else "-w" + windowIndex),
@@ -133,11 +139,11 @@ object ContextBuilder {
         }
 
         val blocks = items.map { evidence ->
-            "[" + evidence.documentTitle + ", p. " + evidence.page + "] " + evidence.text
+            "[" + labelOf(evidence.documentTitle) + ", p. " + evidence.page + "] " + evidence.text
         }
         val sources = items
             .distinctBy { it.documentId to it.page }
-            .map { RagSource(it.documentTitle, it.page, it.text.take(180)) }
+            .map { RagSource(labelOf(it.documentTitle), it.page, it.text.take(180)) }
 
         return Context(
             blocks = blocks,
@@ -230,6 +236,15 @@ object ContextBuilder {
         val words = text.lowercase().split(WORD).filter { it.isNotBlank() }
         if (words.size < size) return if (words.isEmpty()) emptySet() else setOf(words.joinToString(" "))
         return (0..words.size - size).map { words.subList(it, it + size).joinToString(" ") }.toSet()
+    }
+
+    /** Nombre corto para citar: sin extensión y sin rutas. */
+    fun labelOf(name: String): String {
+        val trimmed = name.substringAfterLast('/').substringAfterLast('\\')
+        val withoutExtension = listOf(".pdf", ".epub").firstOrNull { trimmed.endsWith(it, ignoreCase = true) }
+            ?.let { trimmed.dropLast(it.length) }
+            ?: trimmed
+        return if (withoutExtension.length > 48) withoutExtension.take(48) + "…" else withoutExtension
     }
 
     private fun scoreOf(query: String, chunk: RagChunk): Double =

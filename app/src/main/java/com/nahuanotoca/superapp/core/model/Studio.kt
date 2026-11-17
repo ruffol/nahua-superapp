@@ -105,13 +105,17 @@ object StudioTasks {
         StudioTask(
             id = CORRELATE,
             label = "Correlación",
-            hint = "Coincidencias, choques e intersección entre documentos",
-            instruction = "Cruza los documentos entre sí y devuelve un análisis en Markdown con estas " +
-                "secciones: 1) Coincidencias (qué afirman varios documentos, con citas), 2) Diferencias " +
-                "o contradicciones (quién dice qué, con citas), 3) Exclusivo de cada documento, " +
-                "4) Intersección: 3 ideas nuevas que solo aparecen al combinar dos o más documentos, " +
-                "5) Huecos: qué falta investigar. Usa una tabla cuando compares más de dos documentos.",
-            prompt = "Correlaciona e intersecta la información de los documentos de esta mesa.",
+            hint = "Tabla por eje y por obra, tensiones e intersección",
+            instruction = "Compara las obras entre sí; NO resumas cada libro por separado. Empieza con " +
+                "una tabla en Markdown: una fila por eje de comparación (3 a 5 ejes que salgan del " +
+                "material) y una columna por obra. En cada celda escribe qué sostiene esa obra sobre " +
+                "ese eje, con su cita [Documento, p. N]; si la obra no se pronuncia sobre el eje, " +
+                "escribe literalmente 'no se pronuncia'. Después agrega: 1) coincidencias que se " +
+                "refuerzan entre obras, 2) tensiones o contradicciones con las dos citas enfrentadas, " +
+                "3) intersección: 3 ideas que solo aparecen al cruzar dos o más obras, 4) huecos y qué " +
+                "falta leer. No atribuyas a una obra algo que no esté en su fragmento.",
+            prompt = "Compara las obras de esta mesa: en qué coinciden, en qué se contradicen y qué " +
+                "idea nueva surge al cruzarlas.",
         ),
         StudioTask(
             id = PRESENTATION,
