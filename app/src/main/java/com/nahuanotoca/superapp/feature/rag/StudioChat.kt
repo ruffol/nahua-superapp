@@ -186,6 +186,10 @@ private fun AssistantCard(
                 } else if (turn.usage.totalTokens > 0) {
                     PixelLabel(text = formatTokens(turn.usage.totalTokens) + " TOK", size = 6.sp, color = PixelYellow)
                 }
+                if (turn.weak) {
+                    Spacer(Modifier.width(6.dp))
+                    PixelLabel(text = "EVIDENCIA DÉBIL", size = 5.sp, color = PixelYellow)
+                }
             }
             Spacer(Modifier.height(8.dp))
             MarkdownLite(text = trimmed, color = PixelInk)
@@ -404,6 +408,13 @@ internal fun MarkdownLite(text: String, color: Color) {
             }
         }
     }
+}
+
+internal fun strategyLabel(strategy: String): String = when (strategy) {
+    "busqueda" -> "BÚSQUEDA"
+    "cobertura" -> "COBERTURA"
+    "balanceado" -> "BALANCE"
+    else -> ""
 }
 
 private fun stripMarks(text: String): String = text

@@ -153,6 +153,24 @@ El micrófono del compositor usa `SpeechRecognizer` con `EXTRA_PREFER_OFFLINE`, 
 teléfono tiene el paquete de idioma español descargado, el audio no sale del dispositivo. Si no hay
 servicio de reconocimiento o falta permiso, la app lo dice y sigues escribiendo.
 
+## Evidencia y ventanas de contexto
+
+Cada fragmento recuperado se devuelve como **evidencia**: `RetrievedEvidence(chunkId, documento,
+título, página, texto, score, estrategia)`. El `chunkId` es estable (sha-256 corto del texto) y se
+escribe al importar, así una cita puede rastrearse aunque cambie el orden del índice.
+
+El bloque ya **no se recorta a ciegas**: se guarda el texto completo del fragmento y, al construir el
+contexto, se eligen hasta **dos ventanas de oraciones** contiguas con mayor densidad de términos
+(pesando más los términos raros). Si una página tiene dos pasajes relevantes lejanos, ambos entran.
+Además:
+
+- se añade el inicio del fragmento siguiente cuando la ventana termina en el borde;
+- se deduplican solapes comparando n-gramas de 6 palabras;
+- el presupuesto sigue siendo ~14 000 caracteres, pero ahora por bloque de 1 200 caracteres útiles.
+
+La estrategia queda en el turno (`busqueda`, `cobertura`, `balanceado`) y, cuando no hubo ninguna
+coincidencia, el chat muestra el chip **EVIDENCIA DÉBIL** y el prompt obliga al modelo a declararlo.
+
 ## Tokens y costo
 
 - El campo `usage` de la respuesta del proveedor se guarda por turno y se acumula por mesa.

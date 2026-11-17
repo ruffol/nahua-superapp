@@ -59,6 +59,7 @@ data class RagFigure(
 )
 
 data class RagChunk(
+    val id: String = "",
     val documentId: String,
     val documentName: String,
     val page: Int,

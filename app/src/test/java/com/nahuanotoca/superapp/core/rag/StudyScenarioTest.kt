@@ -80,8 +80,18 @@ class StudyScenarioTest {
     @Test
     fun correlationCoversBothDocuments() {
         val otra = listOf(
-            RagChunk("doc_articulo", "Artículo: reforma agraria", 1, "La reforma agraria de 1934 creó el ejido colectivo."),
-            RagChunk("doc_articulo", "Artículo: reforma agraria", 2, "El reparto cardenista entregó 18 millones de hectáreas."),
+            RagChunk(
+                documentId = "doc_articulo",
+                documentName = "Artículo: reforma agraria",
+                page = 1,
+                text = "La reforma agraria de 1934 creó el ejido colectivo.",
+            ),
+            RagChunk(
+                documentId = "doc_articulo",
+                documentName = "Artículo: reforma agraria",
+                page = 2,
+                text = "El reparto cardenista entregó 18 millones de hectáreas.",
+            ),
         )
         val context = ContextBuilder.build(
             query = "correlaciona",

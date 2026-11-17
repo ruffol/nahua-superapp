@@ -2,16 +2,22 @@ package com.nahuanotoca.superapp.core.rag
 
 import com.nahuanotoca.superapp.core.model.RagChunk
 import com.nahuanotoca.superapp.core.model.RagSource
+import com.nahuanotoca.superapp.core.model.RetrievalResult
+import com.nahuanotoca.superapp.core.model.RetrievedEvidence
+import kotlin.math.ln
 
 /**
- * Decide qué fragmentos viajan al modelo. Es el corazón de que un PDF de 8 páginas "sirva":
+ * Decide qué fragmentos viajan al modelo y con qué evidencia.
  *
- * - Pregunta puntual ("¿cuándo se paga la renta?") -> búsqueda BM25 por término.
- * - Trabajo global ("resumen", "correlaciona", "ideas") -> cobertura: se toman fragmentos
- *   repartidos de TODOS los documentos, en orden round-robin, para que la mesa entera quepa en el
- *   contexto en vez de depender de palabras clave que el estudiante no conoce.
- * - Si la búsqueda no encuentra nada, NO se rinde: cae a cobertura y marca weak=true para que el
- *   modelo confiese que está leyendo lo más cercano en vez de inventar.
+ * Tres estrategias:
+ * - [MODE_SEARCH]: consulta puntual, BM25 por raíz.
+ * - [MODE_COVERAGE]: tarea global, fragmentos repartidos entre todos los libros.
+ * - [MODE_BALANCED]: varios libros, los mejores fragmentos de cada uno intercalados.
+ *
+ * El bloque ya no se recorta a ciegas: se elige la **ventana de oraciones** con mayor densidad de
+ * términos de la consulta, se añade el inicio del fragmento siguiente cuando la ventana terminó en
+ * el borde, se deduplican solapes y cada fragmento se devuelve como [RetrievedEvidence] con score,
+ * página y estrategia.
  */
 object ContextBuilder {
 
@@ -21,13 +27,27 @@ object ContextBuilder {
         val mode: String,
         val weak: Boolean,
         val documentCount: Int,
+        val items: List<RetrievedEvidence> = emptyList(),
     ) {
         val isEmpty: Boolean get() = blocks.isEmpty()
+
+        fun toResult(query: String, indexVersion: String = ""): RetrievalResult = RetrievalResult(
+            query = query,
+            items = items,
+            mode = mode,
+            weak = weak,
+            indexVersion = indexVersion,
+        )
     }
 
     const val MODE_SEARCH = "busqueda"
     const val MODE_COVERAGE = "cobertura"
     const val MODE_BALANCED = "balanceado"
+
+    private val SENTENCE = Regex("(?<=[.!?…])\\s+|\\n+")
+    private val WORD = Regex("\\W+")
+
+    data class Window(val text: String, val reachedEnd: Boolean)
 
     fun build(
         query: String,
@@ -38,6 +58,8 @@ object ContextBuilder {
         documentIds: Set<String> = emptySet(),
         perDocument: Int = 0,
         blockChars: Int = 1_200,
+        includeNeighbors: Boolean = true,
+        deduplicate: Boolean = true,
     ): Context {
         val scoped = if (documentIds.isEmpty()) chunks else chunks.filter { it.documentId in documentIds }
         if (scoped.isEmpty()) return Context(emptyList(), emptyList(), MODE_COVERAGE, true, 0)
@@ -50,8 +72,6 @@ object ContextBuilder {
             picked = coverage(scoped, maxBlocks)
             mode = MODE_COVERAGE
         } else if (perDocument > 0) {
-            // Búsqueda balanceada: los N mejores fragmentos de CADA libro, para no dejar fuera
-            // ninguna obra cuando se cruzan varios documentos.
             val balanced = balanced(scoped, query, perDocument)
             if (balanced.isEmpty()) {
                 picked = coverage(scoped, maxBlocks)
@@ -73,40 +93,154 @@ object ContextBuilder {
             }
         }
 
-        // Presupuesto de caracteres: nunca se rebasa aunque haya muchos fragmentos.
-        val blocks = mutableListOf<String>()
-        val used = mutableListOf<RagChunk>()
+        val terms = Retriever.tokenize(query)
+        val items = mutableListOf<RetrievedEvidence>()
+        val chosenTexts = mutableListOf<String>()
         var budget = 0
+
         picked.forEach { chunk ->
-            val body = if (chunk.text.length > blockChars) {
-                chunk.text.take(blockChars).substringBeforeLast(' ') + "…"
-            } else {
-                chunk.text
+            val chunkWindows = windows(chunk.text, blockChars, terms)
+            chunkWindows.forEachIndexed { windowIndex, window ->
+                if (items.size >= maxBlocks * 2) return@forEachIndexed
+                var text = window.text
+
+                if (includeNeighbors && window.reachedEnd) {
+                    val position = scoped.indexOf(chunk)
+                    val next = scoped.getOrNull(position + 1)
+                    if (next != null && next.documentId == chunk.documentId && next.page == chunk.page) {
+                        text = text + " … " + next.text.take(280).trim()
+                    }
+                }
+
+                if (deduplicate && mostlyContained(text, chosenTexts)) return@forEachIndexed
+
+                val blockLength = text.length + chunk.documentName.length + 16
+                if (items.isNotEmpty() && budget + blockLength > maxChars) return@forEachIndexed
+
+                items += RetrievedEvidence(
+                    chunkId = chunk.id.ifBlank { fallbackId(chunk) } +
+                        (if (windowIndex == 0) "" else "-w" + windowIndex),
+                    documentId = chunk.documentId,
+                    documentTitle = chunk.documentName,
+                    page = chunk.page,
+                    text = text,
+                    score = scoreOf(query, chunk),
+                    strategy = mode,
+                )
+                chosenTexts += text
+                budget += blockLength
             }
-            val block = "[" + chunk.documentName + ", p. " + chunk.page + "] " + body
-            if (blocks.isNotEmpty() && budget + block.length > maxChars) return@forEach
-            blocks += block
-            used += chunk
-            budget += block.length
         }
 
-        val sources = used
+        val blocks = items.map { evidence ->
+            "[" + evidence.documentTitle + ", p. " + evidence.page + "] " + evidence.text
+        }
+        val sources = items
             .distinctBy { it.documentId to it.page }
-            .map { RagSource(it.documentName, it.page, it.text.take(180)) }
+            .map { RagSource(it.documentTitle, it.page, it.text.take(180)) }
 
         return Context(
             blocks = blocks,
             sources = sources,
             mode = mode,
             weak = weak,
-            documentCount = used.map { it.documentId }.distinct().size,
+            documentCount = items.map { it.documentId }.distinct().size,
+            items = items,
         )
     }
 
     /**
+     * Ventanas de oraciones: si el fragmento cabe completo se usa tal cual; si no, se eligen hasta
+     * [maxWindows] regiones continuas con mayor densidad de términos (ponderando los raros). Así una
+     * página con dos pasajes relevantes lejanos no pierde el segundo por quedarse con una sola ventana.
+     */
+    fun windows(text: String, maxChars: Int, terms: List<String>, maxWindows: Int = 2): List<Window> {
+        if (maxChars <= 0 || text.length <= maxChars) return listOf(Window(text, true))
+
+        val sentences = text.split(SENTENCE).filter { it.isNotBlank() }
+        if (sentences.isEmpty()) return listOf(Window(text.take(maxChars).trim(), false))
+
+        val tokens = sentences.map { Retriever.tokenize(it) }
+        val realTerms = if (terms.isEmpty()) Retriever.tokenize(text).distinct().take(8) else terms
+        if (realTerms.isEmpty()) {
+            return listOf(Window(text.take(maxChars).substringBeforeLast(' ').trimEnd(), false))
+        }
+
+        val documentFrequency = realTerms.associateWith { term ->
+            tokens.count { sentenceTokens -> sentenceTokens.any { Retriever.matchesTerm(term, it) } }
+        }
+        val weight = realTerms.associateWith { term ->
+            val df = documentFrequency[term] ?: 0
+            1.0 + ln(sentences.size.toDouble() / maxOf(1, df).toDouble())
+        }
+        val score = tokens.map { sentenceTokens ->
+            realTerms.sumOf { term ->
+                if (sentenceTokens.any { Retriever.matchesTerm(term, it) }) weight[term] ?: 1.0 else 0.0
+            }
+        }
+
+        val used = BooleanArray(sentences.size)
+        val result = mutableListOf<Window>()
+        repeat(maxWindows.coerceAtLeast(1)) {
+            var bestStart = -1
+            var bestEnd = -1
+            var bestScore = 0.0
+            for (start in sentences.indices) {
+                if (used[start] || score[start] == 0.0) continue
+                var length = 0
+                var accumulated = 0.0
+                var index = start
+                while (index < sentences.size && !used[index]) {
+                    val next = sentences[index].length + 1
+                    if (length + next > maxChars) break
+                    length += next
+                    accumulated += score[index]
+                    index++
+                }
+                if (accumulated > bestScore) {
+                    bestScore = accumulated
+                    bestStart = start
+                    bestEnd = index
+                }
+            }
+            if (bestStart < 0) return@repeat
+            val textOut = (bestStart until bestEnd).joinToString(" ") { sentences[it].trim() }
+            for (index in bestStart until bestEnd) used[index] = true
+            result += Window(textOut, bestEnd >= sentences.size)
+        }
+
+        return if (result.isEmpty()) listOf(Window(text.take(maxChars).substringBeforeLast(' ').trimEnd(), false)) else result
+    }
+
+    /** Primera ventana de [windows]; se conserva para pruebas y usos simples. */
+    fun window(text: String, maxChars: Int, terms: List<String>): Window = windows(text, maxChars, terms, 1).first()
+
+    /** Porcentaje de n-gramas del candidato que ya estaban en un texto elegido. */
+    fun mostlyContained(candidate: String, chosen: List<String>, threshold: Double = 0.6): Boolean {
+        val shingles = shingles(candidate)
+        if (shingles.isEmpty()) return false
+        return chosen.any { other ->
+            val existing = shingles(other)
+            if (existing.isEmpty()) false
+            else shingles.count { it in existing } >= (shingles.size * threshold).toInt()
+        }
+    }
+
+    private fun shingles(text: String, size: Int = 6): Set<String> {
+        val words = text.lowercase().split(WORD).filter { it.isNotBlank() }
+        if (words.size < size) return if (words.isEmpty()) emptySet() else setOf(words.joinToString(" "))
+        return (0..words.size - size).map { words.subList(it, it + size).joinToString(" ") }.toSet()
+    }
+
+    private fun scoreOf(query: String, chunk: RagChunk): Double =
+        Retriever.select(query, listOf(chunk), 1).firstOrNull()?.score ?: 0.0
+
+    private fun fallbackId(chunk: RagChunk): String =
+        chunk.documentId + ":" + chunk.page + ":" + CacheKey.sha256(chunk.text).take(12)
+
+    /**
      * Para cada documento se toman sus [perDocument] fragmentos mejor puntuados y luego se
-     * intercalan en rondas: primero el mejor de cada libro, después el segundo, etc. Así una obra
-     * larga no acapara el contexto y la correlación ve todas las fuentes.
+     * intercalan en rondas: primero el mejor de cada libro, después el segundo, etc.
      */
     fun balanced(chunks: List<RagChunk>, query: String, perDocument: Int): List<RagChunk> {
         if (perDocument <= 0) return emptyList()
@@ -135,8 +269,7 @@ object ContextBuilder {
 
     /**
      * Muestreo de cobertura: reparte el presupuesto entre documentos y recorre cada uno de forma
-     * uniforme. Devuelve los fragmentos intercalados (uno de cada documento por vuelta) para que el
-     * modelo vea la mesa completa y no sólo el primer PDF.
+     * uniforme. Devuelve los fragmentos intercalados (uno de cada documento por vuelta).
      */
     fun coverage(chunks: List<RagChunk>, maxBlocks: Int): List<RagChunk> {
         if (chunks.isEmpty() || maxBlocks <= 0) return emptyList()
@@ -150,7 +283,6 @@ object ContextBuilder {
             quotas[id] = share.coerceAtMost(list.size)
         }
 
-        // Ajusta el presupuesto: recorta de los que tienen más y reparte entre los que tienen menos.
         var assigned = quotas.values.sum()
         while (assigned > maxBlocks) {
             val candidate = quotas.entries

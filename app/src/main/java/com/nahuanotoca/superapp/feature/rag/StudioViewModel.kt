@@ -500,6 +500,8 @@ class StudioViewModel(private val container: AppContainer) : ViewModel() {
                     elapsedMillis = System.currentTimeMillis() - startedAt,
                     createdAt = System.currentTimeMillis(),
                     cacheHit = cacheHit,
+                    strategy = context.mode,
+                    weak = context.weak,
                 )
                 container.studio.appendTurn(mesa.id, userTurn)
                 container.studio.appendTurn(mesa.id, assistantTurn)

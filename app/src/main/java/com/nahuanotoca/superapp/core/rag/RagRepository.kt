@@ -49,7 +49,13 @@ class RagRepository(private val context: Context) {
 
         val chunksJson = JSONArray().apply {
             chunks.forEach { chunk ->
-                put(JSONObject().put("doc", name).put("page", chunk.page).put("text", chunk.text))
+                put(
+                    JSONObject()
+                        .put("id", CacheKey.sha256(chunk.text).take(12))
+                        .put("doc", name)
+                        .put("page", chunk.page)
+                        .put("text", chunk.text),
+                )
             }
         }
         File(target, id + CHUNKS_SUFFIX).writeText(chunksJson.toString())
@@ -189,12 +195,17 @@ class RagRepository(private val context: Context) {
         buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
+                val text = item.optString("text")
                 add(
                     RagChunk(
+                        id = item.optString("id").ifBlank {
+                            file.nameWithoutExtension.substringBefore('.') + ":" +
+                                item.optInt("page", 1) + ":" + CacheKey.sha256(text).take(12)
+                        },
                         documentId = file.nameWithoutExtension.substringBefore('.'),
                         documentName = item.optString("doc", "Documento"),
                         page = item.optInt("page", 1),
-                        text = item.optString("text"),
+                        text = text,
                     ),
                 )
             }

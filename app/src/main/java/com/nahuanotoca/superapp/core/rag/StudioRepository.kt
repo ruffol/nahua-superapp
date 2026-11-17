@@ -213,6 +213,8 @@ class StudioRepository(context: Context) {
                     .put("elapsed", turn.elapsedMillis)
                     .put("createdAt", turn.createdAt)
                     .put("cacheHit", turn.cacheHit)
+                    .put("strategy", turn.strategy)
+                    .put("weak", turn.weak)
                     .put(
                         "sources",
                         JSONArray().apply {
@@ -263,6 +265,8 @@ class StudioRepository(context: Context) {
                         elapsedMillis = json.optLong("elapsed", 0L),
                         createdAt = json.optLong("createdAt", 0L),
                         cacheHit = json.optBoolean("cacheHit", false),
+                        strategy = json.optString("strategy", ""),
+                        weak = json.optBoolean("weak", false),
                     ),
                 )
             }

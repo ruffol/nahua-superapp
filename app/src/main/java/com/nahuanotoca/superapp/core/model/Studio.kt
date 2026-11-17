@@ -54,6 +54,8 @@ data class ChatTurn(
     val elapsedMillis: Long = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val cacheHit: Boolean = false,
+    val strategy: String = "",
+    val weak: Boolean = false,
 )
 
 /**

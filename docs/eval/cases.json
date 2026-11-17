@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "createdAt": "2026-11-17",
+  "appVersion": "0.8.0",
+  "fixtures": [
+    {
+      "file": "Cabnal-2010-Propuesta-de-Pensamiento-Epistemico-Mujeres-Indigenas.pdf",
+      "pages": 8,
+      "sha256": "7c70ddf5a7fb2c18"
+    },
+    {
+      "file": "Dialnet-JulietaParedes-7126935.pdf",
+      "pages": 27,
+      "sha256": "a768a77823a47f28"
+    },
+    {
+      "file": "map45_segato_web.pdf",
+      "pages": 200,
+      "sha256": "34e4e5a98cb57d62",
+      "title": "La guerra contra las mujeres"
+    },
+    {
+      "file": "preview-Feminismo-Descolonial.pdf",
+      "pages": 18,
+      "sha256": "2b4eee3a5fe82622"
+    },
+    {
+      "file": "Revolucion en punto cero-TdS.pdf",
+      "pages": 282,
+      "sha256": "53f046159bb5e052",
+      "title": "Revolución en punto cero"
+    }
+  ],
+  "cases": [
+    {
+      "id": "C1",
+      "documents": [
+        "Cabnal-2010-Propuesta-de-Pensamiento-Epistemico-Mujeres-Indigenas.pdf"
+      ],
+      "question": "¿Qué significa el territorio cuerpo-tierra?",
+      "taskId": null,
+      "expected": {
+        "mode": "any",
+        "minDocuments": 1,
+        "pages": [
+          7
+        ],
+        "contains": [
+          "territorio"
+        ],
+        "weak": false
+      },
+      "notes": "Cita literal: la consigna aparece en la sección 2.6, página 7 del PDF."
+    },
+    {
+      "id": "C2",
+      "documents": [
+        "map45_segato_web.pdf"
+      ],
+      "question": "¿Por qué la crueldad funciona como pedagogía del poder?",
+      "taskId": null,
+      "expected": {
+        "mode": "any",
+        "minDocuments": 1,
+        "pages": [
+          23,
+          81
+        ],
+        "contains": [
+          "crueldad"
+        ],
+        "weak": false
+      },
+      "notes": "Término presente en el prólogo (p. 23) y en el capítulo sobre la guerra (p. 81)."
+    },
+    {
+      "id": "C3",
+      "documents": [
+        "Revolucion en punto cero-TdS.pdf"
+      ],
+      "question": "¿Qué se reclama con la campaña por el salario doméstico?",
+      "taskId": null,
+      "expected": {
+        "mode": "any",
+        "minDocuments": 1,
+        "pages": [
+          33,
+          36
+        ],
+        "contains": [
+          "salario"
+        ],
+        "weak": false
+      },
+      "notes": "Capítulo de la campaña internacional; el término aparece en p. 33 y p. 36."
+    },
+    {
+      "id": "C4",
+      "documents": [
+        "Dialnet-JulietaParedes-7126935.pdf",
+        "Cabnal-2010-Propuesta-de-Pensamiento-Epistemico-Mujeres-Indigenas.pdf",
+        "map45_segato_web.pdf",
+        "preview-Feminismo-Descolonial.pdf"
+      ],
+      "question": "¿Cómo se articulan patriarcado, colonialidad y comunidad en estos textos?",
+      "taskId": "correlacion",
+      "expected": {
+        "mode": "balanced",
+        "minDocuments": 3,
+        "pages": [],
+        "contains": [],
+        "weak": false
+      },
+      "notes": "Caso de correlación: exige que al menos tres obras aporten evidencia."
+    },
+    {
+      "id": "C5",
+      "documents": [
+        "map45_segato_web.pdf"
+      ],
+      "question": "¿Dónde empieza el capítulo sobre colonialidad y patriarcado moderno?",
+      "taskId": null,
+      "expected": {
+        "mode": "any",
+        "minDocuments": 1,
+        "pages": [
+          113
+        ],
+        "contains": [
+          "colonialidad"
+        ],
+        "weak": false
+      },
+      "notes": "La página impresa 111 corresponde al índice PDF 113 (desfase +2). Hoy la app cita el índice del PDF."
+    },
+    {
+      "id": "C6",
+      "documents": [
+        "Cabnal-2010-Propuesta-de-Pensamiento-Epistemico-Mujeres-Indigenas.pdf"
+      ],
+      "question": "¿Cuál es la fórmula química de la fotosíntesis?",
+      "taskId": null,
+      "expected": {
+        "mode": "coverage",
+        "minDocuments": 1,
+        "pages": [],
+        "contains": [],
+        "weak": true
+      },
+      "notes": "Sin evidencia: el contexto debe marcarse débil y el modelo abstenerse."
+    },
+    {
+      "id": "C7",
+      "documents": [
+        "Revolucion en punto cero-TdS.pdf"
+      ],
+      "question": "¿Por qué la huelga es central para el salario doméstico?",
+      "taskId": null,
+      "expected": {
+        "mode": "any",
+        "minDocuments": 1,
+        "pages": [
+          62,
+          63
+        ],
+        "contains": [
+          "huelga"
+        ],
+        "weak": false
+      },
+      "notes": "Texto en la segunda mitad del libro; sirve para detectar pérdida por recorte de bloque."
+    }
+  ]
+}

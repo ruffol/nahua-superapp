@@ -3,6 +3,30 @@
 Todas las versiones notables de Nahua. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)
 y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
+## [0.8.1] — 2026-11-17
+
+### Añadido
+
+- **Corpus de evaluación real (NA-003)**: cinco obras (Cabnal 2010, Guzmán y Triana sobre Paredes,
+  Segato, *Feminismo descolonial* y Federici) en `docs/eval/fixtures` —535 páginas, 6.1 MB— con
+  `cases.json` de 7 casos y sus páginas esperadas.
+- **Contexto por ventanas (NA-004)**: se conserva el fragmento completo y se eligen hasta dos
+  ventanas de oraciones con mayor densidad de términos, con peso IDF; se añade el vecino cuando la
+  ventana termina en el borde y se deduplican solapes por n-gramas.
+- **Contrato de evidencia (NA-005)**: `RetrievedEvidence` y `RetrievalResult` con `chunkId` estable,
+  score, página y estrategia; el chat muestra **EVIDENCIA DÉBIL** cuando no hubo coincidencias.
+- 12 tests nuevos de ventanas, deduplicación, vecinos y evidencia, más 4 con prosa real
+  (Cabnal, Segato y Federici); **107 tests** en total.
+
+### Cambiado
+
+- `RagChunk` lleva `id` estable (sha-256 corto del texto). Los índices anteriores siguen leyéndose:
+  el id se calcula al vuelo si falta.
+
+### Pendiente
+
+- NA-006: clave de caché sin historial en tareas, botón “regenerar” y cancelación de la generación.
+
 ## [0.8.0] — 2026-11-16
 
 ### Añadido

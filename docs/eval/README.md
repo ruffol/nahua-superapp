@@ -5,9 +5,13 @@ El plan lo exige antes de tocar `ContextBuilder` (NA-004), el contrato de eviden
 
 ## Estado
 
-- **Especificación:** lista (este documento).
-- **Fixtures:** pendientes. Los PDFs/EPUBs deben agregarse en `docs/eval/fixtures/` y el archivo
-  `docs/eval/cases.json` con las expectativas. No se reportan resultados inventados.
+- **Fixtures:** incluidas en `docs/eval/fixtures/` (5 obras · 535 páginas · 6.1 MB):
+  Cabnal 2010, Guzmán y Triana sobre Julieta Paredes, Segato *La guerra contra las mujeres*,
+  *Feminismo descolonial* y Federici *Revolución en punto cero*.
+- **Casos:** `docs/eval/cases.json` con 7 casos (C1–C7) y sus páginas esperadas.
+- **Automatizado:** `RealCorpusTest` ejecuta C1, C2, C3 y C6 sobre una página real de cada libro
+  (texto en `app/src/test/resources/eval/`); el resto requiere correr la app con la IA configurada.
+- **Resultados:** pendientes de una corrida completa en dispositivo.
 
 ## Casos mínimos
 
@@ -51,6 +55,12 @@ El plan lo exige antes de tocar `ContextBuilder` (NA-004), el contrato de eviden
 3. Haz la consulta y anota: modo usado, fuentes (documento/página), si la respuesta contiene lo esperado.
 4. Registra el resultado en `docs/eval/results-<fecha>.md` con la versión de la app.
 5. Un cambio se acepta sólo si **mantiene C1, C4 y C5** y mejora al menos uno de C2, C3 o C6.
+
+## Nota sobre ventanas
+
+Desde 0.8.1 el contexto usa hasta dos ventanas de oraciones por fragmento. Si un caso falla porque la
+evidencia está en una región lejana del mismo fragmento, revisa primero `ContextBuilder.windows`
+antes de bajar el tamaño de bloque.
 
 ## Métricas propuestas (cuando haya automatización)
 

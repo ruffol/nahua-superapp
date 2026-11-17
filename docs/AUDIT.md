@@ -215,7 +215,17 @@ de proveedor en el APK ni en cada teléfono.
 
 ---
 
-## 10. Siguiente conjunto mínimo de cambios
+## 10. Estado de los cambios propuestos
+
+| Ticket | Estado | Evidencia |
+| --- | --- | --- |
+| NA-003 · corpus | **Hecho** | `docs/eval/fixtures` (5 obras, 535 págs, 6.1 MB) + `docs/eval/cases.json` (7 casos) |
+| NA-004 · contexto por ventana | **Hecho** | `ContextBuilder.windows`: hasta 2 ventanas por fragmento con peso IDF, vecino al borde y dedupe por n-gramas |
+| NA-005 · contrato de evidencia | **Hecho** | `RetrievedEvidence`/`RetrievalResult`, `chunkId` estable, chip “EVIDENCIA DÉBIL” y estrategia en el turno |
+| NA-006 · caché y streaming | **Pendiente** | Clave aún incluye historial; sin botón de detener |
+| NA-007 en adelante | Pendiente | Room, WorkManager, OCR, herramientas |
+
+## 10.1 Siguiente conjunto mínimo de cambios
 
 Ordenado para poder cerrar cada ticket con build y pruebas:
 

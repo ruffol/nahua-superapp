@@ -116,14 +116,25 @@ class ContextBuilderTest {
 
     @Test
     fun balancedTakesTheBestFragmentsOfEveryBook() {
+        val vocabulary = listOf(
+            "comunidad territorio cuerpo colonialidad patriarcado",
+            "reproducción trabajo doméstico salario huelga cuidados",
+            "violencia femigenocidio crueldad guerra poder soberanía",
+            "epistemología descolonial mestiza diferencia sexual historia",
+        )
         val books = (1..4).flatMap { book ->
             (1..6).map { page ->
-                chunk("Libro" + book, page, "concepto común sobre el tema " + page + " del libro " + book)
+                chunk(
+                    "Libro" + book,
+                    page,
+                    vocabulary[(book - 1) % vocabulary.size] + " — pasaje " + page +
+                        " de la obra " + book + " con argumentos propios y ejemplos distintos.",
+                )
             }
         }
 
         val context = ContextBuilder.build(
-            query = "concepto común tema",
+            query = "obra argumentos ejemplos pasaje",
             chunks = books,
             maxBlocks = 12,
             perDocument = 3,
