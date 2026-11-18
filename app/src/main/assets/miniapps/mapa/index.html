@@ -223,6 +223,13 @@
   .ctl.locate.active { background: var(--blue); color: #F4F7FF; border-color: #6E86C9; }
   .ctl.follow { font-size: 16px; }
   .ctl.follow.active { background: rgba(59, 91, 165, 0.5); border-color: #6E86C9; color: #F4F7FF; }
+  .ctl.services { font-size: 17px; }
+  .ctl.services.active { background: rgba(59, 91, 165, 0.55); border-color: #6E86C9; color: #F4F7FF; }
+  .svc-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #D79A45; border: 2px solid #FFF7E8;
+    box-shadow: 0 1px 4px rgba(15, 8, 5, 0.45);
+  }
 
   .gpsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 6px; }
   .gpsGrid > div {
@@ -316,7 +323,8 @@
   body.compact-mode .cities { padding: 0 8px 7px; gap: 5px; }
   body.compact-mode .city { padding: 5px 8px; font-size: 10px; }
   body.compact-mode .controls { bottom: 12px; right: 8px; gap: 6px; }
-  body.compact-mode #zoomIn, body.compact-mode #zoomOut, body.compact-mode #follow { display: none; }
+  body.compact-mode #zoomIn, body.compact-mode #zoomOut, body.compact-mode #follow,
+  body.compact-mode #servicesBtn { display: none; }
   body.compact-mode .ctl { width: 40px; height: 40px; }
   body.compact-mode .ctl.locate { width: 44px; height: 44px; font-size: 19px; }
   body.compact-mode .leaflet-bottom.leaflet-left { bottom: 4px; }
@@ -354,6 +362,7 @@
   <button class="ctl" id="zoomOut" aria-label="Alejar">−</button>
   <button class="ctl locate" id="locate" aria-label="Mi ubicación">◎</button>
   <button class="ctl follow active" id="follow" aria-label="Seguir mi ubicación">➤</button>
+  <button class="ctl services" id="servicesBtn" aria-label="Servicios">▣</button>
 </div>
 
 <div class="routecard hidden" id="routecard">
@@ -390,6 +399,7 @@
   var isCompact = window.location.search.indexOf('mode=compact') !== -1;
   if (isCompact) document.body.classList.add('compact-mode');
 
+  var EXTRA_PLACES = [];
   var MUNICIPIOS = [
     { id: 'colima', label: 'Colima', center: [19.2433, -103.7250], zoom: 14 },
     { id: 'villa', label: 'Villa de Álvarez', center: [19.2670, -103.7370], zoom: 14 },
@@ -434,8 +444,7 @@
 
   var TRANSPARENT = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   var BOUNDS = L.latLngBounds([18.55, -104.85], [19.50, -103.30]);
-  var WIDE_BOUNDS = L.latLngBounds([19.18, -103.82], [19.39, -103.62]);
-  var CORE_BOUNDS = L.latLngBounds([19.205, -103.79], [19.33, -103.665]);
+  var STATE_BOUNDS = L.latLngBounds([18.42, -104.98], [19.62, -103.20]);
   var COLIMA_CENTER = [19.2433, -103.7250];
 
   var map = L.map('map', {
@@ -456,16 +465,11 @@
     attribution: '© OpenStreetMap'
   }).addTo(map);
 
-  var detailWide = L.tileLayer('tiles/{z}/{x}/{y}.png', {
-    minZoom: 14, maxZoom: 16, maxNativeZoom: 15,
-    bounds: WIDE_BOUNDS,
-    keepBuffer: 4, updateWhenIdle: true, updateWhenZooming: false,
-    errorTileUrl: TRANSPARENT
-  }).addTo(map);
-
-  var detailCore = L.tileLayer('tiles/{z}/{x}/{y}.png', {
-    minZoom: 16, maxZoom: 17, maxNativeZoom: 16,
-    bounds: CORE_BOUNDS,
+  // Una sola capa estatal: usa z14-z16 nativos donde hay manzanas INEGI y deja
+  // transparente el resto para que se vea la capa base z13.
+  var detail = L.tileLayer('tiles/{z}/{x}/{y}.webp', {
+    minZoom: 14, maxZoom: 17, maxNativeZoom: 16,
+    bounds: STATE_BOUNDS,
     keepBuffer: 4, updateWhenIdle: true, updateWhenZooming: false,
     errorTileUrl: TRANSPARENT
   }).addTo(map);
@@ -474,6 +478,8 @@
 
   var markerLayer = L.layerGroup().addTo(map);
   var routeLayer = L.layerGroup().addTo(map);
+  var serviceLayer = L.layerGroup();
+  var servicesOn = false;
   var markers = {};
   var userMarker = null;
   var userCircle = null;
@@ -594,6 +600,57 @@
       );
       markers[key] = marker;
     });
+  }
+
+
+  function renderServiceMarkers() {
+    serviceLayer.clearLayers();
+    if (!servicesOn || !EXTRA_PLACES.length) return;
+    EXTRA_PLACES.forEach(function (place, index) {
+      if (place.k === 'Localidad') return;
+      var marker = L.marker([place.lat, place.lon], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="svc-dot"></div>',
+          iconSize: [12, 12],
+          iconAnchor: [6, 6]
+        }),
+        title: place.n
+      });
+      marker.bindPopup(
+        '<strong>' + escapeHtml(place.n) + '</strong><br>' +
+        '<span class="popupMeta">' + escapeHtml(place.k || 'Servicio') +
+        (place.m ? ' · ' + escapeHtml(place.m) : '') + '</span><br>' +
+        '<button class="popupBtn" onclick="window.goToService(' + index + ')">Ir aquí</button>'
+      );
+      serviceLayer.addLayer(marker);
+    });
+  }
+
+  function toggleServices() {
+    servicesOn = !servicesOn;
+    el('servicesBtn').classList.toggle('active', servicesOn);
+    if (servicesOn) {
+      serviceLayer.addTo(map);
+      renderServiceMarkers();
+      Nahua.toast(EXTRA_PLACES.length ? 'Servicios del INEGI activados' : 'Cargando servicios…');
+    } else {
+      map.removeLayer(serviceLayer);
+      serviceLayer.clearLayers();
+      Nahua.toast('Servicios ocultos');
+    }
+  }
+
+  function loadExtraPlaces() {
+    fetch('places.json', { cache: 'force-cache' })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        EXTRA_PLACES = (data && data.places) || [];
+        if (servicesOn) renderServiceMarkers();
+      })
+      .catch(function () {
+        // Sin places.json la app sigue funcionando con los destinos locales.
+      });
   }
 
   function refreshMarkerIcons() {
@@ -1050,7 +1107,7 @@
       container.appendChild(button);
     });
     var city = cityById(currentCity);
-    el('cityLabel').textContent = city.label + ' · © OpenStreetMap';
+    el('cityLabel').textContent = city.label + ' · © OSM · INEGI';
   }
 
   function goToCity(id) {
@@ -1139,6 +1196,13 @@
     MUNICIPIOS.forEach(function (c) {
       push({ kind: 'city', name: c.label, sub: 'Municipio', lat: c.center[0], lng: c.center[1], icon: '▣', cityId: c.id });
     });
+    EXTRA_PLACES.forEach(function (p, index) {
+      push({
+        kind: 'inegi', name: p.n,
+        sub: (p.k || 'Servicio') + (p.m ? ' · ' + p.m : ''),
+        lat: p.lat, lng: p.lon, icon: p.k === 'Localidad' ? '⌂' : '▣', index: index
+      });
+    });
     function rank(item) {
       var name = norm(item.name);
       if (name.indexOf(needle) === 0) return 0;
@@ -1197,6 +1261,13 @@
     }
     if (item.kind === 'coord') {
       setDestination({ name: 'Coordenadas', sub: item.name, lat: item.lat, lng: item.lng, icon: '⌖' });
+      return;
+    }
+    if (item.kind === 'inegi') {
+      setDestination({
+        name: item.name, sub: item.sub, lat: item.lat, lng: item.lng,
+        icon: item.icon, key: null
+      });
     }
   }
 
@@ -1263,6 +1334,7 @@
 
   el('routeNav').onclick = openNavigation;
   el('routeClear').onclick = clearDestination;
+  el('servicesBtn').onclick = toggleServices;
   el('livebar').onclick = function () { showTab('gps'); };
 
   el('search').addEventListener('input', function (event) {
@@ -1347,10 +1419,23 @@
     setDestinationByKey(key);
   };
 
+  window.goToService = function (index) {
+    var place = EXTRA_PLACES[index];
+    if (!place) return;
+    setDestination({
+      name: place.n,
+      sub: (place.k || 'Servicio') + (place.m ? ' · ' + place.m : ''),
+      lat: place.lat,
+      lng: place.lon,
+      icon: '▣'
+    });
+  };
+
   window.openNavigation = openNavigation;
 
   // ---------- arranque ----------
 
+  loadExtraPlaces();
   renderCities();
   renderPlaces();
   renderGpsPane();

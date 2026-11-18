@@ -93,7 +93,7 @@ object ServiceCatalog {
         Service(
             id = "mapas",
             name = "Mapas",
-            tagline = "Mapa offline de Colima y tianguis",
+            tagline = "Mapa estatal, GPS y servicios",
             category = ServiceCategory.TRANSPORT,
             icon = Icons.Rounded.Explore,
             accent = Sky,

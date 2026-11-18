@@ -18,9 +18,9 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 ## Lo que incluye
 
-- **Mapa offline de Colima** con teselas propias (z9–16, Natural Earth + calles, edificios y
-  parques de OSM), estilo de papel cálido, **GPS en vivo** con coordenadas, velocidad y rumbo, y
-  ruta directa con navegación al destino en la app de mapas del teléfono.
+- **Mapa estatal de Colima** con teselas propias (z9–16, Natural Earth + OSM + cartografía
+  geoestadística del INEGI), manzanas y ejes viales de las localidades, estilo de papel cálido,
+  **GPS en vivo** con coordenadas, velocidad y rumbo, ruta directa y capa de servicios.
 - **Bazar/Trueque comunitario**: cualquiera publica lo que ya no usa, la app lo **valora** (precio
   nuevo, estado, uso y accesorios) y el dueño decide si lo vende o lo abre a **trueque**. El botón
   **Truquear** avisa al dueño en su bandeja de Avisos; él ve el perfil del interesado con los objetos
@@ -35,13 +35,13 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **139 tests unitarios** y CI en GitHub Actions.
+- **140 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
 | App | Tipo | Qué hace | Integración |
 | --- | --- | --- | --- |
-| **Mapas** | mini-app | mapa offline z9–16, GPS en vivo, coordenadas y rutas a tianguis | Leaflet + GPS |
+| **Mapas** | mini-app | mapa estatal z9–16 con manzanas, GPS, rutas y servicios | Leaflet + GPS + INEGI |
 | **Bazar/Trueque** | mini-app | publicar, valorar, vender y truequear entre vecinos | `Nahua.pay` · `Nahua.valuate` · `Nahua.announce` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
@@ -50,29 +50,58 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 ---
 
-## Mapa offline de Colima
+## Mapa estatal de Colima
 
-- **Teselas propias** `{z}/{x}/{y}.png` en `assets/miniapps/mapa/tiles`: 2,489 teselas, ~8.1 MB.
-  Las genera `.tmp/render_v3.py` a partir de Natural Earth (costa, carreteras, fronteras) y de
-  OpenStreetMap (calles, edificios, parques, agua, ferrocarril y puntos de interés) en una paleta de
-  barro. Se renderizan a 2× y se reducen con LANCZOS para que calles y etiquetas no salgan dentadas.
-- **Cobertura por zoom**: z9–13 para todo el estado; z14–15 para el área metropolitana y z16 nativo
-  para el núcleo Colima–Villa de Álvarez. La capa urbana se activa al llegar a z14 y la de barrio a
-  z16, así que al acercarte aparecen edificios, parques, arroyos y nombres de calles y colonias en
-  lugar de una imagen z13 estirada. z17 escala z16 ×2.
+- **Paquete offline**: 3,686 teselas (~10 MB) en `assets/miniapps/mapa/tiles`. La base z9–13 es PNG
+  (Natural Earth + OSM); el detalle z14–16 es **WebP** y pesa casi la mitad que el PNG equivalente.
+  Se renderiza a 2× y se reduce con LANCZOS para que calles y etiquetas no salgan dentadas.
+- **Detalle urbano del INEGI**: se integró la *Cartografía Geoestadística Urbana y Rural Amanzanada,
+  junio 2016* de Colima: **171 localidades, 17,148 manzanas, 15,812 ejes viales y 224 servicios**
+  (plazas, mercados, iglesias, escuelas, hospitales). Las manzanas y calles se dibujan sobre la base
+  de OSM/Natural Earth.
+- **Cobertura por zoom**: z14–15 en todas las localidades amanzanadas del estado; z16 nativo en las
+  zonas urbanas con mayor densidad (Colima–Villa, Manzanillo, Tecomán, Comala, Armería, Coquimatlán,
+  Cuauhtémoc, Minatitlán y otras); z17 escala z16 ×2. La capa base z9–13 cubre todo el estado y las
+  zonas sin manzanas.
+- **Buscar en todo el estado**: además de tianguis y plazas, el buscador incluye **395 localidades y
+  servicios del INEGI**. El botón **▣ Servicios** activa una capa de plazas, mercados, iglesias,
+  escuelas y hospitales de las localidades.
 - **GPS en vivo**: `LocationProvider` usa `LocationManager` (sin Google Play Services) y emite un
   flujo con latitud, longitud, precisión, velocidad, rumbo y altitud. El mapa dibuja tu posición con
   pulso, círculo de precisión y cono de rumbo; puedes seguirte o moverte libremente por el mapa.
   El seguimiento se pausa al ocultar la app para no gastar batería.
 - **Coordenadas**: la barra superior muestra lat/lng y precisión en tiempo real; la pestaña **GPS**
   añade velocidad, altitud, rumbo, antigüedad de la lectura y un botón para copiar las coordenadas.
-- **Ir a un lugar**: busca un tianguis, una plaza, un hospital o escribe coordenadas
+- **Ir a un lugar**: busca un tianguis, una localidad, un servicio o escribe coordenadas
   (`19.2433, -103.7250`). El mapa traza la distancia directa con rumbo y ETA a pie y en auto, y
   **Navegar** abre la app de mapas del sistema con el destino ya puesto (`geo:`).
-- **Rendimiento**: la capa base y las capas de detalle usan `maxNativeZoom`, `keepBuffer` y caché
-  de WebView; no hay peticiones de red para el mapa. Si una tesela falta, el hueco es transparente y
-  se ve la capa inferior, nunca un error 403.
-- Atribución a OpenStreetMap en el mapa y en el pie.
+- **Rendimiento**: una sola capa de detalle estatal con `maxNativeZoom`, `keepBuffer` y caché de
+  WebView; no hay peticiones de red para el mapa. Si una tesela falta, el hueco es transparente y se
+  ve la capa inferior, nunca un error 403.
+- Atribución a **OpenStreetMap** y **INEGI** en el mapa y en el pie.
+
+### Datos fuente y descargas
+
+La cartografía del INEGI es de consulta y descarga gratuita; respeta sus términos y cita la fuente.
+
+| Dataset | Uso en el mapa | Descarga directa |
+| --- | --- | --- |
+| Cartografía Geoestadística Urbana y Rural Amanzanada, junio 2016, Colima (SHP, 29.15 MB) | manzanas, ejes viales, servicios | [702825218768_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/CGURA_Junio2016/Colima/702825218768_s.zip) |
+| Topografía 1:50 000, E13B44 Colima, serie III (SHP, 10.74 MB) | calles rurales, curvas, hidrografía | [702825003010_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/imagen_cartografica/1_50_000/702825003010_s.zip) |
+| Topografía 1:50 000, E13B34 Comala, serie III (SHP, 12.15 MB) | norte del estado | [702825002919_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/imagen_cartografica/1_50_000/702825002919_s.zip) |
+| Topografía 1:50 000, E13B43 Manzanillo, serie III (SHP, 13.86 MB) | costa y puerto | [702825268398_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/imagen_cartografica/1_50_000/702825268398_s.zip) |
+| Topografía 1:50 000, E13B54 Tecomán, serie III (SHP, 5.68 MB) | sur del estado | [702825268435_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/imagen_cartografica/1_50_000/702825268435_s.zip) |
+| Topografía digital 1:250 000, condensado estatal serie IV (SHP, 3.89 MB) | visión estatal y rural | [702825208813_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/conden_estatales/serie_iv/702825208813_s.zip) |
+| Carreteras y vialidades urbanas, edición 1.0, Colima (SHP, 2.51 MB) | red carretera estatal | [702825291884_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/carr_vial/Colima/702825291884_s.zip) |
+| Modelo Digital de Elevación, Colima (BIL, 2.94 MB) | relieve y futura sombra de terreno | [702825547769_b.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/imagen_cartografica/1_250_000/mde/702825547769_b.zip) |
+| Uso del suelo y vegetación, serie III, Colima (SHP, 7.90 MB) | cobertura vegetal y rural | [702825229573_s.zip](https://www.inegi.org.mx/contenidos/productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/tematicas/Uso_suelo_hist/1_250_00/serie_III/702825229573_s.zip) |
+
+Cada ficha del catálogo del INEGI (por ejemplo
+[`upc=702825218768`](https://www.inegi.org.mx/app/biblioteca/ficha.html?upc=702825218768)) muestra el
+mismo enlace de descarga y los metadatos. Las hojas 1:50 000 restantes (E13B24, E13B25, E13B32,
+E13B33, E13B35, E13B41, E13B42, E13B45, E13B53, E13B55, E13B64) siguen el patrón
+`.../geografia/imagen_cartografica/1_50_000/<UPC>_s.zip`; el UPC de cada una está en el CSV que
+exportaste.
 
 ## Bazar/Trueque comunitario
 
@@ -226,7 +255,7 @@ Requisitos: JDK 17 y Android SDK con la plataforma **35**.
 ```bash
 echo "sdk.dir=/ruta/a/Android/Sdk" > local.properties
 ./gradlew assembleDebug        # APK de debug
-./gradlew testDebugUnitTest    # 139 tests
+./gradlew testDebugUnitTest    # 140 tests
 ./gradlew installDebug
 ```
 
