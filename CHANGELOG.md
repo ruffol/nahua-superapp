@@ -5,6 +5,20 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.16.2] — 2026-11-18
+
+### Corregido
+
+- **La portada del emulador no se veía**: el layout usaba `height: 100%` y unidades de
+  viewport (`dvh`/`vh`/`svh`). En el WebView de Android con modo inmersivo el bloque contenedor
+  inicial mide 0, así que todas resolvían a `0px`: `#home` quedaba en 26 px con `overflow: auto`
+  (contenido recortado) y los toques no alcanzaban los botones. Ahora las pantallas usan
+  `position: fixed; inset: 0`, que sí toma el viewport real, y el canvas del juego llena con
+  `flex`. Verificado en emulador: portada visible y pulsable, ROM importada y mGBA renderizando.
+- **Volver a la portada estando en juego**: nueva tira nativa **Salir · Inicio · Menú** (con
+  insets de `displayCutout`). **Inicio** recarga la portada dejando la partida en "Seguir jugando";
+  **Menú** abre el panel de ajustes de EmulatorJS. Se quita el botón "Recargar", que era redundante.
+
 ## [0.16.1] — 2026-11-18
 
 ### Corregido
