@@ -7,6 +7,12 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Jugar en vertical**: el panel *Configurar controles* añade **Pantalla: Auto / Vertical /
+  Horizontal**. El giro se aplica al instante por el puente (`Nahua.orientation` →
+  `requestedOrientation` de la Activity) y queda guardado con el resto de la configuración. En
+  vertical el GBA se ve a 3:2 arriba, apartado de la cámara, y los mandos quedan en la zona negra
+  inferior. El manifiesto del emulador pasa a `orientation: "auto"`: la preferencia del usuario
+  manda sobre el valor por defecto.
 - **Mando del emulador con joystick y menú de configuración de la consola**: el mando izquierdo
   pasa de cruceta a **joystick** (tipo `zone` de EmulatorJS, nipplejs) y un panel nuevo permite
   ajustar **tamaño**, **altura** y **margen lateral** del gamepad, además de alternar

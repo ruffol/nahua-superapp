@@ -83,6 +83,13 @@ class MiniAppBridge(
      */
     var onHaptic: (String) -> Unit = {}
 
+    /**
+     * Orientación pedida por la página: "portrait", "landscape" o "auto". Un juego de GBA se
+     * juega apaisado, pero el usuario manda: la mini-app guarda su preferencia y la aplica al
+     * entrar, sin que el manifiesto la pise.
+     */
+    var onOrientationRequest: (String) -> Unit = {}
+
     @JavascriptInterface
     fun getSession(): String = sessionJson()
 
@@ -90,6 +97,14 @@ class MiniAppBridge(
     @JavascriptInterface
     fun haptic(style: String) {
         mainHandler.post { onHaptic(style) }
+    }
+
+    /** Fuego y olvido: la página pide giro y el anfitrión lo aplica a la Activity. */
+    @JavascriptInterface
+    fun orientation(mode: String) {
+        val value = mode.trim().lowercase()
+        if (value != "portrait" && value != "landscape" && value != "auto") return
+        mainHandler.post { onOrientationRequest(value) }
     }
 
     @JavascriptInterface

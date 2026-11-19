@@ -45,7 +45,7 @@
       "entry": "miniapps/gba/index.html",
       "accent": "#0E7C66",
       "display": "immersive",
-      "orientation": "landscape",
+      "orientation": "auto",
       "permissions": ["storage.local", "rom.read"]
     },
     {

@@ -177,6 +177,9 @@ sin tocar una línea de NDK.
   panel *Configurar controles* ajusta **tamaño, altura y margen lateral** del gamepad en vivo,
   además de alternar joystick/cruceta. La configuración queda guardada en el dispositivo y el
   botón **Menú** la abre también en mitad del juego.
+- **Vertical u horizontal**: el mismo panel fija la **pantalla** (Auto, Vertical, Horizontal) y el
+  giro se aplica al instante, sin reiniciar la partida. En vertical el juego se ve a 3:2 arriba y
+  los mandos quedan abajo, al alcance de los pulgares.
 - **Medido, no supuesto**: cada partida publica un reporte `[perf]` en logcat (frame pacing +
   latencias de WebAudio) y `scripts/gba-perf.ps1` lo convierte en el veredicto Go/No-Go sobre
   pasar a un núcleo nativo. Criterio y procedimiento en [docs/GBA-PERF.md](docs/GBA-PERF.md).

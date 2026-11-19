@@ -204,6 +204,21 @@ Nahua.copy('19.243600, -103.725000')
   .catch(() => Nahua.toast('No se pudo copiar'));
 ```
 
+### `Nahua.orientation(mode)`
+
+Pide al anfitrión que gire la pantalla. `mode` es `'auto'` (sensor), `'portrait'` o
+`'landscape'`; cualquier otro valor cae en `'auto'`. Es fuego y olvido: no devuelve promesa y
+nunca lanza. La preferencia conviene guardarla en `localStorage` y reaplicarla al cargar, porque
+el manifiesto solo aporta el valor de entrada.
+
+```js
+Nahua.orientation('portrait');   // vertical fijo
+Nahua.orientation('auto');       // vuelve a seguir al teléfono
+```
+
+Con `display: "immersive"` la app oculta las barras del sistema y el contenido se adapta solo: usa
+`position: fixed; inset: 0` (nunca `vh`/`dvh`) para que funcione en ambas orientaciones.
+
 ### `Nahua.pickRom()`
 
 Abre el selector de archivos del sistema. El anfitrión copia la ROM a su almacenamiento privado

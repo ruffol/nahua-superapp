@@ -207,6 +207,25 @@
     },
 
     /**
+     * Pide al anfitrión la orientación de la pantalla.
+     * @param {string} [mode] auto | portrait | landscape
+     * @returns {boolean} false si no hay anfitrión.
+     */
+    orientation: function (mode) {
+      var value = String(mode || 'auto').toLowerCase();
+      if (value !== 'auto' && value !== 'portrait' && value !== 'landscape') value = 'auto';
+      try {
+        if (window.NahuaNative && window.NahuaNative.orientation) {
+          window.NahuaNative.orientation(value);
+          return true;
+        }
+      } catch (error) {
+        // La orientación nunca debe romper una pulsación.
+      }
+      return false;
+    },
+
+    /**
      * Retroalimentación háptica. Un control dibujado en HTML no vibra por sí solo: el host
      * ejecuta performHapticFeedback sobre el WebView (sin permiso VIBRATE y respetando el ajuste
      * del sistema, así que en silencio/molesto sigue funcionando bien).

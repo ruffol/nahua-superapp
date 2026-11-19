@@ -308,6 +308,11 @@ h1 {
   padding: 4px;
 }
 
+/* Pantalla (Auto / Vertical / Horizontal) */
+.seg-3 { grid-template-columns: repeat(3, 1fr); }
+
+.seg-3 .seg-btn { font-size: 12px; padding: 9px 6px; }
+
 .seg-btn {
   font: inherit;
   font-weight: 800;
@@ -370,6 +375,16 @@ h1 {
 /* En horizontal la portada cabe en dos columnas; el panel de ajustes sigue siendo de una. */
 @media (orientation: landscape) {
   .console-panel { max-width: 560px; }
+}
+
+/* Vertical: el GBA se ve a 3:2 arriba y los mandos quedan en la zona negra de abajo.
+   El margen superior aparta la imagen de la cámara frontal (el WebView no expone el
+   recorte, así que se reserva un valor fijo razonable). */
+@media (orientation: portrait) {
+  #game { padding-top: 34px; }
+  .ejs_virtualGamepad_left,
+  .ejs_virtualGamepad_right { bottom: 34px !important; }
+  .ejs_virtualGamepad_bottom { bottom: 20px !important; }
 }
 
 /* --- Horizontal ----------------------------------------------------------- */

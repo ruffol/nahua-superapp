@@ -163,7 +163,9 @@
   // ("zone" + joystickInput, el mismo mecanismo que el stick del N64) y se ajustan tamaños y
   // posición con variables CSS, para que se vean al instante sin reiniciar la partida.
   var CONTROLS_KEY = 'nahua.gba.controls';
-  var CONTROLS_DEFAULTS = { pad: 'joystick', scale: 1, bottom: 50, side: 10 };
+  // orientation: 'auto' sigue al teléfono; 'portrait'/'landscape' la fijan. Se guarda porque
+  // quien juega en vertical no quiere girar la pantalla en cada partida.
+  var CONTROLS_DEFAULTS = { pad: 'joystick', scale: 1, bottom: 50, side: 10, orientation: 'auto' };
 
   function readControls() {
     var stored = {};
@@ -179,6 +181,9 @@
       if (Object.prototype.hasOwnProperty.call(CONTROLS_DEFAULTS, key)) config[key] = CONTROLS_DEFAULTS[key];
     }
     if (stored.pad === 'joystick' || stored.pad === 'dpad') config.pad = stored.pad;
+    if (stored.orientation === 'auto' || stored.orientation === 'portrait' || stored.orientation === 'landscape') {
+      config.orientation = stored.orientation;
+    }
     config.scale = clampNumber(stored.scale, 0.7, 1.5, config.scale);
     config.bottom = clampNumber(stored.bottom, 0, 240, config.bottom);
     config.side = clampNumber(stored.side, 0, 140, config.side);
@@ -463,6 +468,7 @@
     var controls = readControls();
     window.EJS_VirtualGamepadSettings = gamepadSettings(controls);
     applyControlsCss(controls);
+    applyOrientation(controls.orientation);
 
     window.localStorage.setItem(LAST_ROM_KEY, JSON.stringify(rom));
 
@@ -515,11 +521,20 @@
 
   // --- Cableado -------------------------------------------------------------
 
+  /** Pide al anfitrión el giro elegido (auto = el sensor del teléfono). */
+  function applyOrientation(mode) {
+    if (!hasSdk() || typeof window.Nahua.orientation !== 'function') return;
+    window.Nahua.orientation(mode === 'portrait' || mode === 'landscape' ? mode : 'auto');
+  }
+
   // --- Panel de configuración de la consola --------------------------------
 
   var consolePanel = document.getElementById('consolePanel');
   var padJoystick = document.getElementById('padJoystick');
   var padDpad = document.getElementById('padDpad');
+  var oriAuto = document.getElementById('oriAuto');
+  var oriPortrait = document.getElementById('oriPortrait');
+  var oriLandscape = document.getElementById('oriLandscape');
   var ctlScale = document.getElementById('ctlScale');
   var ctlScaleOut = document.getElementById('ctlScaleOut');
   var ctlBottom = document.getElementById('ctlBottom');
@@ -530,6 +545,9 @@
   function syncConsoleUi(config) {
     padJoystick.classList.toggle('seg-btn-on', config.pad === 'joystick');
     padDpad.classList.toggle('seg-btn-on', config.pad === 'dpad');
+    oriAuto.classList.toggle('seg-btn-on', config.orientation === 'auto');
+    oriPortrait.classList.toggle('seg-btn-on', config.orientation === 'portrait');
+    oriLandscape.classList.toggle('seg-btn-on', config.orientation === 'landscape');
     ctlScale.value = String(Math.round(config.scale * 100));
     ctlScaleOut.textContent = Math.round(config.scale * 100) + ' %';
     ctlBottom.value = String(Math.round(config.bottom));
@@ -559,6 +577,14 @@
 
   if (consolePanel) {
     syncConsoleUi(readControls());
+    [oriAuto, oriPortrait, oriLandscape].forEach(function (button) {
+      button.addEventListener('click', function () {
+        var mode = button.getAttribute('data-orientation');
+        updateControls({ orientation: mode });
+        // El giro sí es inmediato: no depende del emulador, solo de la Activity.
+        applyOrientation(mode);
+      });
+    });
     padJoystick.addEventListener('click', function () { updateControls({ pad: 'joystick' }); });
     padDpad.addEventListener('click', function () { updateControls({ pad: 'dpad' }); });
     ctlScale.addEventListener('input', function () {
@@ -650,6 +676,8 @@
     pickBtn.disabled = true;
   }
 
+  // La preferencia de pantalla se aplica ya en la portada, no solo al arrancar la partida.
+  applyOrientation(readControls().orientation);
   renderContinue();
   refreshRoms();
 })();

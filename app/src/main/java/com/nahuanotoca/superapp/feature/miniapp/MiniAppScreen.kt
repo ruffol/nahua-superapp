@@ -126,6 +126,36 @@ fun MiniAppScreen(
         )
     }
 
+    // Orientación: el manifiesto propone (landscape en el emulador), pero la página manda si el
+    // usuario eligió vertical u horizontal en "Configuración de la consola". Al salir se restaura
+    // la orientación que tenía la app.
+    val activity = remember(context) { context.findActivity() }
+    val previousOrientation = remember(activity) {
+        activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
+
+    fun applyOrientation(mode: String) {
+        val target = activity ?: return
+        target.requestedOrientation = when (mode) {
+            "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    DisposableEffect(activity) {
+        if (manifest.display == MiniAppDisplay.IMMERSIVE &&
+            manifest.orientation == MiniAppOrientation.LANDSCAPE
+        ) {
+            applyOrientation("landscape")
+        }
+        onDispose {
+            if (manifest.display == MiniAppDisplay.IMMERSIVE) {
+                activity?.requestedOrientation = previousOrientation
+            }
+        }
+    }
+
     var pendingLocationId by remember { mutableStateOf<String?>(null) }
     var pendingWatchInterval by remember { mutableStateOf<Long?>(null) }
     val locationJob = remember { mutableStateOf<Job?>(null) }
@@ -245,6 +275,7 @@ fun MiniAppScreen(
         bridge.onRomDeleteRequest = { requestId, name ->
             scope.launch { bridge.resolveDeleted(requestId, viewModel.deleteRom(name)) }
         }
+        bridge.onOrientationRequest = { mode -> applyOrientation(mode) }
     }
 
     DisposableEffect(bridge) {
@@ -259,6 +290,7 @@ fun MiniAppScreen(
             bridge.onRomPickRequest = {}
             bridge.onRomListRequest = {}
             bridge.onRomDeleteRequest = { _, _ -> }
+            bridge.onOrientationRequest = {}
         }
     }
 
@@ -453,13 +485,8 @@ private fun ImmersiveMiniApp(
     val view = LocalView.current
     val activity = remember(context) { context.findActivity() }
 
+    // La orientación la gobierna MiniAppScreen (manifiesto + preferencia de la página).
     DisposableEffect(activity, view) {
-        val previousOrientation = activity?.requestedOrientation
-            ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        if (manifest.orientation == MiniAppOrientation.LANDSCAPE) {
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
-
         // La Fullscreen API no existe en el WebView de Android: la inmersion la maneja el host.
         val controller = activity?.window?.let { window ->
             WindowCompat.getInsetsController(window, view).also { insets ->
@@ -470,9 +497,6 @@ private fun ImmersiveMiniApp(
         }
 
         onDispose {
-            if (manifest.orientation == MiniAppOrientation.LANDSCAPE) {
-                activity?.requestedOrientation = previousOrientation
-            }
             controller?.show(WindowInsetsCompat.Type.systemBars())
         }
     }

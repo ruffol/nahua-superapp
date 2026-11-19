@@ -74,7 +74,9 @@ class ServiceCatalogTest {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
         assertTrue("Falta la mini-app gba", manifest.contains("\"gba\""))
         assertTrue("El gba no pide modo inmersivo", manifest.contains("\"display\": \"immersive\""))
-        assertTrue("El gba no pide horizontal", manifest.contains("\"orientation\": \"landscape\""))
+        // El emulador ya no fuerza horizontal: la orientación la elige el usuario en el panel
+        // (Vertical incluido), y el manifiesto solo aporta el valor por defecto.
+        assertTrue("El gba no declara orientación", manifest.contains("\"orientation\": \"auto\""))
         assertTrue("El gba no declara lectura de ROMs", manifest.contains("\"rom.read\""))
 
         val root = File("src/main/assets/miniapps/gba")
@@ -175,6 +177,15 @@ class ServiceCatalogTest {
         listOf("consolePanel", "padJoystick", "padDpad", "ctlScale", "ctlBottom", "ctlSide").forEach { id ->
             assertTrue("Falta el control " + id + " en el panel de la consola", html.contains(id))
         }
+        // Orientación: Auto / Vertical / Horizontal, aplicada al instante.
+        listOf("oriAuto", "oriPortrait", "oriLandscape").forEach { id ->
+            assertTrue("Falta el botón de orientación " + id, html.contains(id))
+        }
+        assertTrue("El panel no persiste la orientación", gbaJs.contains("orientation: 'auto'"))
+        assertTrue("No se aplica la orientación", gbaJs.contains("applyOrientation"))
+
+        val sdk = File("src/main/assets/miniapps/nahua-sdk.js").readText()
+        assertTrue("El SDK no expone la orientación", sdk.contains("orientation: function"))
 
         // El boton Menú de la tira nativa abre ese panel, no directamente el menu de EmulatorJS.
         val screen = File(
