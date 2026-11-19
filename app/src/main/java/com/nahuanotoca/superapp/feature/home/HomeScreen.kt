@@ -93,9 +93,9 @@ private data class HomeApp(
 
 private val homeApps = listOf(
     HomeApp(
-        serviceId = "tamagochi",
-        title = "Tlalchichi",
-        subtitle = "Cuida y juega con tu Tlalchichi",
+        serviceId = "yolcatl",
+        title = "Yōlcatl",
+        subtitle = "Cuida a tu criatura del lago",
         art = R.drawable.px_dog,
         fill = Color(0xFF7A3D27),
         deep = Color(0xFF5C2D1C),

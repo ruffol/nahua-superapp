@@ -147,10 +147,10 @@ private fun PetButton(selected: Boolean, onClick: () -> Unit, modifier: Modifier
             PixelSpriteImage(
                 res = R.drawable.px_dog,
                 modifier = Modifier.fillMaxSize(),
-                contentDescription = "Tlalchichi",
+                contentDescription = "Yōlcatl",
             )
         }
     }
 }
 
-private const val PET_APP_ID = "tamagochi"
+private const val PET_APP_ID = "yolcatl"

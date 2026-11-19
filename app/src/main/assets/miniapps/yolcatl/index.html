@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#121020">
+<title>Yōlcatl</title>
+<link rel="stylesheet" href="pixel.css?v=7">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="sigil" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      <div>
+        <h1>Yōlcatl</h1>
+        <small>criatura viva · colima</small>
+      </div>
+    </div>
+    <button class="chip" id="closeBtn" type="button" aria-label="Cerrar">✕</button>
+  </header>
+
+  <main>
+    <section class="stage" id="stage" data-scene="chinampa">
+      <div class="stage-view">
+        <canvas id="gl" aria-label="Criatura en 3D"></canvas>
+        <canvas id="fx" class="fx" aria-hidden="true"></canvas>
+        <div class="thought" id="thought"><span id="thoughtText">…</span></div>
+        <div class="stage-badge" id="stageBadge">CHINAMPA</div>
+      </div>
+      <div class="plate">
+        <div class="plate-row">
+          <input id="petName" class="name-input" maxlength="12" value="Xolito" aria-label="Nombre de la criatura" autocomplete="off" spellcheck="false">
+          <span class="lvl" id="levelChip">Cría · Nv. 1</span>
+        </div>
+        <div class="plate-sub" id="speciesLine">Axolote de Xochimilco · Contento</div>
+        <div class="xp">
+          <div class="xp-head"><span>Experiencia</span><span id="xpText">0 / 40</span></div>
+          <div class="xp-bar"><i id="xpBar"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bars" id="bars" aria-label="Estado"></section>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="care" type="button">Cuidar</button>
+      <button class="tab" data-tab="world" type="button">Mundo</button>
+      <button class="tab" data-tab="soul" type="button">Alma</button>
+    </nav>
+
+    <div class="panel" id="panel-care">
+      <div class="card">
+        <div class="grid-2">
+          <button class="btn" data-action="feed" type="button">
+            <svg class="px-icon" viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="3" y="1" width="2" height="1"/><rect x="2" y="2" width="4" height="1"/><rect x="1" y="3" width="6" height="1"/><rect x="2" y="4" width="4" height="1"/><rect x="3" y="5" width="2" height="1"/></svg>
+            Alimentar
+          </button>
+          <button class="btn" data-action="play" type="button">
+            <svg class="px-icon" viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="2" y="0" width="4" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="4"/><rect x="7" y="2" width="1" height="4"/><rect x="1" y="6" width="1" height="1"/><rect x="6" y="6" width="1" height="1"/><rect x="2" y="7" width="4" height="1"/></svg>
+            Jugar
+          </button>
+          <button class="btn" data-action="sleep" type="button">
+            <svg class="px-icon" viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="3" y="0" width="4" height="1"/><rect x="2" y="1" width="2" height="1"/><rect x="1" y="2" width="2" height="3"/><rect x="2" y="5" width="2" height="1"/><rect x="3" y="6" width="4" height="1"/></svg>
+            Dormir
+          </button>
+          <button class="btn" data-action="bath" type="button">
+            <svg class="px-icon" viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="3" y="0" width="2" height="2"/><rect x="2" y="2" width="4" height="2"/><rect x="1" y="4" width="6" height="3"/></svg>
+            Bañar
+          </button>
+        </div>
+        <button class="btn" data-action="pet" type="button" style="width:100%;justify-content:center;margin-top:8px">
+          <svg class="px-icon" viewBox="0 0 8 8" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="6" height="1"/><rect x="0" y="2" width="8" height="1"/><rect x="1" y="3" width="6" height="2"/><rect x="2" y="5" width="4" height="1"/><rect x="3" y="6" width="2" height="1"/></svg>
+          Acariciar
+        </button>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="panel-world">
+      <div class="card">
+        <div class="section-title">Escenas / biomas</div>
+        <div id="sceneList"></div>
+        <div class="section-title">Especies</div>
+        <div id="speciesList"></div>
+        <div class="section-title">Accesorios</div>
+        <div id="accList"></div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="panel-soul">
+      <div class="card">
+        <div class="soul-head">
+          <span>Mosaico del alma · 16x16</span>
+          <span>Afecto <b id="affection">40%</b></span>
+        </div>
+        <canvas id="mosaic" width="512" height="512" aria-label="Mosaico del alma"></canvas>
+        <div id="genes"></div>
+        <div class="section-title">Código del alma</div>
+        <textarea class="code" id="soulCode" spellcheck="false" aria-label="Código del alma"></textarea>
+        <p class="hint">84 bytes en 224 teselas de 3 bits con CRC-16. Cópialo para respaldar el alma o pega otro código para importarla.</p>
+        <div class="row">
+          <button class="btn accent" id="copySoul" type="button">Copiar</button>
+          <button class="btn" id="importSoul" type="button">Importar</button>
+        </div>
+        <button class="link-btn" id="resetSoul" type="button">Empezar con una criatura nueva</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="../nahua-sdk.js"></script>
+<script src="ai-soul.js?v=7"></script>
+<script src="mosaic-codec.js?v=7"></script>
+<script src="engine3d.js?v=7"></script>
+<script src="app.js?v=7"></script>
+</body>
+</html>

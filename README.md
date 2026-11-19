@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.16.3 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.17.0 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 
@@ -47,7 +47,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 | **Bazar/Trueque** | mini-app | publicar, valorar, vender y truequear entre vecinos | `Nahua.pay` · `Nahua.valuate` · `Nahua.announce` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
-| **Axolote** | mini-app | mascota virtual con hambre, ánimo y niveles | `localStorage` |
+| **Yōlcatl** | mini-app | criatura viva: IA autónoma, escenas 3D vóxel, accesorios y mosaico del alma | `localStorage` |
 | **Emulador GBA** | mini-app | tus cartuchos de Game Boy Advance, horizontal y sin red | EmulatorJS 4.2.3 (mGBA) · `Nahua.pickRom` |
 | **Nahuanotoka** | feature nativa | mesas de estudio: resumen, ideas, correlación y PDF | HTTP + PDFBox |
 

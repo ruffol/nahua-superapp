@@ -5,6 +5,46 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-11-19
+
+### Añadido
+
+- **Yōlcatl (antes Axolote/tamagochi)**: la mini-app de mascota se renombra con voz náhuatl y se
+  reconstruye según la arquitectura v2. El manifiesto pasa a `id: "yolcatl"`, `version: 2.0.0`, y
+  el catálogo, el glifo del icono, la tarjeta de Inicio y el botón de mascota de la barra inferior
+  apuntan al id nuevo.
+- **Motor vóxel propio (`engine3d.js`, ~34 KiB)**: renderizador WebGL 1.0 sin dependencias, con
+  modelos definidos como matrices 3×16³, culling de caras y sombreado por cara. Cinco especies
+  (axolote, ajolote dorado albino, tortuga de río, xoloitzcuintle y colibrí), seis accesorios
+  anclados a sockets (`head`, `face`, `neck`, `back`, `floor`) y cuatro biomas con props,
+  partículas y cámara que enmarca por especie. Si el WebView no expone WebGL, cae a un render 2D
+  por pintor sobre el mismo canvas.
+- **Utility AI offline (`ai-soul.js`)**: cuatro genes ocultos (curiosidad, sociabilidad, vitalidad,
+  apetito) que modulan metabolismo y decisiones; pulso autónomo de 5–15 s que elige entre dormir,
+  buscar comida, jugar, saludar, limpiarse, observar o posar; memoria emocional (afecto, escena y
+  accesorio favoritos, conteos de cuidado) y ciclo circadiano por reloj del teléfono. Todo en el
+  hilo local: cero peticiones de red.
+- **Mosaico del alma (`mosaic-codec.js`)**: 16×16 teselas con paleta de 8 colores (3 bits/celda).
+  32 celdas de calibración dejan **224 celdas útiles = 672 bits = 84 bytes**, con nombre, especie,
+  genes, nivel/XP, barras, escena, accesorios y memoria, más CRC-16 sobre todo el payload. Se
+  exporta como código `YLC2:…` (base64url) y se importa validando el checksum.
+- **Interfaz pixel art (`pixel.css`, `app.js`)**: tipografía monoespaciada con versalitas, bordes de
+  2 px, sombras duras, iconos SVG de 8×8 y barras segmentadas. Tres pestañas (Cuidar, Mundo, Alma),
+  soporte de `prefers-color-scheme: dark` y edición del nombre en línea.
+- **Migración del alma v1**: al abrir por primera vez se recuperan nombre, barras y XP de
+  `nahua.axolote.v1`; el guardado nuevo vive en `nahua.yolcatl.v2`.
+
+### Corregido
+
+- **Decaimiento congelado**: se elimina el umbral de 0.02 h y `lastSeen` se refresca en cada tick de
+  60 s, así la simulación avanza en vivo en lugar de quedarse quieta.
+- **Pérdida por redondeo**: las barras se persisten como flotantes y `Math.round` se aplica solo al
+  pintar (0.15 pts/min de comida ya no desaparecen).
+- **Nivel máximo**: al llegar a Espíritu del lago la barra de XP muestra `MÁXIMO` al 100 % en lugar
+  de quedarse en `0 / 40`.
+- **Accesorios al importar**: un alma restaurada desde el mosaico recupera los accesorios que su
+  nivel y su afecto ya merecían (antes solo se regalaban al subir de nivel en la sesión).
+
 ## [0.16.3] — 2026-11-19
 
 ### Añadido

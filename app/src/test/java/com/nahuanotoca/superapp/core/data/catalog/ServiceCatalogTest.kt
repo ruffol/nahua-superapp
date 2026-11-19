@@ -3,6 +3,7 @@ package com.nahuanotoca.superapp.core.data.catalog
 import com.nahuanotoca.superapp.core.model.ServiceCategory
 import com.nahuanotoca.superapp.core.model.ServiceTarget
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -60,9 +61,43 @@ class ServiceCatalogTest {
     @Test
     fun remainingMiniAppsStayDeclared() {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
-        listOf("ride", "bills", "mapa", "tamagochi", "bazar", "gba").forEach { id ->
+        listOf("ride", "bills", "mapa", "yolcatl", "bazar", "gba").forEach { id ->
             assertTrue("Falta la mini-app " + id, manifest.contains("\"" + id + "\""))
         }
+    }
+
+    /**
+     * Candado de Yōlcatl (antes tamagochi): el bundle nuevo debe traer los tres módulos del
+     * rediseño —motor vóxel, cerebro offline y códec del alma— y no puede reintroducir la deuda
+     * de la v1 (umbral de decaimiento, guardado redondeado, clave vieja como fuente principal).
+     */
+    @Test
+    fun yolcatlBundleKeepsEngineAiAndMosaicCodec() {
+        assertNull("El id tamagochi sigue en el catálogo", ServiceCatalog.find("tamagochi"))
+        val manifest = File("src/main/assets/miniapps/index.json").readText()
+        assertFalse("El manifiesto todavía anuncia tamagochi", manifest.contains("\"tamagochi\""))
+        assertTrue("El manifiesto no declara yolcatl", manifest.contains("\"yolcatl\""))
+
+        val root = File("src/main/assets/miniapps/yolcatl")
+        assertTrue("Falta el bundle yolcatl", File(root, "index.html").isFile)
+        listOf("engine3d.js", "ai-soul.js", "mosaic-codec.js", "app.js", "pixel.css").forEach { name ->
+            assertTrue("Falta " + name + " en el bundle de Yōlcatl", File(root, name).isFile)
+        }
+        assertFalse("El bundle viejo sigue en assets", File("src/main/assets/miniapps/tamagochi").exists())
+
+        val soul = File(root, "ai-soul.js").readText()
+        assertFalse("Volvió el umbral de decaimiento de la v1", soul.contains("hours > 0.02"))
+        assertTrue("El decaimiento por tick desapareció", soul.contains("function applyDecay"))
+        assertTrue("El alma no se guarda en la clave v2", soul.contains("nahua.yolcatl.v2"))
+        assertTrue("Falta la migración del alma v1", soul.contains("nahua.axolote.v1"))
+
+        val mosaic = File(root, "mosaic-codec.js").readText()
+        assertTrue("El mosaico perdió los 84 bytes útiles", mosaic.contains("USABLE_BYTES = 84"))
+        assertTrue("El mosaico perdió el CRC-16", mosaic.contains("0x1021"))
+
+        val engine = File(root, "engine3d.js").readText()
+        assertTrue("El motor perdió el render WebGL", engine.contains("getContext('webgl'"))
+        assertTrue("El motor perdió el respaldo 2D", engine.contains("draw2D"))
     }
 
     /**

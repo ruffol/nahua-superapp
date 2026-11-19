@@ -310,7 +310,7 @@ object PixelAppGlyphs {
         "profile" to person,
         "mapas" to map,
         "bazar" to store,
-        "tamagochi" to paw,
+        "yolcatl" to paw,
         "gba" to gamepad,
         "studio" to sparkleGlyph,
         "topup" to phone,

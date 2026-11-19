@@ -106,7 +106,7 @@ fun NahuaApp(container: AppContainer) {
                 PixelBottomBar(
                     currentRoute = currentRoute,
                     onNavigate = ::navigateTab,
-                    onOpenPet = { navController.navigate(Routes.miniApp("tamagochi")) },
+                    onOpenPet = { navController.navigate(Routes.miniApp("yolcatl")) },
                 )
             }
         },

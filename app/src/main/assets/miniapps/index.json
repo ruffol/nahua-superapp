@@ -29,12 +29,12 @@
       "permissions": ["map.tiles", "location"]
     },
     {
-      "id": "tamagochi",
-      "name": "Axolote",
-      "tagline": "Tu mascota virtual",
-      "version": "1.0.0",
-      "entry": "miniapps/tamagochi/index.html",
-      "accent": "#FF6B4A",
+      "id": "yolcatl",
+      "name": "Yōlcatl",
+      "tagline": "Tu criatura viva del lago",
+      "version": "2.0.0",
+      "entry": "miniapps/yolcatl/index.html",
+      "accent": "#FF5B4A",
       "permissions": ["storage.local"]
     },
     {

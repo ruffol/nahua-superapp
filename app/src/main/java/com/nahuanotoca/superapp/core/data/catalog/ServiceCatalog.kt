@@ -111,13 +111,14 @@ object ServiceCatalog {
             target = ServiceTarget.MiniApp("bazar"),
         ),
         Service(
-            id = "tamagochi",
-            name = "Axolote",
-            tagline = "Tu mascota virtual",
+            id = "yolcatl",
+            name = "Yōlcatl",
+            tagline = "Criatura viva con IA, alma y escenas 3D",
             category = ServiceCategory.ENTERTAINMENT,
             icon = Icons.Rounded.Pets,
             accent = Coral,
-            target = ServiceTarget.MiniApp("tamagochi"),
+            target = ServiceTarget.MiniApp("yolcatl"),
+            badge = "Nuevo",
         ),
         Service(
             id = "gba",
