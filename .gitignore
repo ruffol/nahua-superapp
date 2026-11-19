@@ -34,3 +34,6 @@ keystore.properties
 
 # Logs
 *.log
+
+# ROMs de prueba del usuario: nunca al repositorio ni al APK
+rooms/

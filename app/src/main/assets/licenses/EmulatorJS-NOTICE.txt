@@ -12,7 +12,12 @@ decir, copiados sin modificacion alguna para que la mini-app "gba" funcione 100%
 
 Contenido: loader.js, emulator.min.js, emulator.min.css, version.json,
 localization/en-US.json, localization/es-ES.json, cores/mgba-wasm.data,
-cores/mgba-legacy-wasm.data y cores/reports/mgba.json.
+cores/mgba-legacy-wasm.data, cores/reports/mgba.json y
+compression/extract7z.js (~2.75 MB en total).
+
+El extractor 7z es imprescindible: los nucleos .data de EmulatorJS viajan empaquetados
+en 7z y, sin el, el emulador arranca en pantalla negra. extractzip.js y libunrar no se
+incluyen porque RomStore solo acepta ROMs .gba/.agb/.bin sin comprimir.
 
 Solo se incluyo el nucleo mGBA (Game Boy Advance). EmulatorJS compila los nucleos de
 RetroArch a WebAssembly; mGBA es MPL-2.0 pero este empaquetado por EmulatorJS se

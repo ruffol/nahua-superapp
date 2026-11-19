@@ -90,6 +90,7 @@ class ServiceCatalogTest {
             "emulatorjs/cores/mgba-wasm.data",
             "emulatorjs/cores/mgba-legacy-wasm.data",
             "emulatorjs/cores/reports/mgba.json",
+            "emulatorjs/compression/extract7z.js",
         ).forEach { relative ->
             assertTrue("Falta " + relative + " en el bundle del emulador", File(root, relative).isFile)
         }
@@ -102,6 +103,11 @@ class ServiceCatalogTest {
         assertTrue(
             "El nucleo legacy pesa muy poco",
             File(root, "emulatorjs/cores/mgba-legacy-wasm.data").length() > 500_000,
+        )
+        // Sin el extractor 7z el nucleo no se descomprime y la pantalla se queda en negro.
+        assertTrue(
+            "El extractor 7z pesa muy poco",
+            File(root, "emulatorjs/compression/extract7z.js").length() > 100_000,
         )
 
         // Candado anti-ROM: nada de .gba/.agb/.bin/.zip dentro del bundle versionado.

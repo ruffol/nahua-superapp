@@ -20,7 +20,8 @@ $ErrorActionPreference = "Stop"
 $Base = "https://cdn.emulatorjs.org/$Version/data"
 
 # Solo el nucleo de Game Boy Advance (EJS_core = "gba" -> mgba). El "-legacy" cubre los equipos
-# sin WebGL2, que EmulatorJS elige en tiempo de ejecucion.
+# sin WebGL2, que EmulatorJS elige en tiempo de ejecucion. El extractor 7z es OBLIGATORIO: los
+# nucleos .data van empaquetados en 7z y sin el el emulador muere en pantalla negra.
 $Files = @(
     @{ Path = "loader.js";                   MinBytes = 4000 },
     @{ Path = "emulator.min.js";             MinBytes = 200000 },
@@ -30,7 +31,8 @@ $Files = @(
     @{ Path = "localization/es-ES.json";     MinBytes = 5000 },
     @{ Path = "cores/mgba-wasm.data";        MinBytes = 500000 },
     @{ Path = "cores/mgba-legacy-wasm.data"; MinBytes = 500000 },
-    @{ Path = "cores/reports/mgba.json";     MinBytes = 40 }
+    @{ Path = "cores/reports/mgba.json";     MinBytes = 40 },
+    @{ Path = "compression/extract7z.js";    MinBytes = 100000 }
 )
 
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null

@@ -12,19 +12,24 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
@@ -267,6 +272,14 @@ fun MiniAppScreen(
                 recreateSignal += 1
             },
             onClose = onClose,
+            onMenu = {
+                // Menú/ajustes del propio EmulatorJS (volumen, estados, controles): el botón
+                // nativo lo abre donde la cámara nunca lo tapa, a diferencia del engrane web.
+                bridge.sendToWeb?.invoke(
+                    "window.EJS_emulator && window.EJS_emulator.menu && window.EJS_emulator.menu.toggle()",
+                )
+            },
+            onReload = { reloadSignal += 1 },
             content = {
                 MiniAppWebView(
                     manifest = manifest,
@@ -426,6 +439,8 @@ private fun ImmersiveMiniApp(
     rendererGone: Boolean,
     onRetry: () -> Unit,
     onClose: () -> Unit,
+    onMenu: () -> Unit,
+    onReload: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -477,15 +492,42 @@ private fun ImmersiveMiniApp(
             )
         }
 
-        // Salida siempre visible, sin estorbar el menu de EmulatorJS (esquina superior derecha).
-        PixelIconButton(
-            onClick = onClose,
+        // Tira de control nativa: Salir, Menu de EmulatorJS y Recargar. Va arriba a la
+        // izquierda (EmulatorJS deja esa esquina libre) y respeta el recorte de la camara:
+        // sin los insets de displayCutout, en horizontal el notch tapaba el boton y solo se
+        // veia una franja inutilizable.
+        Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(10.dp)
-                .size(40.dp),
+                .windowInsetsPadding(WindowInsets.displayCutout)
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PixelGlyph(PixelIcons.close, color = PixelInk, size = 16.dp)
+            PixelIconButton(
+                onClick = onClose,
+                modifier = Modifier.size(46.dp),
+                fill = PixelPanelDeep,
+                border = PixelBorder,
+            ) {
+                PixelGlyph(PixelIcons.close, color = PixelInk, size = 15.dp)
+            }
+            PixelIconButton(
+                onClick = onMenu,
+                modifier = Modifier.size(46.dp),
+                fill = PixelPanelDeep,
+                border = PixelBorder,
+            ) {
+                PixelGlyph(PixelIcons.gear, color = PixelInk, size = 16.dp)
+            }
+            PixelIconButton(
+                onClick = onReload,
+                modifier = Modifier.size(46.dp),
+                fill = PixelPanelDeep,
+                border = PixelBorder,
+            ) {
+                PixelGlyph(PixelAppGlyphs.refresh, color = PixelInk, size = 16.dp)
+            }
         }
     }
 }

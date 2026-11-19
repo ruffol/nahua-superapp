@@ -192,7 +192,13 @@ h1 {
 
 /* --- Juego --------------------------------------------------------------- */
 
-#game { padding: 0; }
+#game {
+  padding: 0;
+  /* En horizontal la camara/notch vive en los bordes largos: sin esto, el
+     engrane de ajustes de EmulatorJS queda detras del recorte. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
 
 #display {
   width: 100%;
@@ -237,13 +243,25 @@ h1 {
 
 /* --- Horizontal ----------------------------------------------------------- */
 
-/* En landscape (la mini-app gira sola) la portada se acomoda en dos columnas para
-   que la lista de ROMs quepa sin scroll eterno. */
+/* En landscape (la mini-app gira sola) la portada se compacta y se vuelve
+   deslizable por si sola: el boton de "Cargar ROM" nunca queda abajo del pliegue,
+   con notch o sin el. */
 @media (orientation: landscape) {
   #home {
     max-width: 720px;
     margin: 0 auto;
+    max-height: 100dvh;
+    overflow-y: auto;
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
-  #home .card { max-height: 46vh; overflow: auto; }
+  .hero { text-align: left; display: flex; align-items: center; gap: 14px; }
+  .cart { width: 46px; height: 42px; margin: 0; flex: none; }
+  h1 { font-size: 18px; }
+  .tagline { font-size: 11px; }
+
+  #home .card { max-height: 40vh; overflow-y: auto; }
+  #home .legal { font-size: 10px; line-height: 1.4; padding: 6px 10px; }
 }
