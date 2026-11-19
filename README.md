@@ -236,9 +236,10 @@ git tag v0.5.1
 git push origin v0.5.1
 ```
 
-El workflow `release.yml` deriva la versión de la etiqueta (`0.5.1` → `versionCode=501`, con la
-fórmula *mayor×10000 + menor×100 + parche*), compila y firma el APK y lo adjunta a la release. En el
-teléfono basta con tocar *Buscar actualizaciones*.
+El workflow `release.yml` deriva la versión de la etiqueta (`0.17.0` → `versionCode=1700`, con la
+fórmula *mayor×10000 + menor×100 + parche*), compila el **variant release** con `assembleRelease`
+(R8 + firma demo), verifica la firma con `apksigner` y adjunta `nahua-<versión>.apk` a la release.
+En el teléfono basta con tocar *Buscar actualizaciones*.
 
 > **Firma:** el repo incluye `signing/nahua-demo.keystore` a propósito para que las compilaciones de
 > CI y las locales compartan firma y puedan actualizarse entre sí. Es una llave de demo, pública:

@@ -44,15 +44,17 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           CODE="$(echo "$VERSION" | awk -F. '{printf "%d", $1*10000 + $2*100 + $3}')"
           echo "Building $VERSION ($CODE)"
-          ./gradlew --no-daemon assembleDebug \
+          # assembleRelease, no debug: el APK de debug lleva el sufijo .debug y el actualizador
+          # lo instalaría como una app aparte en vez de actualizar la del usuario.
+          ./gradlew --no-daemon assembleRelease \
             -PnahuaVersionName="$VERSION" \
             -PnahuaVersionCode="$CODE"
 
       - name: Rename APK
         run: |
           set -euo pipefail
-          cp app/build/outputs/apk/debug/app-debug.apk "nahua-${GITHUB_REF_NAME}.apk"
-          sha256sum "nahua-${GITHUB_REF_NAME}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "nahua-${GITHUB_REF_NAME#v}.apk"
+          sha256sum "nahua-${GITHUB_REF_NAME#v}.apk"
 
       # La app muestra estas notas en el panel de actualizaciones, así que salen del CHANGELOG
       # en vez de las notas autogeneradas de GitHub (que solo listan pull requests).
@@ -69,6 +71,13 @@ jobs:
             printf 'Nahua %s\n' "$VERSION" > release-notes.md
           fi
           cat release-notes.md
+
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          APK="nahua-$(echo "${GITHUB_REF_NAME}" | sed 's/^v//').apk"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+          # Un APK sin firmar no se puede instalar encima de la versión anterior.
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
