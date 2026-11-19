@@ -21,10 +21,15 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 - **Mapa estatal de Colima** con teselas propias (z9–16, Natural Earth + OSM + cartografía
   geoestadística del INEGI), manzanas y ejes viales de las localidades, estilo de papel cálido,
   **GPS en vivo** con coordenadas, velocidad y rumbo, ruta directa y búsqueda estatal.
-- **Bazar/Trueque comunitario**: cualquiera publica lo que ya no usa, la app lo **valora** (precio
-  nuevo, estado, uso y accesorios) y el dueño decide si lo vende o lo abre a **trueque**. El botón
-  **Truquear** avisa al dueño en su bandeja de Avisos; él ve el perfil del interesado con los objetos
-  que ofrece y cierran el trato, con compensación en efectivo cuando los valores no emparejan.
+- **Bazar/Trueque comunitario**: cada quien publica lo que ya no usa y la app lo **valora** (precio
+  nuevo, estado, uso y accesorios). Marcar **«Me interesa»** es privado: el chat y el contacto
+  (nombre + teléfono) sólo se abren cuando el interés es **mutuo** —los dos marcaron algo del otro—,
+  así nadie truequea por compromiso. La valoración queda a la vista dentro del chat para compensar
+  en efectivo cuando los valores no emparejan.
+- **Mercado oficial**: landing de las tiendas del campus con un **banner por tienda** (últimos
+  productos y oferta vigente) que abre la tienda, ordenada con sus productos **fijados** primero y
+  los recién agregados después. El catálogo se sincroniza **por deltas** y todas las versiones
+  quedan consultables.
 - **Nahuanotoka (mesas de estudio)**: crea una mesa por materia, agrega varios PDFs, pide resumen,
   ideas, correlación o guion de exposición, revisa los tokens gastados y exporta el análisis a PDF.
 - **Importación en segundo plano** con WorkManager: cierra la app y la indexación sigue.
@@ -44,7 +49,8 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 | App | Tipo | Qué hace | Integración |
 | --- | --- | --- | --- |
 | **Mapas** | mini-app | mapa estatal z9–16 con manzanas, GPS, rutas y búsqueda | Leaflet + GPS + INEGI |
-| **Bazar/Trueque** | mini-app | publicar, valorar, vender y truequear entre vecinos | `Nahua.pay` · `Nahua.valuate` · `Nahua.announce` |
+| **Mercado** | mini-app | landing de tiendas oficiales: banners, últimos productos y catálogo versionado | `Nahua.pay` · `localStorage` |
+| **Bazar/Trueque** | mini-app | publicar, valorar, vender y truequear sólo con match | `Nahua.pay` · `Nahua.valuate` · `Nahua.announce` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
 | **Yōlcatl** | mini-app | criatura viva: IA autónoma, escenas 3D vóxel, accesorios y mosaico del alma | `localStorage` |
@@ -112,12 +118,13 @@ exportaste.
 
 ## Bazar/Trueque comunitario
 
-El tianguis de productores pasó a ser un **bazar de la comunidad**: cualquier persona publica lo que
-ya no usa, la app le pone precio y el trueque es una decisión explícita de quien publica.
+Bazar de la comunidad estudiantil (600 alumnos de distintos municipios, con mucho producto local y
+artesanal): publicas lo que ya no usas, la app lo valora y el trueque sólo ocurre cuando el interés
+es de ida y vuelta.
 
 <p align="center">
   <img src="docs/screens/bazar.png" width="330" alt="Bazar/Trueque: objetos de la comunidad con valor estimado" />
-  <img src="docs/screens/bazar-trueque.png" width="330" alt="Bazar/Trueque: ofrecer un objeto a cambio" />
+  <img src="docs/screens/bazar-trueque.png" width="330" alt="Bazar/Trueque: match con contacto, valoración y chat" />
 </p>
 
 1. **Publicar**: título, ícono, categoría, estado, meses de uso y precio de referencia (lo que costaba
@@ -128,19 +135,36 @@ ya no usa, la app le pone precio y el trueque es una decisión explícita de qui
    aceptar en un trueque.
 3. **Habilitar trueque**: el interruptor sólo se enciende cuando el objeto ya está valorado. Sin ese
    paso el objeto se publica como venta normal.
-4. **Truquear**: desde un objeto con trueque, el interesado elige qué de su bazar ofrece. La app
-   compara las dos valoraciones (*A tu favor*, *Parejo*, *Pide compensación*) y **avisa al dueño** con
-   un aviso nativo en **Avisos** y una propuesta en la pestaña **Trueques**.
-5. **Ver el perfil del interesado**: desde el trato se abre su perfil con los objetos que tiene
-   disponibles para truequear y el valor de cada uno.
-6. **Cerrar el trato**: aceptar, pedir la diferencia en efectivo, rechazar o cancelar. Al aceptar, los
-   dos objetos quedan apartados, la app propone punto de encuentro y el trueque se marca como
-   completado cuando se entrega.
+4. **Marcar «Me interesa»**: es **privado**. Nadie recibe aviso y el dueño sólo ve un conteo anónimo
+   («3 personas marcaron interés en tus objetos»). Así nadie truequea por compromiso o presión social.
+5. **Match**: cuando la otra persona también marca algo tuyo, el sistema abre el chat y avisa a los
+   dos con nombres y objetos — *“Lucía marcó interés en tu cafetera y tú en su calculadora”*. Recién
+   ahí se comparte el contacto: **nombre + teléfono**, nunca un `@usuario`.
+6. **Cerrar el trato**: el chat muestra la valoración de lo que das y lo que recibes (con el mínimo
+   recomendado y la compensación en efectivo sugerida). Al acordar, los objetos quedan apartados y se
+   elige punto de encuentro; se marca como completado al entregar.
 
 La aritmética vive en Kotlin (`core/model/Barter.kt`) y es la misma que expone el puente
 `Nahua.valuate`: la página nunca decide cuánto vale un objeto por su cuenta. El bundle
-(`assets/miniapps/bazar/`) guarda publicaciones y tratos en `localStorage`; el día que exista backend,
-esa capa se sustituye sin tocar la UI.
+(`assets/miniapps/bazar/`) guarda publicaciones, marcas de interés, matches y mensajes en
+`localStorage` (`nahua.bazar.v3`); el día que exista backend, esa capa se sustituye sin tocar la UI.
+
+## Mercado oficial
+
+Landing de las tiendas oficiales del campus, con entrada desde **Inicio** (`assets/miniapps/mercado/`).
+Arriba, un **banner por tienda** con sus últimos productos y la oferta vigente; abajo, lo recién
+llegado de todo el mercado.
+
+<p align="center">
+  <img src="docs/screens/mercado.png" width="330" alt="Mercado: banners de tiendas oficiales y productos recién llegados" />
+</p>
+
+- **Banner → tienda**: tocar el banner abre la tienda con todos sus productos, empezando por los que
+  la tienda **fijó** para impulsar la venta y siguiendo con los últimos agregados.
+- **Catálogo por deltas**: la foto completa se descarga una sola vez; después sólo viajan altas, bajas
+  y campos cambiados. Todas las versiones quedan en memoria y se consultan en **Catálogo → Versiones**,
+  incluidos los productos que ya se retiraron. Contrato y modelo en
+  [MERCADO_API.md](docs/MERCADO_API.md); la lógica se prueba con `node scripts/test-mercado-catalogo.js`.
 
 ## Emulador GBA
 

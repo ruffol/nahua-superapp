@@ -61,8 +61,67 @@ class ServiceCatalogTest {
     @Test
     fun remainingMiniAppsStayDeclared() {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
-        listOf("ride", "bills", "mapa", "yolcatl", "bazar", "gba").forEach { id ->
+        listOf("ride", "bills", "mapa", "yolcatl", "bazar", "gba", "mercado").forEach { id ->
             assertTrue("Falta la mini-app " + id, manifest.contains("\"" + id + "\""))
+        }
+    }
+
+    /**
+     * Candado del Mercado: la portada es un landing con banners de tiendas oficiales, la tienda
+     * ordena primero lo que ella fijó y el catálogo viaja por deltas (nunca completo otra vez),
+     * conservando las versiones viejas en memoria.
+     */
+    @Test
+    fun mercadoShipsBannersPinnedProductsAndDeltaCatalogue() {
+        val mercado = ServiceCatalog.find("mercado")
+        assertNotNull("Falta el servicio mercado", mercado)
+        assertEquals(ServiceCategory.MARKET, mercado!!.category)
+        assertEquals(ServiceTarget.MiniApp("mercado"), mercado.target)
+
+        val root = File("src/main/assets/miniapps/mercado")
+        listOf("index.html", "mercado.js", "mercado.css", "catalogo.js").forEach { name ->
+            assertTrue("Falta " + name + " en el bundle del Mercado", File(root, name).isFile)
+        }
+
+        val js = File(root, "mercado.js").readText()
+        assertTrue("La portada perdió el banner de tiendas", js.contains("store-banner"))
+        assertTrue("El banner no es tocable", js.contains("data-act=\"store\""))
+        assertTrue("La tienda no ordena por fijados", js.contains("pinned.indexOf"))
+        assertTrue("La tienda no muestra los últimos agregados", js.contains("Últimos agregados"))
+        assertTrue("La portada no lista lo recién llegado", js.contains("Recién llegado"))
+
+        val catalogo = File(root, "catalogo.js").readText()
+        assertTrue("El catálogo no expone parches", catalogo.contains("applyDelta"))
+        assertTrue("El catálogo no sabe reconstruir versiones", catalogo.contains("function snapshot"))
+        assertTrue("El catálogo no guarda historial", catalogo.contains("function history"))
+        assertTrue("El catálogo no persiste en memoria", catalogo.contains("nahua.mercado.catalogo")
+            || catalogo.contains("settings.key"))
+
+        assertTrue("Falta el contrato de la API", File("../docs/MERCADO_API.md").isFile)
+    }
+
+    /**
+     * Candado del trueque con match: el chat y el contacto sólo existen con interés mutuo. Si
+     * alguien vuelve a la propuesta unilateral («Truquear» sin reciprocidad) este test falla.
+     */
+    @Test
+    fun bazarOnlyOpensTradeChatOnMutualInterest() {
+        val root = File("src/main/assets/miniapps/bazar")
+        val js = File(root, "bazar.js").readText()
+
+        assertTrue("Falta la marca de interés", js.contains("function toggleInterest"))
+        assertTrue("Falta la regla de reciprocidad", js.contains("function isMutual"))
+        assertTrue("Falta la creación de matches", js.contains("function reconcileMatches"))
+        assertTrue("El candado de la regla desapareció", js.contains("chat-only-on-mutual-interest"))
+        assertTrue("Volvió la propuesta unilateral", !js.contains("data-act=\"trade\""))
+        assertTrue("El interés recibido debe ser anónimo", js.contains("receivedInterestStats"))
+        assertTrue("Falta el teléfono como contacto", js.contains("function formatPhone"))
+        assertTrue("El perfil volvió al @usuario", !js.contains("handle:"))
+        assertTrue("La versión de datos no subió", js.contains("nahua.bazar.v3"))
+
+        val barter = File("src/main/java/com/nahuanotoca/superapp/core/model/Barter.kt").readText()
+        listOf("TEXTILES", "CRAFTS", "FOOD", "PLANTS", "ART", "SCHOOL").forEach { category ->
+            assertTrue("Falta la categoría " + category + " para productos locales", barter.contains(category + "("))
         }
     }
 

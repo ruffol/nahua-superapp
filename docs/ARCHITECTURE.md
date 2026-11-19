@@ -140,8 +140,32 @@ pero su dominio vive en Kotlin puro para que el precio no dependa del cliente.
 - **Puente**: §valuate§ y §compareBarter§ devuelven JSON síncrono (el formulario recalcula al
   escribir) y §announceBarter§ entra a §InboxRepository§ como §NoticeKind.MARKET§, así que sube el
   contador del inicio sin que la mini-app toque la UI nativa.
-- **Persistencia**: publicaciones, propuestas y tratos viven en §localStorage§ del WebView
-  (§nahua.bazar.v2§). El día que exista backend se sustituye esa capa y el resto del bundle no cambia.
+- **Regla del match**: el bundle modela §interests§ (marca de una persona por un objeto) y §matches§
+  (chat + estado del trato). Un chat sólo existe si §wantedFromMe(other)§ y §wantedByMe(other)§ tienen
+  al menos un objeto: el interés recibido se resume en conteos anónimos y el aviso con nombres se
+  emite únicamente al crear el match. Retirar una marca unilateral no avisa a nadie.
+- **Contacto**: nombre + teléfono de 10 dígitos (§formatPhone§), visible sólo dentro de un match;
+  nunca un `@usuario`.
+- **Persistencia**: publicaciones, marcas de interés, matches y mensajes viven en §localStorage§ del
+  WebView (§nahua.bazar.v3§). El día que exista backend se sustituye esa capa y el resto del bundle no
+  cambia.
+
+## Mercado
+
+Landing de tiendas oficiales (§assets/miniapps/mercado/§). A diferencia del bazar —contenido de la
+comunidad—, aquí el catálogo lo publican las tiendas y se sincroniza con versiones.
+
+- **Portada**: un banner por tienda (arte CSS con sus últimos productos y su oferta) que abre la
+  tienda; debajo, los últimos productos de todo el mercado.
+- **Tienda**: primero los productos que la tienda fijó (§pinned§) para impulsar la venta, después los
+  últimos agregados (§createdAt§ descendente).
+- **Catálogo versionado** (§catalogo.js§): guarda la foto completa una sola vez y aplica parches con
+  altas, bajas y cambios; §snapshot(version)§ reconstruye cualquier versión anterior desde la foto
+  base y los parches, así que lo retirado sigue consultable. §sync()§ devuelve §completeCatalogue:
+  false§ cuando sólo bajó deltas. Contrato HTTP y modelo en [MERCADO_API.md](MERCADO_API.md) y prueba
+  con §node scripts/test-mercado-catalogo.js§.
+- El §source§ del catálogo está aislado de la UI: hoy sirve los parches del bundle (offline), mañana un
+  §fetch§ a los endpoints documentados.
 
 ## Decisiones y alternativas
 

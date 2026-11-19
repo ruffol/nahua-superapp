@@ -5,6 +5,35 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- **Mercado (mini-app nueva, `mercado`)**: landing del catálogo de las tiendas oficiales del
+  campus en el menú principal. Arriba, un banner por tienda (arte CSS con sus últimos productos y
+  la oferta vigente) que al tocarlo abre la tienda; abajo, lo recién llegado de todo el mercado.
+  La tienda ordena **primero sus productos fijados** —para impulsar la venta— y después los
+  últimos agregados.
+- **API de catálogo versionado (`catalogo.js`)**: la foto completa se descarga una sola vez y las
+  siguientes sincronizaciones piden sólo altas, bajas y campos cambiados. Todas las versiones
+  quedan en memoria y se consultan en `Catálogo → Versiones`, incluidos los productos retirados.
+  Contrato en `docs/MERCADO_API.md` y prueba en `scripts/test-mercado-catalogo.js`.
+- **Trueque con match**: para abrir un chat de trueque los dos tienen que marcar interés. Marcar
+  «Me interesa» es privado; el aviso con nombres y objetos se genera sólo cuando el interés es
+  mutuo. El interés recibido se muestra como conteo anónimo hasta el match, para que nadie
+  truequee por compromiso o presión social.
+- **Contacto por teléfono**: el perfil del bazar usa nombre + teléfono (10 dígitos, formato
+  `312 123 4567`) en lugar de `@usuario`; el teléfono se comparte sólo dentro de un match y se
+  puede editar desde el perfil.
+- **Categorías para productos locales**: textiles y bordados, artesanías, comida y conservas,
+  plantas y semillas, arte y pintura, y escolar, con su valoración en `BarterValuator`.
+
+### Cambiado
+
+- El Bazar/Trueque se reorienta a la comunidad estudiantil (600 alumnos de distintos municipios):
+  los datos semilla, las comunidades y los objetos son locales y de estudiantes. El historial de
+  chat de un match queda aunque el trato se cancele o se cierre.
+- El modelo guardado del bazar pasa a `nahua.bazar.v3` (`interests` + `matches`); los datos de la
+  v2 se descartan y se vuelven a sembrar.
+
 ## [0.17.0] — 2026-11-19
 
 ### Añadido

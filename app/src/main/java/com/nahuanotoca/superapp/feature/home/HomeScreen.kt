@@ -93,6 +93,16 @@ private data class HomeApp(
 
 private val homeApps = listOf(
     HomeApp(
+        serviceId = "mercado",
+        title = "Mercado",
+        subtitle = "Ofertas y tiendas del campus",
+        art = R.drawable.px_icon_store,
+        fill = Color(0xFF2F4E3A),
+        deep = Color(0xFF213B2B),
+        accent = Color(0xFFB6D98A),
+        button = Color(0xFF5C9B69),
+    ),
+    HomeApp(
         serviceId = "yolcatl",
         title = "Yōlcatl",
         subtitle = "Cuida a tu criatura del lago",

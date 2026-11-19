@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mercado oficial</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="mercado.css?v=1">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">🛍</span>
+      <div>
+        <div class="brand-name">Mercado</div>
+        <div class="brand-sub">Tiendas oficiales</div>
+      </div>
+    </div>
+    <button class="link-help" data-act="tab" data-id="catalogo">Catálogo v<span id="headVersion">1</span></button>
+  </header>
+
+  <main class="view" id="main"></main>
+
+  <nav class="tabbar">
+    <button data-act="tab" data-id="home" class="active"><span class="tab-ico">▤</span>Mercado</button>
+    <button data-act="tab" data-id="stores"><span class="tab-ico">🏪</span>Tiendas</button>
+    <button data-act="tab" data-id="catalogo"><span class="tab-ico">↻</span>Catálogo</button>
+  </nav>
+
+  <div id="flash"></div>
+</div>
+<script src="../nahua-sdk.js?v=3"></script>
+<script src="catalogo.js?v=1"></script>
+<script src="mercado.js?v=1"></script>
+</body>
+</html>

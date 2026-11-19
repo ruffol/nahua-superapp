@@ -1,15 +1,18 @@
 /*
  * Bazar/Trueque comunitario — lógica de la mini app
  * ---------------------------------------------------------------------------------------------
- * Cualquiera de la comunidad publica lo que ya no usa. Cada objeto se valora (precio de referencia,
- * estado, uso y accesorios) para saber cuánto vale de verdad; sólo si quien publica habilita la
- * opción, el objeto entra al trueque. Cuando alguien pulsa "Truquear" se avisa al dueño, que puede
- * ver el perfil del interesado con los objetos que ofrece y cerrar el trato — con compensación en
- * efectivo si la diferencia de valor lo pide.
+ * Regla del trueque (v3): el chat NO se abre con una propuesta unilateral. Cada quien marca
+ * «me interesa» en los objetos del otro, en privado. Sólo cuando el interés es mutuo —yo marqué
+ * algo suyo y la otra persona marcó algo mío— el sistema abre un match y avisa a los dos con
+ * nombres y objetos. Así nadie truequea por compromiso ni por presión social: si la otra persona
+ * nunca marcó nada tuyo, jamás se enteró de que te interesaba.
  *
- * La valoración la calcula el anfitrión (BarterValuator.kt) a través del puente Nahua.valuate;
- * valuateLocal() es el espejo para cuando la página corre fuera de la app (navegador de escritorio)
- * y debe mantenerse sincronizado con esas constantes.
+ * El interés recibido se muestra como conteo anónimo («2 personas marcaron interés en tus
+ * objetos»), sin nombres, hasta que hay match. El contacto es nombre + teléfono (se revela al
+ * hacer match), nunca un @usuario.
+ *
+ * La valoración sigue siendo la misma: la calcula el anfitrión (BarterValuator.kt) por el puente
+ * Nahua.valuate; valuateLocal() es el espejo para cuando la página corre fuera de la app.
  */
 (function () {
   'use strict';
@@ -30,6 +33,12 @@
     { id: 'CLOTHING', label: 'Ropa', emoji: '👕', resale: 0.40, yearlyLoss: 0.20, floor: 0.25, demand: 0.96 },
     { id: 'BOOKS', label: 'Libros', emoji: '📚', resale: 0.36, yearlyLoss: 0.08, floor: 0.28, demand: 0.98 },
     { id: 'TOYS', label: 'Juguetes', emoji: '🧸', resale: 0.45, yearlyLoss: 0.14, floor: 0.28, demand: 0.98 },
+    { id: 'TEXTILES', label: 'Textiles y bordados', emoji: '🧶', resale: 0.55, yearlyLoss: 0.04, floor: 0.40, demand: 1.06 },
+    { id: 'CRAFTS', label: 'Artesanías', emoji: '🏺', resale: 0.60, yearlyLoss: 0.03, floor: 0.42, demand: 1.08 },
+    { id: 'FOOD', label: 'Comida y conservas', emoji: '🫙', resale: 0.70, yearlyLoss: 0.08, floor: 0.30, demand: 1.05 },
+    { id: 'PLANTS', label: 'Plantas y semillas', emoji: '🌱', resale: 0.55, yearlyLoss: 0.10, floor: 0.30, demand: 1.02 },
+    { id: 'ART', label: 'Arte y pintura', emoji: '🎨', resale: 0.60, yearlyLoss: 0.02, floor: 0.40, demand: 1.05 },
+    { id: 'SCHOOL', label: 'Escolar', emoji: '📓', resale: 0.35, yearlyLoss: 0.10, floor: 0.25, demand: 1.00 },
     { id: 'MUSIC', label: 'Instrumentos', emoji: '🎸', resale: 0.58, yearlyLoss: 0.09, floor: 0.34, demand: 1.02 },
     { id: 'COLLECTIBLES', label: 'Coleccionables', emoji: '🪙', resale: 0.78, yearlyLoss: 0.03, floor: 0.45, demand: 1.10 },
     { id: 'OTHER', label: 'Otro', emoji: '📦', resale: 0.50, yearlyLoss: 0.16, floor: 0.30, demand: 1.00 }
@@ -52,13 +61,15 @@
   var MIN_TOP_UP_CENTS = 2000;
   var TOP_UP_STEP_CENTS = 5000;
 
-  var STORE_KEY = 'nahua.bazar.v2';
-  var EMOJIS = ['📦', '🚲', '📱', '💻', '🔧', '🪑', '🎸', '🧸', '📚', '👕', '☕', '🎧', '🧺', '🪙', '🎒', '🔊', '🍳', '🚴'];
+  var STORE_KEY = 'nahua.bazar.v3';
+  var LEGACY_KEYS = ['nahua.bazar.v2', 'nahua.bazar.v1'];
+  var EMOJIS = ['📦', '🧶', '🏺', '🫙', '🌱', '🎨', '📓', '🚲', '📱', '💻', '🔧', '🪑', '🎸', '🎧', '☕', '🧺', '🪙', '🎒', '🍳', '🚴'];
   var MEETING_POINTS = [
-    'Jardín Libertad, Colima centro',
-    'Mercado Constitución, Colima',
-    'Parque de la Piedra Lisa',
-    'Jardín principal de Villa de Álvarez'
+    'Explanada de la facultad',
+    'Cafetería del campus',
+    'Biblioteca, planta baja',
+    'Jardín principal del centro',
+    'Portal del mercado'
   ];
   var AVATAR_COLORS = ['#7E2C44', '#4F7A52', '#3B5BA5', '#B4452F', '#7A4E12', '#4E7C86'];
 
@@ -146,6 +157,20 @@
     if (rest === 1) text += ' y 1 mes';
     else if (rest > 1) text += ' y ' + rest + ' meses';
     return text;
+  }
+
+  /** México: 10 dígitos. Se aceptan +52 / 52 al frente y se descartan espacios y guiones. */
+  function phoneDigits(raw) {
+    var digits = String(raw == null ? '' : raw).replace(/\D/g, '');
+    if (digits.length === 12 && digits.indexOf('52') === 0) digits = digits.slice(2);
+    if (digits.length === 13 && digits.indexOf('521') === 0) digits = digits.slice(3);
+    return digits;
+  }
+
+  function formatPhone(raw) {
+    var digits = phoneDigits(raw);
+    if (digits.length !== 10) return String(raw || '');
+    return digits.slice(0, 3) + ' ' + digits.slice(3, 6) + ' ' + digits.slice(6);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -320,7 +345,7 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Datos semilla
+  // Datos semilla: comunidad estudiantil (600 alumnos de distintos municipios)
   // ---------------------------------------------------------------------------------------------
 
   function seedListing(list, owner, title, emoji, category, condition, ageMonths, newPrice, askPrice, barter, desc, complete, receipt) {
@@ -346,87 +371,131 @@
 
   function seed() {
     var now = Date.now();
-    var hour = 1000 * 60 * 60;
+    var minute = 1000 * 60;
 
     var users = {
-      me: { id: 'me', name: 'Ana Nahua', handle: '@ana.nahua', colony: 'Colima Centro', rating: 4.9, trades: 9, since: '2023' },
-      chelo: { id: 'chelo', name: 'Doña Chelo', handle: '@chelo.cocina', colony: 'Colima Centro', rating: 4.8, trades: 26, since: '2021' },
-      beto: { id: 'beto', name: 'Beto Nieves', handle: '@beto.nieves', colony: 'Villa de Álvarez', rating: 4.6, trades: 14, since: '2022' },
-      mari: { id: 'mari', name: 'Mari Preciado', handle: '@mari.p', colony: 'Comala', rating: 5.0, trades: 31, since: '2020' },
-      chuy: { id: 'chuy', name: 'Don Chuy', handle: '@chuy.taller', colony: 'Tecomán', rating: 4.7, trades: 19, since: '2022' },
-      fer: { id: 'fer', name: 'Fer Alejandrez', handle: '@fer.music', colony: 'Colima Centro', rating: 4.5, trades: 6, since: '2024' },
-      tere: { id: 'tere', name: 'Tere Lomelí', handle: '@tere.lomeli', colony: 'Manzanillo', rating: 4.8, trades: 22, since: '2021' },
-      jorge: { id: 'jorge', name: 'Jorge Rincón', handle: '@jorge.madera', colony: 'Villa de Álvarez', rating: 4.4, trades: 8, since: '2023' }
+      me: { id: 'me', name: 'Ana Nahua', phone: '3121234567', town: 'Colima', program: 'Ing. en Sistemas', semester: '5º semestre', rating: 4.9, trades: 7, since: '2023' },
+      beto: { id: 'beto', name: 'Beto Nieves', phone: '3121458790', town: 'Villa de Álvarez', program: 'Ing. Civil', semester: '7º semestre', rating: 4.6, trades: 5, since: '2022' },
+      mari: { id: 'mari', name: 'Mari Preciado', phone: '3121789034', town: 'Comala', program: 'Nutrición', semester: '3º semestre', rating: 5.0, trades: 11, since: '2024' },
+      chuy: { id: 'chuy', name: 'Chuy Cárdenas', phone: '3121904567', town: 'Suchitlán', program: 'Diseño Industrial', semester: '9º semestre', rating: 4.8, trades: 8, since: '2021' },
+      tere: { id: 'tere', name: 'Tere Lomelí', phone: '3121567234', town: 'Manzanillo', program: 'Administración', semester: '5º semestre', rating: 4.5, trades: 3, since: '2023' },
+      fer: { id: 'fer', name: 'Fer Alejandrez', phone: '3121345678', town: 'Colima', program: 'Música', semester: '6º semestre', rating: 4.7, trades: 9, since: '2022' },
+      jorge: { id: 'jorge', name: 'Jorge Rincón', phone: '3121678901', town: 'Ixtlahuacán', program: 'Agronomía', semester: '8º semestre', rating: 4.4, trades: 4, since: '2023' },
+      lucia: { id: 'lucia', name: 'Lucía Candelario', phone: '3121122334', town: 'Cuauhtémoc', program: 'Enfermería', semester: '2º semestre', rating: 4.9, trades: 2, since: '2025' }
     };
 
     var listings = [
-      seedListing({ id: 'L1', hoursAgo: 2 }, 'beto', 'Bicicleta rodada 26', '🚲', 'BIKES', 'GOOD', 36, 6500, 2900, true,
-        'Bici de montaña con 21 velocidades. Le cambié los frenos hace un mes; detalles de pintura en el cuadro.', true, false),
-      seedListing({ id: 'L2', hoursAgo: 5 }, 'chelo', 'Licuadora Oster 3 velocidades', '🥤', 'APPLIANCES', 'LIKE_NEW', 18, 1800, 850, true,
-        'Casi sin uso, vaso de vidrio de 1.25 L. La cambio porque me regalaron otra.', true, true),
-      seedListing({ id: 'L3', hoursAgo: 8 }, 'chuy', 'Taladro Bosch 550 W', '🔧', 'TOOLS', 'LIKE_NEW', 10, 2600, 1500, true,
-        'Con estuche, brocas y manual. Lo usé en dos muebles nada más.', true, true),
-      seedListing({ id: 'L4', hoursAgo: 11 }, 'tere', 'Laptop Lenovo ThinkPad', '💻', 'COMPUTERS', 'GOOD', 48, 14000, 6500, false,
-        'i5, 8 GB de RAM, SSD de 256 GB. Batería al 70 %, cargador original incluido.', true, false),
-      seedListing({ id: 'L5', hoursAgo: 20 }, 'mari', 'Máquina de coser Singer', '🧵', 'TOOLS', 'GOOD', 120, 5000, 1900, true,
-        'Funciona perfecto, con pedal y accesorios. Era de mi mamá; la vendo porque no la uso.', true, false),
-      seedListing({ id: 'L6', hoursAgo: 26 }, 'fer', 'Guitarra acústica Yamaha', '🎸', 'MUSIC', 'GOOD', 60, 3200, 1400, true,
-        'Cuerdas nuevas, estuche de tela. Tiene marcas de uso en la caja, nada que afecte el sonido.', true, false),
-      seedListing({ id: 'L7', hoursAgo: 30 }, 'jorge', 'Mesa de comedor de parota', '🪑', 'FURNITURE', 'GOOD', 96, 8000, 3200, true,
-        'Mesa de 6 personas, madera maciza. La vendo porque me mudé a un depa más chico.', true, false),
-      seedListing({ id: 'L8', hoursAgo: 36 }, 'chelo', 'Juego de sartenes de barro', '🍳', 'OTHER', 'NEW', 0, 900, 550, false,
-        'Tres piezas nuevas, hechas en Suchitlán. Nunca se usaron.', true, false),
-      seedListing({ id: 'L9', hoursAgo: 40 }, 'tere', 'Colección de monedas antiguas', '🪙', 'COLLECTIBLES', 'GOOD', 240, 3000, 2400, true,
-        '28 monedas de plata y cobre, algunas de los años cincuenta. Con álbum de colección.', true, false),
-      seedListing({ id: 'L10', hoursAgo: 44 }, 'beto', 'Bocina Bluetooth JBL', '🔊', 'ELECTRONICS', 'GOOD', 24, 1200, 600, false,
-        'Suena muy bien, batería de 8 horas. Sin cargador original, usa USB-C normal.', true, false),
-      seedListing({ id: 'L11', hoursAgo: 50 }, 'mari', 'Bicicleta fija para ejercicio', '🚴', 'SPORTS', 'WORN', 72, 3500, 1200, false,
-        'Tiene marcas de uso y el monitor no enciende, pero la resistencia funciona bien.', false, false),
-      seedListing({ id: 'L12', hoursAgo: 54 }, 'chuy', 'Caja de herramientas 40 piezas', '🧰', 'TOOLS', 'WORN', 48, 1200, 500, true,
-        'Dados, desarmadores y pinzas. La caja tiene marcas de taller, todo funciona.', false, false),
-      // Mis publicaciones
-      seedListing({ id: 'L20', hoursAgo: 6 }, 'me', 'Mochila de senderismo 40 L', '🎒', 'SPORTS', 'LIKE_NEW', 8, 1900, 1100, true,
-        'La compré para un viaje al Volcán y la usé dos veces. Impermeable, con cubre mochila.', true, true),
-      seedListing({ id: 'L21', hoursAgo: 14 }, 'me', 'Cafetera de prensa francesa', '☕', 'APPLIANCES', 'GOOD', 30, 900, 450, true,
+      // Lo mío: 5 publicaciones, 3 abiertas a trueque.
+      seedListing({ id: 'M1', hoursAgo: 6 }, 'me', 'Mochila de senderismo 40 L', '🎒', 'SPORTS', 'LIKE_NEW', 8, 1900, 1100, true,
+        'La compré para una práctica de campo y la usé dos veces. Impermeable, con cubre mochila.', true, true),
+      seedListing({ id: 'M2', hoursAgo: 14 }, 'me', 'Cafetera de prensa francesa', '☕', 'APPLIANCES', 'GOOD', 30, 900, 450, true,
         'De vidrio grueso, 600 ml. Limpia y sin fisuras.', true, false),
-      seedListing({ id: 'L22', hoursAgo: 22 }, 'me', 'Bocina Bluetooth pequeña', '🔊', 'ELECTRONICS', 'GOOD', 20, 800, 400, true,
-        'Compacta, ideal para el patio. Incluye cable de carga.', true, false),
-      seedListing({ id: 'L23', hoursAgo: 52 }, 'me', 'Juego de llaves mecánicas', '🔧', 'TOOLS', 'GOOD', 30, 1500, 700, true,
-        'Doce piezas del 8 al 19 mm, en su estuche. Sin uso desde que me mudé.', true, false)
+      seedListing({ id: 'M3', hoursAgo: 22 }, 'me', 'Bocina Bluetooth pequeña', '🔊', 'ELECTRONICS', 'GOOD', 20, 800, 400, true,
+        'Compacta, ideal para el cuarto. Incluye cable de carga.', true, false),
+      seedListing({ id: 'M4', hoursAgo: 52 }, 'me', 'Juego de llaves mecánicas', '🔧', 'TOOLS', 'GOOD', 30, 1500, 700, false,
+        'Doce piezas del 8 al 19 mm, en su estuche. Sin uso desde que me mudé.', true, false),
+      seedListing({ id: 'M5', hoursAgo: 60 }, 'me', 'Apuntes y guías de Cálculo II', '📓', 'SCHOOL', 'GOOD', 12, 450, 180, false,
+        'Carpeta con ejercicios resueltos y exámenes de tres semestres. Sirve para la carrera.', true, false),
+
+      // Beto — Villa de Álvarez
+      seedListing({ id: 'B1', hoursAgo: 3 }, 'beto', 'Bicicleta rodada 26', '🚲', 'BIKES', 'GOOD', 36, 6500, 2900, true,
+        'Bici de montaña con 21 velocidades. Le cambié los frenos hace un mes; detalles de pintura en el cuadro.', true, false),
+      seedListing({ id: 'B2', hoursAgo: 30 }, 'beto', 'Patineta de trucos', '🛹', 'SPORTS', 'WORN', 24, 1600, 550, false,
+        'Ruedas nuevas, tabla raspada por el uso. Sirve para moverse al campus.', false, false),
+
+      // Mari — Comala
+      seedListing({ id: 'M6', hoursAgo: 8 }, 'mari', 'Blusa bordada de Suchitlán', '🧶', 'TEXTILES', 'LIKE_NEW', 4, 1200, 850, true,
+        'Bordada a mano por mi tía en Suchitlán. Talla M, la usé una vez para una presentación.', true, false),
+      seedListing({ id: 'M7', hoursAgo: 11 }, 'mari', 'Conserva de tamarindo (6 frascos)', '🫙', 'FOOD', 'NEW', 0, 750, 500, true,
+        'Hecha en casa en Comala este mes. Sin conservadores, lista para acompañar el pan.', true, false),
+
+      // Chuy — Suchitlán
+      seedListing({ id: 'C1', hoursAgo: 5 }, 'chuy', 'Juego de ollas de barro de Suchitlán', '🏺', 'CRAFTS', 'NEW', 0, 1400, 900, true,
+        'Cinco piezas hechas en el taller de la familia. Nuevas, listas para cocinar.', true, false),
+      seedListing({ id: 'C2', hoursAgo: 26 }, 'chuy', 'Rebozo de telar de cintura', '🧶', 'TEXTILES', 'GOOD', 18, 2200, 1400, false,
+        'Tejido en telar de cintura, tintes naturales. Tiene un hilo jalado en la orilla.', true, false),
+
+      // Tere — Manzanillo
+      seedListing({ id: 'T1', hoursAgo: 20 }, 'tere', 'Laptop Lenovo ThinkPad', '💻', 'COMPUTERS', 'GOOD', 48, 14000, 6500, false,
+        'i5, 8 GB de RAM, SSD de 256 GB. Batería al 70 %, cargador original incluido.', true, false),
+      seedListing({ id: 'T2', hoursAgo: 34 }, 'tere', 'Maleta de viaje 24"', '🧳', 'OTHER', 'GOOD', 24, 1800, 800, true,
+        'Con ruedas y candado. La cambié por una más chica para viajar a Manzanillo.', true, false),
+
+      // Fer — Colima
+      seedListing({ id: 'F1', hoursAgo: 18 }, 'fer', 'Guitarra acústica Yamaha', '🎸', 'MUSIC', 'GOOD', 60, 3200, 1400, true,
+        'Cuerdas nuevas, estuche de tela. Tiene marcas de uso en la caja, nada que afecte el sonido.', true, false),
+      seedListing({ id: 'F2', hoursAgo: 40 }, 'fer', 'Cuadro de acuarela del Volcán', '🎨', 'ART', 'NEW', 0, 900, 650, false,
+        'Pintado por mí, 30 × 40 cm con marco de madera. Firmado al reverso.', true, false),
+
+      // Jorge — Ixtlahuacán
+      seedListing({ id: 'J1', hoursAgo: 9 }, 'jorge', 'Semillas de maíz criollo (1 kg)', '🌱', 'PLANTS', 'NEW', 0, 600, 380, true,
+        'De la milpa de mi abuelo en Ixtlahuacán. Para siembra en maceta o huerto escolar.', true, false),
+      seedListing({ id: 'J2', hoursAgo: 44 }, 'jorge', 'Caja de herramientas 40 piezas', '🧰', 'TOOLS', 'WORN', 48, 1200, 500, true,
+        'Dados, desarmadores y pinzas. La caja tiene marcas de taller, todo funciona.', false, false),
+
+      // Lucía — Cuauhtémoc
+      seedListing({ id: 'L1', hoursAgo: 12 }, 'lucia', 'Calculadora científica CASIO', '🖩', 'SCHOOL', 'LIKE_NEW', 10, 850, 500, true,
+        'Con funda y manual. La compré para Estadística y ya uso la del celular.', true, true),
+      seedListing({ id: 'L2', hoursAgo: 28 }, 'lucia', 'Café de Comala en grano (1 kg)', '☕', 'FOOD', 'NEW', 0, 700, 520, true,
+        'Tostado medio, molido a pedido. Lo traje del rancho de mi familia.', true, false),
+      seedListing({ id: 'L3', hoursAgo: 46 }, 'lucia', 'Plantas de orégano en maceta', '🌱', 'PLANTS', 'NEW', 0, 350, 220, false,
+        'Tres macetas listas para la ventana de la casa. Con tierra preparada.', true, false)
     ];
 
-    var offers = [
+    // Marcas de interés: privadas. Sólo los pares mutuos abren chat.
+    var interest = function (id, listingId, fromUserId, minutesAgo) {
+      return { id: id, listingId: listingId, fromUserId: fromUserId, createdAt: now - minutesAgo * minute };
+    };
+    var interests = [
+      // Beto ↔ Ana: ya hay match
+      interest('i1', 'M1', 'beto', 900),
+      interest('i2', 'M2', 'beto', 880),
+      interest('i3', 'B1', 'me', 860),
+      // Mari ↔ Ana: ya hay match
+      interest('i4', 'M3', 'mari', 430),
+      interest('i5', 'M6', 'me', 420),
+      interest('i6', 'M7', 'me', 400),
+      // Fer ↔ Ana: trato ya cerrado
+      interest('i7', 'M3', 'fer', 3300),
+      interest('i8', 'F1', 'me', 3280),
+      // Interés de una sola vía: no hay chat, Ana sólo ve el conteo anónimo
+      interest('i9', 'M2', 'lucia', 210),
+      interest('i10', 'M1', 'chuy', 150),
+      interest('i11', 'M3', 'jorge', 70)
+    ];
+
+    var matches = [
       {
-        id: 'o1', listingId: 'L20', offeredListingId: 'L1',
-        fromUserId: 'beto', toUserId: 'me',
-        message: 'Hola Ana, me interesa tu mochila para una ruta al Volcán. Te ofrezco mi bici, está al día. ¿Te late?',
-        status: 'PENDIENTE', cashCents: 0, turnUserId: 'me', meeting: null,
-        createdAt: now - 2 * hour, history: []
+        id: 'x1', userA: 'me', userB: 'beto', status: 'CHAT', createdAt: now - 860 * minute,
+        meeting: null, cashCents: 0, lastReadByMe: now - 30 * minute,
+        messages: [
+          { id: 'g1', fromUserId: 'system', kind: 'system', at: now - 860 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
+          { id: 'g2', fromUserId: 'beto', kind: 'text', at: now - 820 * minute, text: 'Hola Ana. Vi que te interesa la bici y a mí tu mochila y la cafetera. ¿La bici te sirve para el campus o para ruta?' },
+          { id: 'g3', fromUserId: 'me', kind: 'text', at: now - 700 * minute, text: 'Para el campus, pero de repente me voy al Volcán. ¿Los frenos aguantan?' },
+          { id: 'g4', fromUserId: 'beto', kind: 'text', at: now - 26 * minute, text: 'Sí, los cambié hace un mes. Si quieres te la presto una tarde antes de cerrar el trato.' }
+        ]
       },
       {
-        id: 'o2', listingId: 'L22', offeredListingId: 'L12',
-        fromUserId: 'chuy', toUserId: 'me',
-        message: 'Buenas tardes. Ando buscando una bocina para el taller. Le ofrezco el taladro Bosch con todo y estuche.',
-        status: 'PENDIENTE', cashCents: 0, turnUserId: 'me', meeting: null,
-        createdAt: now - 7 * hour, history: []
+        id: 'x2', userA: 'me', userB: 'mari', status: 'CHAT', createdAt: now - 420 * minute,
+        meeting: null, cashCents: 0, lastReadByMe: 0,
+        messages: [
+          { id: 'g5', fromUserId: 'system', kind: 'system', at: now - 420 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
+          { id: 'g6', fromUserId: 'mari', kind: 'text', at: now - 380 * minute, text: 'Hola. Me interesa la bocina para los ensayos de Nutrición. La blusa es talla M y la conserva la hice esta semana.' }
+        ]
       },
       {
-        id: 'o3', listingId: 'L4', offeredListingId: 'L21',
-        fromUserId: 'me', toUserId: 'tere',
-        message: 'Tere, me interesa la ThinkPad. Te doy mi prensa francesa y puedo poner la diferencia.',
-        status: 'CONTRAPROPUESTA', cashCents: 350000, turnUserId: 'me', meeting: null,
-        createdAt: now - 26 * hour, history: []
-      },
-      {
-        id: 'o4', listingId: 'L6', offeredListingId: 'L23',
-        fromUserId: 'me', toUserId: 'fer',
-        message: 'Fer, ¿te interesa cambiar la guitarra por el juego de llaves? Está completo.',
-        status: 'ACEPTADO', cashCents: 0, turnUserId: null, meeting: null,
-        createdAt: now - 49 * hour, history: []
+        id: 'x3', userA: 'me', userB: 'fer', status: 'CERRADO', createdAt: now - 3280 * minute,
+        meeting: 'Explanada de la facultad', cashCents: 0, lastReadByMe: now - 3000 * minute,
+        messages: [
+          { id: 'g7', fromUserId: 'system', kind: 'system', at: now - 3280 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
+          { id: 'g8', fromUserId: 'fer', kind: 'text', at: now - 3200 * minute, text: 'Te cambio la guitarra por la bocina, si te late. Ya la probé, suena bien.' },
+          { id: 'g9', fromUserId: 'me', kind: 'text', at: now - 3100 * minute, text: 'Va. Nos vemos en la explanada el jueves.' },
+          { id: 'g10', fromUserId: 'system', kind: 'system', at: now - 3000 * minute, text: 'Trueque marcado como intercambiado en Explanada de la facultad.' }
+        ]
       }
     ];
 
-    return { version: 2, me: 'me', users: users, listings: listings, offers: offers };
+    return { version: 3, me: 'me', users: users, listings: listings, interests: interests, matches: matches };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -438,12 +507,16 @@
       var raw = window.localStorage.getItem(STORE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (parsed && parsed.version === 2 && parsed.users && parsed.listings && parsed.offers) {
+        if (parsed && parsed.version === 3 && parsed.users && parsed.listings &&
+            parsed.interests && parsed.matches) {
           return parsed;
         }
       }
     } catch (error) {
       // datos corruptos: se vuelve a sembrar el bazar
+    }
+    for (var i = 0; i < LEGACY_KEYS.length; i++) {
+      try { window.localStorage.removeItem(LEGACY_KEYS[i]); } catch (error) { /* sin storage */ }
     }
     return seed();
   }
@@ -462,13 +535,17 @@
     route: { name: 'feed' },
     filter: 'all',
     query: '',
-    tradePick: null,
-    tradeMessage: '',
+    tradesTab: 'matches',
+    giveId: null,
+    getId: null,
     cash: '',
+    chatDraft: '',
+    editingProfile: false,
+    confirmRetire: null,
     form: freshForm()
   };
 
-  // Pila de navegación: "Ver perfil" desde un trato regresa al trato, no al inicio.
+  // Pila de navegación: "Ver perfil" desde un match regresa al match, no al inicio.
   var history = [];
 
   function freshForm() {
@@ -476,7 +553,7 @@
       title: '',
       description: '',
       emoji: '📦',
-      category: 'TOOLS',
+      category: 'CRAFTS',
       condition: 'GOOD',
       ageMonths: 0,
       reference: '',
@@ -487,12 +564,16 @@
     };
   }
 
+  function fallbackUser(id) {
+    return { id: id, name: 'Compañero', phone: '', town: 'Colima', program: 'Alumnado', semester: '', rating: 5, trades: 0, since: '2025' };
+  }
+
   function me() {
-    return data.users[data.me] || { id: 'me', name: 'Ana Nahua', handle: '@ana.nahua', colony: 'Colima Centro', rating: 5, trades: 0 };
+    return data.users[data.me] || fallbackUser(data.me);
   }
 
   function user(id) {
-    return data.users[id] || { id: id, name: 'Vecino', handle: '@vecino', colony: 'Colima', rating: 5, trades: 0 };
+    return data.users[id] || fallbackUser(id);
   }
 
   function listing(id) {
@@ -500,9 +581,122 @@
     return null;
   }
 
-  function offer(id) {
-    for (var i = 0; i < data.offers.length; i++) if (data.offers[i].id === id) return data.offers[i];
+  function match(id) {
+    for (var i = 0; i < data.matches.length; i++) if (data.matches[i].id === id) return data.matches[i];
     return null;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Reglas del match: interés privado, chat sólo con reciprocidad
+  // ---------------------------------------------------------------------------------------------
+
+  function interestMark(listingId, userId) {
+    for (var i = 0; i < data.interests.length; i++) {
+      var mark = data.interests[i];
+      if (mark.listingId === listingId && mark.fromUserId === userId) return mark;
+    }
+    return null;
+  }
+
+  function haveInterest(listingId) {
+    return !!interestMark(listingId, data.me);
+  }
+
+  /** Objetos míos (abiertos a trueque) que esta persona marcó: lo que quiere de mí. */
+  function wantedFromMe(otherId) {
+    var items = [];
+    data.interests.forEach(function (mark) {
+      var item = listing(mark.listingId);
+      if (mark.fromUserId === otherId && item && item.ownerId === data.me && item.barter) {
+        items.push(item);
+      }
+    });
+    return uniq(items);
+  }
+
+  /** Objetos suyos que yo marqué: lo que quiero de él/ella. */
+  function wantedByMe(otherId) {
+    var items = [];
+    data.interests.forEach(function (mark) {
+      var item = listing(mark.listingId);
+      if (mark.fromUserId === data.me && item && item.ownerId === otherId && item.barter) {
+        items.push(item);
+      }
+    });
+    return uniq(items);
+  }
+
+  function isMutual(otherId) {
+    return wantedFromMe(otherId).length > 0 && wantedByMe(otherId).length > 0;
+  }
+
+  function matchWith(otherId) {
+    for (var i = 0; i < data.matches.length; i++) {
+      var item = data.matches[i];
+      var pair = [item.userA, item.userB];
+      if (pair.indexOf(data.me) >= 0 && pair.indexOf(otherId) >= 0) return item;
+    }
+    return null;
+  }
+
+  function otherOf(matchItem) {
+    return matchItem.userA === data.me ? matchItem.userB : matchItem.userA;
+  }
+
+  function uniq(list) {
+    var out = [];
+    list.forEach(function (item) {
+      if (!item) return;
+      for (var i = 0; i < out.length; i++) if (out[i].id === item.id) return;
+      out.push(item);
+    });
+    return out;
+  }
+
+  /** Crea los matches que el interés mutuo ya permite. Avisa a Avisos sólo en ese momento. */
+  function reconcileMatches() {
+    var created = [];
+    Object.keys(data.users).forEach(function (otherId) {
+      if (otherId === data.me) return;
+      if (!isMutual(otherId)) return;
+      if (matchWith(otherId)) return;
+
+      var mine = wantedFromMe(otherId);
+      var theirs = wantedByMe(otherId);
+      var other = user(otherId);
+      var item = {
+        id: 'x_' + Date.now().toString(36) + '_' + otherId,
+        userA: data.me,
+        userB: otherId,
+        status: 'CHAT',
+        createdAt: Date.now(),
+        meeting: null,
+        cashCents: 0,
+        lastReadByMe: 0,
+        messages: [{
+          id: 'g_' + Date.now().toString(36),
+          fromUserId: 'system',
+          kind: 'system',
+          at: Date.now(),
+          text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.'
+        }]
+      };
+      data.matches.unshift(item);
+      created.push({ match: item, mine: mine, theirs: theirs, other: other });
+    });
+
+    if (created.length) {
+      save();
+      created.forEach(function (entry) {
+        var namesA = entry.mine.map(function (i) { return i.title; }).join(', ');
+        var namesB = entry.theirs.map(function (i) { return i.title; }).join(', ');
+        announce(
+          'Match de trueque con ' + entry.other.name,
+          entry.other.name + ' marcó interés en ' + namesA + ' y tú en ' + namesB + '. Ya pueden hablar.'
+        );
+      });
+    }
+    return created;
   }
 
   function myBarterables() {
@@ -511,31 +705,61 @@
     });
   }
 
-  function waitingOnMe(offerItem) {
-    return offerItem.turnUserId === data.me &&
-      (offerItem.status === 'PENDIENTE' || offerItem.status === 'CONTRAPROPUESTA');
+  function lastMessageAt(matchItem) {
+    var last = 0;
+    matchItem.messages.forEach(function (message) { if (message.at > last) last = message.at; });
+    return last;
+  }
+
+  function hasTheirMessage(matchItem) {
+    return matchItem.messages.some(function (message) {
+      return message.kind === 'text' && message.fromUserId !== data.me;
+    });
   }
 
   function pendingCount() {
-    return data.offers.filter(function (item) {
-      return item.toUserId === data.me &&
-        (item.status === 'PENDIENTE' || item.status === 'CONTRAPROPUESTA') &&
-        item.turnUserId === data.me;
+    return data.matches.filter(function (item) {
+      if (item.status !== 'CHAT') return false;
+      if (!hasTheirMessage(item)) return false;
+      return (item.lastReadByMe || 0) < lastMessageAt(item);
     }).length;
   }
 
+  function myInterestMarks() {
+    return data.interests.filter(function (mark) {
+      var item = listing(mark.listingId);
+      return mark.fromUserId === data.me && item && item.ownerId !== data.me;
+    });
+  }
+
+  /** Lo que otros marcaron de mis objetos: sepan cuántos, nunca quiénes (hasta el match). */
+  function receivedInterestStats() {
+    var people = {};
+    var items = {};
+    data.interests.forEach(function (mark) {
+      var item = listing(mark.listingId);
+      if (!item || item.ownerId !== data.me) return;
+      people[mark.fromUserId] = true;
+      items[item.id] = true;
+    });
+    var ids = Object.keys(people);
+    var hidden = ids.filter(function (id) { return !matchWith(id); }).length;
+    return { people: ids.length, items: Object.keys(items).length, hidden: hidden };
+  }
+
   function statusLabel(status) {
-    if (status === 'PENDIENTE') return 'Pendiente';
-    if (status === 'CONTRAPROPUESTA') return 'Contraoferta';
-    if (status === 'ACEPTADO') return 'Trato cerrado';
-    if (status === 'RECHAZADO') return 'Rechazado';
-    if (status === 'CANCELADO') return 'Cancelado';
+    if (status === 'CHAT') return 'Chat abierto';
+    if (status === 'ACORDADO') return 'Trato acordado';
     if (status === 'CERRADO') return 'Intercambiado';
+    if (status === 'ARCHIVADO') return 'Sin trato';
     return status;
   }
 
   function statusClass(status) {
-    if (status === 'CONTRAPROPUESTA') return 'contrapropuesta';
+    if (status === 'CHAT') return 'pendiente';
+    if (status === 'ACORDADO') return 'aceptado';
+    if (status === 'CERRADO') return 'cerrado';
+    if (status === 'ARCHIVADO') return 'cancelado';
     return String(status || '').toLowerCase();
   }
 
@@ -559,7 +783,7 @@
     while (host.children.length > 2) host.removeChild(host.firstChild);
     window.setTimeout(function () {
       if (element.parentNode) element.parentNode.removeChild(element);
-    }, 2400);
+    }, 2600);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -583,13 +807,13 @@
   function filteredListings() {
     var query = ui.query.trim().toLowerCase();
     var items = data.listings.filter(function (item) {
-      if (item.status === 'VENDIDO' || item.status === 'TRUEQUEADO') return false;
+      if (item.status === 'VENDIDO' || item.status === 'TRUEQUEADO' || item.status === 'OCULTO') return false;
       if (ui.filter === 'barter' && !(item.barter && item.status === 'DISPONIBLE')) return false;
       if (ui.filter === 'venta' && item.barter) return false;
       if (ui.filter === 'mine' && item.ownerId !== data.me) return false;
       if (!query) return true;
       var owner = user(item.ownerId);
-      var haystack = [item.title, item.description, categoryById(item.category).label, owner.name, owner.colony]
+      var haystack = [item.title, item.description, categoryById(item.category).label, owner.name, owner.town]
         .join(' ').toLowerCase();
       return haystack.indexOf(query) >= 0;
     });
@@ -616,11 +840,18 @@
     }).join('') + '</div>';
   }
 
+  function interestButton(item) {
+    var marked = haveInterest(item.id);
+    return '<button class="btn ' + (marked ? 'green' : 'rose') + ' sm" data-act="interest" data-id="' + item.id + '">' +
+      (marked ? '✓ Te interesa' : '♡ Me interesa') + '</button>';
+  }
+
   function card(item) {
     var value = appraise(item);
     var owner = user(item.ownerId);
     var mine = item.ownerId === data.me;
-    var canTrade = item.barter && !mine && item.status === 'DISPONIBLE';
+    var canInterest = item.barter && !mine && item.status === 'DISPONIBLE';
+    var matched = canInterest && isMutual(owner.id);
     var statusBadge = '';
     if (item.status === 'RESERVADO') statusBadge = '<span class="badge badge-done">Apartado</span>';
     if (item.status === 'TRUEQUEADO') statusBadge = '<span class="badge badge-done">Truequeado</span>';
@@ -631,7 +862,7 @@
       '<div class="item-body">' +
         '<h3>' + esc(item.title) + '</h3>' +
         '<div class="item-meta">' + esc(conditionById(item.condition).short) + ' · ' + esc(owner.name) +
-          ' · ' + esc(owner.colony) + '</div>' +
+          ' · ' + esc(owner.town) + '</div>' +
         '<div class="item-values">' +
           '<div class="ask">' + money(item.askingCents) + '<small>pide</small></div>' +
           '<div class="est">' + money(value.estimatedCents) + '<small>valor estimado</small></div>' +
@@ -640,7 +871,8 @@
           (mine ? '<span class="badge badge-mine">Tu publicación</span>' : '') +
           (item.barter ? '<span class="badge badge-barter">Acepta trueque</span>' : '<span class="badge badge-sale">Sólo venta</span>') +
           statusBadge +
-          (canTrade ? '<button class="btn rose sm" data-act="trade" data-id="' + item.id + '">Truquear</button>' : '') +
+          (matched ? '<span class="badge badge-match">Match</span>' : '') +
+          (canInterest ? interestButton(item) : '') +
         '</div>' +
       '</div>' +
     '</article>';
@@ -650,7 +882,7 @@
     var items = filteredListings();
     if (!items.length) {
       return '<div class="empty"><div class="ico">🧺</div><h3>Nada por aquí todavía</h3>' +
-        '<p>Cambia el filtro o publica el primer objeto de tu colonia.</p>' +
+        '<p>Cambia el filtro o publica el primer objeto de tu comunidad.</p>' +
         '<button class="btn primary" data-act="tab" data-id="publish">Publicar un objeto</button></div>';
     }
     return items.map(card).join('');
@@ -660,21 +892,22 @@
     var barterCount = data.listings.filter(function (item) {
       return item.barter && item.status === 'DISPONIBLE';
     }).length;
-    var closed = data.offers.filter(function (item) {
-      return item.status === 'ACEPTADO' || item.status === 'CERRADO';
+    var matches = data.matches.filter(function (item) {
+      return item.status === 'CHAT' || item.status === 'ACORDADO';
     }).length;
 
     return '<section class="hero">' +
-      '<p class="kicker">Comunidad · Colima</p>' +
-      '<h1>Compra, vende y <em>truequea</em> con tus vecinos</h1>' +
-      '<p class="lede">Publica lo que ya no usas. Lo valoramos para que sepas cuánto vale y tú decides si lo vendes o lo cambias.</p>' +
+      '<p class="kicker">Comunidad estudiantil · Colima</p>' +
+      '<h1>Compra, vende y <em>truequea</em> con quienes sí quieren</h1>' +
+      '<p class="lede">Publica lo que ya no usas y marca lo que sí te interesa. El chat se abre ' +
+        'sólo cuando el interés es de ida y vuelta: sin compromisos ni presión.</p>' +
       '<div class="hero-stats">' +
         stat(data.listings.filter(function (item) { return item.status === 'DISPONIBLE'; }).length, 'objetos') +
         stat(barterCount, 'en trueque') +
-        stat(closed, closed === 1 ? 'trato' : 'tratos') +
+        stat(matches, matches === 1 ? 'match' : 'matches') +
       '</div>' +
     '</section>' +
-    '<div class="search"><span>⌕</span><input id="q" type="search" placeholder="Busca objeto, colonia o persona" value="' + esc(ui.query) + '"></div>' +
+    '<div class="search"><span>⌕</span><input id="q" type="search" placeholder="Busca objeto, comunidad o persona" value="' + esc(ui.query) + '"></div>' +
     filterChips() +
     '<div class="section-head"><h2 id="listTitle">' + esc(listTitle()) + '</h2><span id="listCount"></span></div>' +
     '<div class="cards" id="cards">' + cardsHtml() + '</div>' +
@@ -701,6 +934,20 @@
     '</div>';
   }
 
+  function contactRow(userId) {
+    var profile = user(userId);
+    var phone = formatPhone(profile.phone);
+    return '<div class="contact">' +
+      '<div class="contact-ico">☎</div>' +
+      '<div class="contact-body">' +
+        '<span class="contact-lbl">Contacto</span>' +
+        '<b class="tabular">' + esc(phone || 'sin teléfono') + '</b>' +
+        '<small>' + esc(profile.name) + '</small>' +
+      '</div>' +
+      (phone ? '<button class="btn sm" data-act="copy-phone" data-id="' + esc(profile.id) + '">Copiar</button>' : '') +
+    '</div>';
+  }
+
   function ownerRow(userId) {
     var profile = user(userId);
     var mine = userId === data.me;
@@ -708,7 +955,7 @@
       avatar(userId) +
       '<div>' +
         '<div class="owner-name">' + esc(profile.name) + (mine ? ' (tú)' : '') + '</div>' +
-        '<div class="owner-sub">' + esc(profile.handle) + ' · ' + esc(profile.colony) + ' · ★ ' +
+        '<div class="owner-sub">' + esc(profile.town) + ' · ' + esc(profile.program) + ' · ★ ' +
           profile.rating.toFixed(1) + ' · ' + profile.trades + ' tratos</div>' +
       '</div>' +
       '<span class="go">›</span>' +
@@ -722,17 +969,34 @@
     var owner = user(item.ownerId);
     var mine = item.ownerId === data.me;
     var available = item.status === 'DISPONIBLE';
+    var mutual = !mine && available && isMutual(owner.id);
     var actions = '';
 
     if (!mine && available) {
       if (item.barter) {
-        actions += '<button class="btn rose block" data-act="trade" data-id="' + item.id + '">⇄ Truquear</button>';
+        var marked = haveInterest(item.id);
+        actions += interestButton(item);
+        actions += '<div class="hint-line" style="margin-top:8px">' +
+          (marked
+            ? 'Tu interés es privado. Si ' + esc(owner.name.split(' ')[0]) + ' marca algo tuyo, se abre el chat.'
+            : 'Marcar no avisa a nadie: tu interés es privado y sólo se abre el chat si ' +
+              esc(owner.name.split(' ')[0]) + ' también marca algo tuyo.') + '</div>';
       }
       actions += '<button class="btn primary block" data-act="buy" data-id="' + item.id + '">Comprar con cartera · ' +
         money(item.askingCents) + '</button>';
     } else if (mine) {
       actions += '<button class="badge badge-mine" style="align-self:flex-start">Tu publicación</button>';
-      actions += '<button class="btn primary block" data-act="tab" data-id="trades">Ver trueques recibidos</button>';
+      if (item.barter) {
+        var wants = 0;
+        data.interests.forEach(function (mark) {
+          if (mark.listingId === item.id && mark.fromUserId !== data.me) wants += 1;
+        });
+        actions += '<div class="note">' + (wants === 0
+          ? 'Nadie ha marcado interés todavía. El interés es privado: no verás nombres hasta que sea mutuo.'
+          : wants + (wants === 1 ? ' persona marcó' : ' personas marcaron') +
+            ' interés en este objeto. Los nombres se revelan sólo cuando también te interesa algo suyo.') + '</div>';
+      }
+      actions += '<button class="btn primary block" data-act="tab" data-id="trades">Ver mis trueques</button>';
       if (item.status === 'DISPONIBLE' && ui.confirmRetire === item.id) {
         actions += '<div class="note">¿Retirar «' + esc(item.title) + '» del bazar? Dejará de aparecer en el feed.</div>';
         actions += '<div class="btn-row">' +
@@ -745,6 +1009,13 @@
     } else {
       actions += '<button class="btn block" data-act="tab" data-id="feed">Ver otros objetos</button>';
     }
+
+    var mutualBlock = mutual ? '<div class="panel" style="margin-top:14px;background:var(--green-soft);border-color:#B9D2AA">' +
+      '<div class="panel-head"><h3>Match de trueque</h3></div>' +
+      '<p class="match-lede">Tú y ' + esc(owner.name.split(' ')[0]) + ' se interesan mutuamente. ' +
+        'Pueden hablar y cerrar el trato con la valoración a la vista.</p>' +
+      '<button class="btn green block" data-act="open-match" data-id="' + owner.id + '">Abrir chat de trueque</button>' +
+      '</div>' : '';
 
     return backButton('Bazar', 'feed') +
       '<div class="hero-art">' + item.emoji +
@@ -759,75 +1030,117 @@
       '</div>' +
       (item.description ? '<p class="desc">' + esc(item.description) + '</p>' : '') +
       (item.barter
-        ? '<div class="hint-line" style="margin-top:10px">' + esc(owner.name) + ' abre este objeto a trueque: puedes ofrecerle algo de tu bazar.</div>'
+        ? '<div class="hint-line" style="margin-top:10px">Trueque con match: ' + esc(owner.name) +
+          ' no ve tu interés hasta que ambos marquen algo del otro.</div>'
         : '<div class="note">Este objeto no acepta trueque, pero puedes comprarlo con tu cartera Nahua.</div>') +
+      mutualBlock +
       '<div class="actions-block">' + actions + '</div>' +
       '<div style="margin-top:14px">' + valuationPanel(value) + '</div>' +
       '<div style="margin-top:12px">' + ownerRow(item.ownerId) + '</div>';
   }
 
   function tradesView() {
-    var received = data.offers.filter(function (item) { return item.toUserId === data.me; });
-    var sent = data.offers.filter(function (item) { return item.fromUserId === data.me; });
-    var tab = ui.tradesTab === 'sent' ? 'sent' : 'received';
-    var items = tab === 'sent' ? sent : received;
+    var matches = data.matches;
+    var marks = myInterestMarks();
+    var received = receivedInterestStats();
+    var tab = ui.tradesTab === 'marks' ? 'marks' : (ui.tradesTab === 'received' ? 'received' : 'matches');
 
-    var body = items.length
-      ? items.map(function (item) { return offerCard(item, tab === 'sent'); }).join('')
-      : '<div class="empty"><div class="ico">⇄</div><h3>' +
-          (tab === 'sent' ? 'No has propuesto trueques' : 'No tienes propuestas') + '</h3>' +
-          '<p>' + (tab === 'sent'
-            ? 'Encuentra un objeto que acepte trueque y pulsa Truquear.'
-            : 'Cuando alguien quiera truequear contigo, el aviso llega aquí y a tu bandeja de Avisos.') + '</p>' +
+    var body = '';
+    if (tab === 'matches') {
+      body = matches.length
+        ? matches.map(matchCard).join('')
+        : '<div class="empty"><div class="ico">⇄</div><h3>Aún no hay match</h3>' +
+          '<p>Marca lo que te interesa en el bazar. Cuando alguien marque algo tuyo, el chat se abre solo.</p>' +
           '<button class="btn primary" data-act="tab" data-id="feed">Ver el bazar</button></div>';
+    } else if (tab === 'marks') {
+      body = marks.length
+        ? marks.map(markCard).join('')
+        : '<div class="empty"><div class="ico">♡</div><h3>No has marcado nada</h3>' +
+          '<p>En cada objeto con trueque hay un botón «Me interesa». Es privado.</p>' +
+          '<button class="btn primary" data-act="tab" data-id="feed">Ver el bazar</button></div>';
+    } else {
+      body = '<div class="panel">' +
+        '<div class="panel-head"><h3>Interés en lo mío</h3></div>' +
+        '<div class="value-big tabular">' + received.people + '</div>' +
+        '<div class="value-range">' + (received.people === 1 ? 'persona marcó' : 'personas marcaron') +
+          ' ' + received.items + ' de tus objetos</div>' +
+        '<div class="hint-line" style="margin-top:10px">Los nombres se revelan sólo cuando tú también ' +
+          'marcaste algo suyo. Mientras tanto el interés es anónimo: nadie te debe un trueque.</div>' +
+        (received.hidden > 0 ? '<div class="note">' + received.hidden +
+          ' de esas personas todavía no tiene match contigo.</div>' : '') +
+      '</div>' +
+      '<div class="section-head"><h2>Tus objetos en trueque</h2><span>' + myBarterables().length + '</span></div>' +
+      '<div class="cards">' + (myBarterables().length ? myBarterables().map(function (item) {
+        var people = 0;
+        data.interests.forEach(function (mark) {
+          if (mark.listingId === item.id && mark.fromUserId !== data.me) people += 1;
+        });
+        return '<article class="item-card" data-act="open" data-id="' + item.id + '">' +
+          '<div class="thumb">' + item.emoji + '<span class="flag">Trueque</span></div>' +
+          '<div class="item-body"><h3>' + esc(item.title) + '</h3>' +
+            '<div class="item-meta">≈ ' + money(appraise(item).estimatedCents) + ' de valor · ' +
+              (people === 0 ? 'sin interés todavía' : people + (people === 1 ? ' interesado' : ' interesados')) +
+            '</div></div></article>';
+      }).join('') : '<div class="empty"><p>Publica algo con trueque para empezar.</p></div>') + '</div>';
+    }
 
     return '<p class="kicker">Tratos</p>' +
-      '<h1 style="font-size:20px;margin-top:4px">Trueques de la comunidad</h1>' +
-      '<p class="lede" style="margin-bottom:0">Cada propuesta compara el valor de los dos objetos antes de aceptar.</p>' +
+      '<h1 style="font-size:20px;margin-top:4px">Trueques con match</h1>' +
+      '<p class="lede" style="margin-bottom:0">El chat y el contacto se abren sólo cuando ambos se interesan.</p>' +
       '<div class="segmented">' +
-        '<button class="' + (tab === 'received' ? 'active' : '') + '" data-act="trades-tab" data-id="received">Recibidas (' + received.length + ')</button>' +
-        '<button class="' + (tab === 'sent' ? 'active' : '') + '" data-act="trades-tab" data-id="sent">Enviadas (' + sent.length + ')</button>' +
+        '<button class="' + (tab === 'matches' ? 'active' : '') + '" data-act="trades-tab" data-id="matches">Matches (' + matches.length + ')</button>' +
+        '<button class="' + (tab === 'marks' ? 'active' : '') + '" data-act="trades-tab" data-id="marks">Mis marcas (' + marks.length + ')</button>' +
+        '<button class="' + (tab === 'received' ? 'active' : '') + '" data-act="trades-tab" data-id="received">En lo mío (' + received.people + ')</button>' +
       '</div>' +
       '<div class="cards" style="margin-top:12px">' + body + '</div>';
   }
 
-  function offerCard(offerItem, sent) {
-    var want = listing(offerItem.listingId);
-    var give = listing(offerItem.offeredListingId);
-    if (!want || !give) return '';
-    var myItem = sent ? give : want;
-    var theirItem = sent ? want : give;
-    var balance = balanceOf(myItem, theirItem);
-    var other = user(sent ? offerItem.toUserId : offerItem.fromUserId);
-    var waiting = waitingOnMe(offerItem);
+  function matchCard(item) {
+    var other = user(otherOf(item));
+    var unread = (item.lastReadByMe || 0) < lastMessageAt(item);
+    var last = '';
+    for (var i = item.messages.length - 1; i >= 0; i--) {
+      if (item.messages[i].kind === 'text') { last = item.messages[i].text; break; }
+    }
+    var mineCount = wantedFromMe(other.id).length;
+    var theirsCount = wantedByMe(other.id).length;
 
-    var deltaClass = balance.verdict === 'favorable' ? 'up' : (balance.verdict === 'desfavorable' ? 'down' : 'even');
-    var deltaText = balance.verdict === 'favorable'
-      ? '+' + money(Math.abs(balance.deltaCents)) + ' a tu favor'
-      : (balance.verdict === 'desfavorable' ? money(Math.abs(balance.deltaCents)) + ' en contra' : 'valores parejos');
-
-    return '<article class="offer-card" data-act="deal" data-id="' + offerItem.id + '">' +
+    return '<article class="offer-card" data-act="match" data-id="' + item.id + '">' +
       '<div class="offer-top">' + avatar(other.id, '') +
-        '<div class="t">' + (sent
-          ? 'Tu propuesta a <b>' + esc(other.name) + '</b> por <b>' + esc(want.title) + '</b>'
-          : '<b>' + esc(other.name) + '</b> quiere tu <b>' + esc(want.title) + '</b>') +
-        '</div>' +
+        '<div class="t">Match con <b>' + esc(other.name) + '</b>' +
+          (unread ? '<span class="dot"></span>' : '') + '</div>' +
+      '</div>' +
+      '<div class="match-counts">' +
+        '<span>♡ ' + theirsCount + ' te interesan</span>' +
+        '<span>♡ ' + mineCount + ' le interesan de ti</span>' +
+      '</div>' +
+      (last ? '<div class="last-msg">“' + esc(last.length > 78 ? last.slice(0, 78) + '…' : last) + '”</div>' : '') +
+      '<div class="offer-foot">' +
+        '<span class="pill ' + statusClass(item.status) + '">' + esc(statusLabel(item.status)) + '</span>' +
+        '<span style="margin-left:auto;font-size:10px;color:var(--muted)">' + esc(ago(item.createdAt)) + '</span>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function markCard(mark) {
+    var item = listing(mark.listingId);
+    if (!item) return '';
+    var owner = user(item.ownerId);
+    var mutual = isMutual(owner.id);
+    return '<article class="offer-card" data-act="open" data-id="' + item.id + '">' +
+      '<div class="offer-top">' + avatar(owner.id, '') +
+        '<div class="t">Te interesa <b>' + esc(item.title) + '</b> de ' + esc(owner.name) + '</div>' +
       '</div>' +
       '<div class="swap-row">' +
-        '<div class="swap-item"><span class="lbl">' + (sent ? 'Ofreces' : 'Te ofrece') + '</span>' +
-          '<span class="e">' + give.emoji + '</span><b>' + esc(give.title) + '</b>' +
-          '<small>≈ ' + money(appraise(give).estimatedCents) + '</small></div>' +
-        '<div class="swap-arrow">⇄</div>' +
-        '<div class="swap-item"><span class="lbl">' + (sent ? 'Quieres' : 'Quiere') + '</span>' +
-          '<span class="e">' + want.emoji + '</span><b>' + esc(want.title) + '</b>' +
-          '<small>≈ ' + money(appraise(want).estimatedCents) + '</small></div>' +
+        '<div class="swap-item"><span class="lbl">Objeto</span><span class="e">' + item.emoji + '</span>' +
+          '<b>' + esc(categoryById(item.category).label) + '</b><small>≈ ' + money(appraise(item).estimatedCents) + '</small></div>' +
+        '<div class="swap-arrow">' + (mutual ? '⇄' : '…') + '</div>' +
+        '<div class="swap-item"><span class="lbl">Estado</span><span class="e">' + (mutual ? '✓' : '⏳') + '</span>' +
+          '<b>' + (mutual ? 'Match: ya hay chat' : 'Esperando reciprocidad') + '</b>' +
+          '<small>' + esc(owner.town) + '</small></div>' +
       '</div>' +
-      '<div class="offer-foot">' +
-        '<span class="pill ' + statusClass(offerItem.status) + '">' + esc(statusLabel(offerItem.status)) + '</span>' +
-        '<span class="delta ' + deltaClass + '">' + deltaText + '</span>' +
-        '<span style="margin-left:auto;font-size:10px;color:var(--muted)">' + esc(ago(offerItem.createdAt)) + '</span>' +
-      '</div>' +
-      (waiting ? '<div class="offer-foot" style="margin-top:6px"><span class="delta up">Te toca responder →</span></div>' : '') +
+      '<div class="offer-foot"><span class="pill ' + (mutual ? 'aceptado' : 'pendiente') + '">' +
+        (mutual ? 'Chat abierto' : 'Interés privado') + '</span></div>' +
     '</article>';
   }
 
@@ -839,103 +1152,122 @@
     '</div>';
   }
 
-  function dealView(id) {
-    var offerItem = offer(id);
-    if (!offerItem) return notFound('Ese trato ya no existe.');
-    var want = listing(offerItem.listingId);
-    var give = listing(offerItem.offeredListingId);
-    if (!want || !give) return notFound('Uno de los objetos del trato ya no está publicado.');
+  function selectedPair(matchItem) {
+    var otherId = otherOf(matchItem);
+    var mine = wantedFromMe(otherId);
+    var theirs = wantedByMe(otherId);
+    var give = null;
+    var get = null;
+    for (var i = 0; i < mine.length; i++) if (mine[i].id === ui.giveId) give = mine[i];
+    for (var j = 0; j < theirs.length; j++) if (theirs[j].id === ui.getId) get = theirs[j];
+    return { mine: mine, theirs: theirs, give: give || mine[0] || null, get: get || theirs[0] || null };
+  }
 
-    var receiver = offerItem.toUserId === data.me;
-    var mineItem = receiver ? want : give;
-    var theirsItem = receiver ? give : want;
-    var otherId = receiver ? offerItem.fromUserId : offerItem.toUserId;
-    var other = user(otherId);
-    var balance = balanceOf(mineItem, theirsItem);
-    var myTurn = waitingOnMe(offerItem);
-    var open = offerItem.status === 'PENDIENTE' || offerItem.status === 'CONTRAPROPUESTA';
+  function matchView(id) {
+    var item = match(id);
+    if (!item) return notFound('Ese match ya no existe.');
+    var other = user(otherOf(item));
+    var pair = selectedPair(item);
+    var open = item.status === 'CHAT';
+    var balance = pair.give && pair.get ? balanceOf(pair.give, pair.get) : null;
 
-    var head = backButton('Trueques', 'trades') +
-      '<div class="offer-foot"><span class="pill ' + statusClass(offerItem.status) + '">' +
-        esc(statusLabel(offerItem.status)) + '</span>' +
-        '<span style="font-size:10px;color:var(--muted)">' + esc(ago(offerItem.createdAt)) + '</span></div>' +
-      '<h1 class="detail-title">' + (receiver ? 'Te proponen un trueque' : 'Tu propuesta de trueque') + '</h1>' +
-      '<p class="detail-meta">' + esc(receiver
-        ? other.name + ' quiere tu ' + want.title
-        : 'Ofreciste ' + give.title + ' a ' + other.name + ' por ' + want.title) + '</p>' +
-      '<div class="deal-grid">' +
-        '<div class="deal-box"><span class="l">Das</span><span class="e">' + mineItem.emoji + '</span>' +
-          '<span class="n">' + esc(mineItem.title) + '</span><span class="v tabular">' + money(appraise(mineItem).estimatedCents) + '</span></div>' +
-        '<div class="deal-vs">⇄</div>' +
-        '<div class="deal-box"><span class="l">Recibes</span><span class="e">' + theirsItem.emoji + '</span>' +
-          '<span class="n">' + esc(theirsItem.title) + '</span><span class="v tabular">' + money(appraise(theirsItem).estimatedCents) + '</span></div>' +
-      '</div>' +
-      verdictPanel(balance) +
-      (offerItem.message ? '<div class="quote">“' + esc(offerItem.message) + '”</div>' : '') +
-      (offerItem.cashCents > 0
-        ? '<div class="panel" style="margin-top:10px;background:var(--gold-soft);border-color:#E6C58A">' +
-            '<div class="panel-head"><h3>Compensación en efectivo</h3></div>' +
-            '<div class="value-big tabular">' + money(offerItem.cashCents) + '</div>' +
-            '<div class="value-range">' + (receiver ? 'La pides tú' : 'La pide ' + esc(other.name)) +
-            ' para emparejar el valor de los objetos.</div>' +
+    var chat = item.messages.map(function (message) {
+      if (message.kind === 'system') {
+        return '<div class="chat-sys">' + esc(message.text) + '</div>';
+      }
+      var mine = message.fromUserId === data.me;
+      return '<div class="bubble ' + (mine ? 'me' : 'them') + '">' + esc(message.text) +
+        '<span class="at">' + esc(ago(message.at)) + '</span></div>';
+    }).join('');
+
+    var pairOptions = function (list, act, picked) {
+      return '<div class="option-grid">' + list.map(function (entry) {
+        return '<button class="option' + (picked && entry.id === picked.id ? ' active' : '') + '" data-act="' +
+          act + '" data-id="' + entry.id + '">' + entry.emoji + ' ' + esc(entry.title) + '</button>';
+      }).join('') + '</div>';
+    };
+
+    var body = backButton('Trueques', 'trades') +
+      '<div class="offer-foot"><span class="pill ' + statusClass(item.status) + '">' +
+        esc(statusLabel(item.status)) + '</span>' +
+        '<span style="font-size:10px;color:var(--muted)">' + esc(ago(item.createdAt)) + '</span></div>' +
+      '<h1 class="detail-title">Match con ' + esc(other.name) + '</h1>' +
+      '<p class="detail-meta">' + esc(other.town) + ' · ' + esc(other.program) + ' · ' +
+        esc(other.semester) + '</p>' +
+      contactRow(other.id) +
+      '<div class="section-head"><h2>Interés mutuo</h2><span>' + pair.mine.length + ' ⇄ ' + pair.theirs.length + '</span></div>' +
+      (open
+        ? '<div class="field"><label>Das</label>' + pairOptions(pair.mine, 'pick-give', pair.give) + '</div>' +
+          '<div class="field"><label>Recibes</label>' + pairOptions(pair.theirs, 'pick-get', pair.get) + '</div>'
+        : '<div class="deal-grid">' +
+            '<div class="deal-box"><span class="l">Das</span><span class="e">' + (pair.give ? pair.give.emoji : '📦') + '</span>' +
+              '<span class="n">' + esc(pair.give ? pair.give.title : '—') + '</span>' +
+              '<span class="v tabular">' + money(pair.give ? appraise(pair.give).estimatedCents : 0) + '</span></div>' +
+            '<div class="deal-vs">⇄</div>' +
+            '<div class="deal-box"><span class="l">Recibes</span><span class="e">' + (pair.get ? pair.get.emoji : '📦') + '</span>' +
+              '<span class="n">' + esc(pair.get ? pair.get.title : '—') + '</span>' +
+              '<span class="v tabular">' + money(pair.get ? appraise(pair.get).estimatedCents : 0) + '</span></div>' +
+          '</div>') +
+      (balance ? verdictPanel(balance) : '') +
+      (pair.give && pair.get
+        ? '<div class="value-pair">' +
+            '<div><span>Das · valor</span><b>' + money(appraise(pair.give).estimatedCents) + '</b>' +
+              '<small>mínimo trueque ' + money(appraise(pair.give).barterMinCents) + '</small></div>' +
+            '<div><span>Recibes · valor</span><b>' + money(appraise(pair.get).estimatedCents) + '</b>' +
+              '<small>mínimo trueque ' + money(appraise(pair.get).barterMinCents) + '</small></div>' +
           '</div>'
-        : '');
+        : '') +
+      (item.cashCents > 0 ? '<div class="panel" style="margin-top:10px;background:var(--gold-soft);border-color:#E6C58A">' +
+        '<div class="panel-head"><h3>Compensación en efectivo</h3></div>' +
+        '<div class="value-big tabular">' + money(item.cashCents) + '</div>' +
+        '<div class="value-range">Acordada en el chat para emparejar el valor.</div></div>' : '') +
+      '<div class="section-head"><h2>Chat del trueque</h2><span>' + item.messages.length + '</span></div>' +
+      '<div class="chat" id="chatLog">' + chat + '</div>' +
+      (open
+        ? '<div class="chat-bar">' +
+            '<input id="chatInput" type="text" maxlength="240" placeholder="Escribe sin compromiso…" value="' + esc(ui.chatDraft) + '">' +
+            '<button class="btn rose" data-act="send-msg" data-id="' + item.id + '">Enviar</button>' +
+          '</div>'
+        : '') +
+      '<div class="actions-block">';
 
-    var actions = '';
-    if (open && myTurn) {
-      actions += '<button class="btn block" data-act="profile" data-id="' + otherId + '">Ver perfil de ' +
-        esc(other.name.split(' ')[0]) + ' y lo que ofrece</button>';
-      actions += '<button class="btn green block" data-act="accept" data-id="' + offerItem.id + '">✓ Aceptar trato' +
-        (offerItem.cashCents > 0 ? ' con ' + money(offerItem.cashCents) : '') + '</button>';
-      actions += '<div class="panel" style="margin-top:0">' +
-        '<div class="panel-head"><h3>Pedir compensación</h3></div>' +
-        '<p style="font-size:11.5px;color:var(--ink-soft);margin-top:4px">' +
-          (balance.cashTopUpCents > 0
-            ? 'Si sientes que faltó valor, pide la diferencia en efectivo. El sistema sugiere ' + money(balance.cashTopUpCents) + '.'
-            : 'Los valores están parejos. Si aún así quieres efectivo, escribe cuánto.') +
-        '</p>' +
-        '<div class="field"><input id="cashInput" type="number" inputmode="numeric" placeholder="Ej. 250" value="' +
-          esc(ui.cash) + '"><div class="help">Pesos, sin centavos.</div></div>' +
-        '<button class="btn block" data-act="ask-cash" data-id="' + offerItem.id + '">Pedir esa diferencia</button>' +
-      '</div>';
-      actions += '<button class="btn danger block" data-act="reject" data-id="' + offerItem.id + '">Rechazar</button>';
-    } else if (open) {
-      actions += '<div class="note">Esperando respuesta de <b>' + esc(other.name) + '</b>. Te avisaremos en Avisos.</div>';
-      actions += '<button class="btn block" data-act="profile" data-id="' + otherId + '">Ver perfil de ' + esc(other.name.split(' ')[0]) + '</button>';
-      actions += '<button class="btn danger block" data-act="cancel" data-id="' + offerItem.id + '">Cancelar propuesta</button>';
-    } else if (offerItem.status === 'ACEPTADO') {
-      actions += '<div class="panel" style="background:var(--green-soft);border-color:#B9D2AA">' +
-        '<div class="panel-head"><h3>¡Trato cerrado!</h3></div>' +
-        '<ol class="steps">' +
-          '<li>Acuerden día y hora para el intercambio.</li>' +
-          '<li>Revisen los dos objetos antes de cerrar.</li>' +
-          (offerItem.cashCents > 0 ? '<li>Quien recibe paga ' + money(offerItem.cashCents) + ' en efectivo.</li>' : '') +
-          '<li>Marquen el trueque como completado al terminar.</li>' +
-        '</ol></div>';
-      actions += '<div class="field"><label>Punto de encuentro</label>' +
+    if (item.status === 'CHAT') {
+      body += '<div class="field"><label>Punto de encuentro</label>' +
         '<select id="meetingSelect">' + MEETING_POINTS.map(function (point) {
-          return '<option' + (offerItem.meeting === point ? ' selected' : '') + '>' + esc(point) + '</option>';
+          return '<option' + (item.meeting === point ? ' selected' : '') + '>' + esc(point) + '</option>';
         }).join('') + '</select>' +
-        '<div class="help">Lugar público y con gente: jardín, mercado o portal.</div></div>';
-      actions += '<button class="btn green block" data-act="complete" data-id="' + offerItem.id + '">Marcar como intercambiado</button>';
-      actions += '<button class="btn block" data-act="profile" data-id="' + otherId + '">Ver perfil de ' + esc(other.name.split(' ')[0]) + '</button>';
-    } else if (offerItem.status === 'RECHAZADO' || offerItem.status === 'CANCELADO') {
-      actions += '<div class="note">' + (offerItem.status === 'CANCELADO' ? 'Cancelaste esta propuesta.' : 'La propuesta no prosperó.') +
-        ' Puedes buscar otro objeto con valor parecido.</div>';
-      actions += '<button class="btn primary block" data-act="tab" data-id="feed">Ver el bazar</button>';
-    } else if (offerItem.status === 'CERRADO') {
-      actions += '<div class="panel" style="background:var(--green-soft);border-color:#B9D2AA;text-align:center">' +
+        '<div class="help">Lugar público y con gente del campus.</div></div>' +
+        '<div class="field"><label>Compensación (opcional)</label>' +
+          '<input id="cashInput" type="number" inputmode="numeric" placeholder="Ej. 250" value="' + esc(ui.cash) + '">' +
+          '<div class="help">Si la diferencia de valor lo pide' +
+            (balance && balance.cashTopUpCents > 0 ? ', el sistema sugiere ' + money(balance.cashTopUpCents) : '') +
+          '. Pesos, sin centavos.</div></div>' +
+        '<button class="btn green block" data-act="agree" data-id="' + item.id + '">✓ Acordar trueque</button>' +
+        '<button class="btn danger block" data-act="archive" data-id="' + item.id + '">Retirar mi interés</button>';
+    } else if (item.status === 'ACORDADO') {
+      body += '<div class="panel" style="background:var(--green-soft);border-color:#B9D2AA">' +
+        '<div class="panel-head"><h3>Trato acordado</h3></div>' +
+        '<ol class="steps">' +
+          '<li>Acuerden día y hora en el chat.</li>' +
+          '<li>Revisen los dos objetos antes de cerrar.</li>' +
+          '<li>Marquen el trueque como intercambiado al terminar.</li>' +
+        '</ol></div>' +
+        '<button class="btn green block" data-act="complete" data-id="' + item.id + '">Marcar como intercambiado</button>' +
+        '<button class="btn danger block" data-act="archive" data-id="' + item.id + '">Cancelar trato</button>';
+    } else if (item.status === 'CERRADO') {
+      body += '<div class="panel" style="background:var(--green-soft);border-color:#B9D2AA;text-align:center">' +
         '<div style="font-size:30px">🤝</div>' +
         '<h3 style="margin-top:6px">Trueque completado</h3>' +
-        '<p style="font-size:12px;color:var(--ink-soft);margin-top:4px">' +
-          esc(mineItem.title) + ' ⇄ ' + esc(theirsItem.title) + '</p>' +
-        (offerItem.meeting ? '<p style="font-size:11px;color:var(--muted);margin-top:6px">' + esc(offerItem.meeting) + '</p>' : '') +
-      '</div>';
-      actions += '<button class="btn primary block" data-act="tab" data-id="feed">Seguir en el bazar</button>';
+        (item.meeting ? '<p style="font-size:11px;color:var(--muted);margin-top:6px">' + esc(item.meeting) + '</p>' : '') +
+      '</div>' +
+      '<button class="btn primary block" data-act="tab" data-id="feed">Seguir en el bazar</button>';
+    } else {
+      body += '<div class="note">Este match quedó sin trato. Los objetos siguen publicados y el chat queda como historial.</div>' +
+        '<button class="btn primary block" data-act="tab" data-id="feed">Ver el bazar</button>';
     }
 
-    return head + '<div class="actions-block">' +
-      actions + '</div>';
+    body += '</div>';
+    return body;
   }
 
   function profileView(id) {
@@ -945,103 +1277,60 @@
     var barterables = items.filter(function (item) {
       return item.barter && item.status === 'DISPONIBLE';
     });
+    var editing = mine && ui.editingProfile;
+
+    var header = '<div class="profile-head">' + avatar(id, 'lg') +
+        '<div><h2>' + esc(profile.name) + (mine ? ' (tú)' : '') + '</h2>' +
+          '<div class="p-sub">' + esc(profile.program) + ' · ' + esc(profile.semester) + '</div>' +
+          '<div class="p-sub">' + esc(profile.town) + ' · desde ' + esc(profile.since || '2025') + '</div>' +
+        '</div>' +
+      '</div>';
+
+    var contact = editing
+      ? '<div class="panel">' +
+          '<div class="panel-head"><h3>Datos de contacto</h3></div>' +
+          '<div class="field"><label>Nombre</label><input id="pName" type="text" maxlength="40" value="' + esc(profile.name) + '"></div>' +
+          '<div class="field"><label>Teléfono (WhatsApp)</label><input id="pPhone" type="tel" inputmode="numeric" maxlength="14" placeholder="312 123 4567" value="' +
+            esc(formatPhone(profile.phone)) + '"><div class="help">10 dígitos. Se comparte sólo cuando hay match.</div></div>' +
+          '<div class="field"><label>Comunidad o municipio</label><input id="pTown" type="text" maxlength="40" value="' + esc(profile.town) + '"></div>' +
+          '<div class="btn-row" style="margin-top:10px">' +
+            '<button class="btn green" data-act="save-profile">Guardar</button>' +
+            '<button class="btn" data-act="edit-profile">Cancelar</button>' +
+          '</div>' +
+        '</div>'
+      : contactRow(id) +
+        (mine ? '<button class="btn block" style="margin-top:8px" data-act="edit-profile">Editar nombre y teléfono</button>' : '');
 
     var cards = items.length
       ? items.map(function (item) {
           var value = appraise(item);
-          var canTrade = !mine && item.barter && item.status === 'DISPONIBLE';
+          var canInterest = !mine && item.barter && item.status === 'DISPONIBLE';
           return '<article class="item-card" data-act="open" data-id="' + item.id + '">' +
             '<div class="thumb">' + item.emoji + (item.barter ? '<span class="flag">Trueque</span>' : '') + '</div>' +
             '<div class="item-body"><h3>' + esc(item.title) + '</h3>' +
               '<div class="item-meta">' + esc(conditionById(item.condition).short) + ' · ≈ ' + money(value.estimatedCents) + ' de valor</div>' +
               '<div class="item-actions">' +
                 (item.barter ? '<span class="badge badge-barter">Acepta trueque</span>' : '<span class="badge badge-sale">Sólo venta</span>') +
-                (canTrade ? '<button class="btn rose sm" data-act="trade" data-id="' + item.id + '">Truquear</button>' : '') +
+                (canInterest ? interestButton(item) : '') +
               '</div></div></article>';
         }).join('')
       : '<div class="empty"><div class="ico">📦</div><h3>' + (mine ? 'Aún no publicas nada' : 'Sin objetos publicados') + '</h3>' +
-        '<p>' + (mine ? 'Publica tu primer objeto y decide si lo vendes o lo abres a trueque.' : 'Este vecino no tiene objetos disponibles.') + '</p>' +
+        '<p>' + (mine ? 'Publica tu primer objeto y decide si lo vendes o lo abres a trueque.' : 'Esta persona no tiene objetos disponibles.') + '</p>' +
         (mine ? '<button class="btn primary" data-act="tab" data-id="publish">Publicar un objeto</button>' : '') + '</div>';
 
     return backButton(mine ? 'Bazar' : 'Volver', 'feed') +
-      '<div class="profile-head">' + avatar(id, 'lg') +
-        '<div><h2>' + esc(profile.name) + (mine ? ' (tú)' : '') + '</h2>' +
-          '<div class="p-sub">' + esc(profile.handle) + ' · ' + esc(profile.colony) + '</div>' +
-          '<div class="p-sub">★ ' + profile.rating.toFixed(1) + ' · ' + profile.trades + ' tratos · desde ' + esc(profile.since || '2023') + '</div>' +
-        '</div>' +
-      '</div>' +
+      header +
       '<div class="profile-stats">' +
         stat(items.length, 'objetos') +
         stat(barterables.length, 'en trueque') +
         stat(profile.trades, 'tratos') +
       '</div>' +
+      '<div style="margin-top:12px">' + contact + '</div>' +
       (mine
-        ? '<div class="note">Así te ven los demás en el bazar. Tus objetos con trueque habilitado aparecen aquí cuando alguien pulsa Truquear.</div>'
-        : '<div class="note">Estos son los objetos que <b>' + esc(profile.name.split(' ')[0]) +
-          '</b> tiene disponibles para truequear. Si te ofrecen un trato, revisa el valor de lo que das y lo que recibes.</div>') +
+        ? '<div class="note">Así te ven los demás. Tu teléfono no aparece en el bazar: sólo en un chat con match.</div>'
+        : '') +
       '<div class="section-head"><h2>' + (mine ? 'Mi bazar' : 'Su bazar') + '</h2><span>' + barterables.length + ' en trueque</span></div>' +
       '<div class="cards">' + cards + '</div>';
-  }
-
-  function tradePickView(targetId) {
-    var target = listing(targetId);
-    if (!target) return notFound('Ese objeto ya no está disponible.');
-    var targetValue = appraise(target);
-    var candidates = myBarterables().filter(function (item) { return item.id !== target.id; });
-    if (!candidates.length) {
-      return backButton('Objeto', 'item') +
-        '<h1 class="detail-title">Ofrecer trueque</h1>' +
-        '<p class="detail-meta">Quieres <b>' + esc(target.title) + '</b> de ' + esc(user(target.ownerId).name) + '.</p>' +
-        '<div class="empty"><div class="ico">📦</div><h3>No tienes objetos en trueque</h3>' +
-        '<p>Para proponer un trueque necesitas publicar algo con la opción de trueque habilitada.</p>' +
-        '<button class="btn primary" data-act="tab" data-id="publish">Publicar con trueque</button></div>';
-    }
-
-    var chosen = listing(ui.tradePick);
-    if (!chosen || chosen.ownerId !== data.me || !chosen.barter) {
-      chosen = candidates[0];
-      ui.tradePick = chosen.id;
-    }
-
-    var balance = balanceOf(chosen, target);
-    var options = candidates.map(function (item) {
-      var value = appraise(item);
-      return '<button class="owner" style="margin-top:6px;border-color:' +
-        (item.id === chosen.id ? 'var(--rose)' : 'var(--line)') + '" data-act="pick" data-id="' + item.id + '">' +
-        '<div class="thumb" style="width:42px;height:42px;font-size:20px">' + item.emoji + '</div>' +
-        '<div><div class="owner-name">' + esc(item.title) + '</div>' +
-          '<div class="owner-sub">≈ ' + money(value.estimatedCents) + ' de valor</div></div>' +
-        '<span class="go" style="color:' + (item.id === chosen.id ? 'var(--rose)' : 'var(--line)') + '">' +
-          (item.id === chosen.id ? '●' : '○') + '</span>' +
-      '</button>';
-    }).join('');
-
-    var duplicate = data.offers.some(function (item) {
-      return item.fromUserId === data.me && item.listingId === target.id &&
-        (item.status === 'PENDIENTE' || item.status === 'CONTRAPROPUESTA' || item.status === 'ACEPTADO');
-    });
-
-    return backButton('Objeto', 'item') +
-      '<p class="kicker">Trueque</p>' +
-      '<h1 class="detail-title" style="margin-top:4px">Ofrecer trueque a ' + esc(user(target.ownerId).name.split(' ')[0]) + '</h1>' +
-      '<p class="detail-meta">' + esc(user(target.ownerId).name.split(' ')[0]) + ' pide ' + money(target.askingCents) + ' por <b>' + esc(target.title) +
-        '</b> · valor estimado ' + money(targetValue.estimatedCents) + '.</p>' +
-      '<div class="section-head"><h2>Elige qué ofreces</h2><span>' + candidates.length + ' disponibles</span></div>' +
-      options +
-      '<div style="margin-top:12px">' + verdictPanel(balance) + '</div>' +
-      '<div class="field"><label>Mensaje para ' + esc(user(target.ownerId).name.split(' ')[0]) + '</label>' +
-        '<textarea id="tradeMsg" placeholder="Cuéntale por qué te interesa y en qué estado está tu objeto">' +
-          esc(ui.tradeMessage || ('Hola, me interesa tu ' + target.title + '. Te ofrezco mi ' + chosen.title +
-            ', en ' + conditionById(chosen.condition).short.toLowerCase() + '. ¿Te late?')) +
-        '</textarea>' +
-        '<div class="help">Al enviar, la app avisa a ' + esc(user(target.ownerId).name) + ' en su bandeja de Avisos.</div>' +
-      '</div>' +
-      (duplicate ? '<div class="tag-hint">Ya tienes una propuesta abierta por este objeto. Revísala en Trueques.</div>' : '') +
-      '<div class="actions-block">' +
-        '<button class="btn rose block" data-act="send-offer" data-id="' + target.id + '"' +
-          (duplicate ? ' disabled' : '') + '>⇄ Enviar propuesta de trueque</button>' +
-        '<button class="btn block" data-act="tab" data-id="trades">Ver mis trueques</button>' +
-      '</div>';
   }
 
   function publishView() {
@@ -1066,13 +1355,13 @@
 
     return '<p class="kicker">Publicar</p>' +
       '<h1 style="font-size:21px;margin-top:4px">Pon tu objeto en el bazar</h1>' +
-      '<p class="lede">Lo valoramos para que sepas cuánto vale. El trueque se activa cuando tú quieras.</p>' +
+      '<p class="lede">Lo valoramos para que sepas cuánto vale. El trueque con match se activa cuando tú quieras.</p>' +
 
       '<div class="field"><label>Título</label>' +
-        '<input id="fTitle" type="text" maxlength="60" placeholder="Ej. Bicicleta rodada 26" value="' + esc(form.title) + '"></div>' +
+        '<input id="fTitle" type="text" maxlength="60" placeholder="Ej. Blusa bordada de Suchitlán" value="' + esc(form.title) + '"></div>' +
 
       '<div class="field"><label>Descripción</label>' +
-        '<textarea id="fDesc" maxlength="240" placeholder="Estado real, qué incluye, por qué lo dejas ir">' + esc(form.description) + '</textarea></div>' +
+        '<textarea id="fDesc" maxlength="240" placeholder="Estado real, qué incluye, de qué comunidad viene">' + esc(form.description) + '</textarea></div>' +
 
       '<div class="field"><label>Ícono</label><div class="emoji-grid">' + emojis + '</div></div>' +
 
@@ -1084,7 +1373,7 @@
         '<div class="field"><label>Meses de uso</label>' +
           '<input id="fAge" type="number" inputmode="numeric" min="0" max="360" value="' + esc(form.ageMonths) + '"></div>' +
         '<div class="field"><label>Precio nuevo / referencia</label>' +
-          '<input id="fRef" type="number" inputmode="numeric" placeholder="Ej. 1800" value="' + esc(form.reference) + '"></div>' +
+          '<input id="fRef" type="number" inputmode="numeric" placeholder="Ej. 1200" value="' + esc(form.reference) + '"></div>' +
       '</div>' +
 
       '<div class="switch-row">' +
@@ -1107,16 +1396,16 @@
       '</div>' +
 
       '<div class="switch-row" style="margin-top:14px">' +
-        '<div class="txt"><strong>Acepto trueque</strong>' +
+        '<div class="txt"><strong>Acepto trueque con match</strong>' +
           '<span>' + (value.hasValue
-            ? 'Tu objeto entra al intercambio de la comunidad'
+            ? 'Se abre chat sólo cuando haya interés de las dos partes'
             : 'Primero valora el objeto para poder activar el trueque') + '</span></div>' +
         '<button class="switch' + (form.barter ? ' on' : '') + (value.hasValue ? '' : ' disabled') +
           '" data-act="toggle-barter" aria-label="Acepto trueque"' + (value.hasValue ? '' : ' disabled') + '></button>' +
       '</div>' +
       (value.hasValue && form.barter
         ? '<div class="hint-line">Aceptarás trueques desde <b class="tabular">' + money(value.barterMinCents) +
-          '</b> de valor. Si te ofrecen menos, el sistema te propondrá pedir la diferencia en efectivo.</div>'
+          '</b> de valor. Tú decides a quién decir que sí: marcar interés no compromete nada.</div>'
         : '') +
 
       '<div class="actions-block">' +
@@ -1127,21 +1416,24 @@
 
   function howView() {
     return backButton('Bazar', 'feed') +
-      '<p class="kicker">Cómo funciona</p>' +
-      '<h1 style="font-size:21px;margin-top:4px">Un tianguis donde todos pueden vender… y truequear</h1>' +
+      '<p class="kicker">Cómo funciona el trueque</p>' +
+      '<h1 style="font-size:21px;margin-top:4px">Interés privado, chat sólo con match</h1>' +
       '<div class="panel" style="margin-top:12px">' +
         '<ol class="steps">' +
-          '<li><b>Publica</b> lo que ya no usas y decide si aceptas trueque. Si no habilitas la opción, sólo se vende.</li>' +
-          '<li><b>Valoramos</b> el objeto con el precio nuevo, el estado, el uso y los accesorios. Verás un rango y el mínimo que conviene aceptar.</li>' +
-          '<li><b>Truquear</b> avisa al dueño que te interesa. Él ve tu perfil y los objetos que tienes disponibles para truequear.</li>' +
-          '<li><b>Cierra el trato</b>: si los valores no emparejan, se pide la diferencia en efectivo. Al aceptar, la app propone punto de encuentro y marca el intercambio.</li>' +
+          '<li><b>Publica</b> lo que ya no usas y marca si acepta trueque. Lo demás se vende normal.</li>' +
+          '<li><b>Marca «Me interesa»</b> en lo que sí quieres. Nadie recibe aviso: tu interés es privado.</li>' +
+          '<li><b>Match</b>: cuando la otra persona también marca algo tuyo, el sistema abre el chat y avisa a los dos con nombres y objetos.</li>' +
+          '<li><b>Valoración a la vista</b>: el chat muestra cuánto valen los dos objetos y si conviene compensar con efectivo.</li>' +
+          '<li><b>Cierra el trato</b> cuando tú quieras: acuerden punto de encuentro y marquen el intercambio.</li>' +
         '</ol>' +
       '</div>' +
-      '<div class="note" style="margin-top:12px">El valor es una estimación comunitaria, no una tasación formal. Sirve para comparar objetos y evitar que un trueque salga muy disparejo.</div>' +
+      '<div class="note" style="margin-top:12px">Si nadie marcó algo tuyo, no hay chat ni aviso: así nadie truequea por ' +
+        'compromiso o por presión social. El contacto (nombre y teléfono) también aparece sólo con match.</div>' +
       '<div class="panel" style="margin-top:12px">' +
         '<div class="panel-head"><h3>Ejemplo</h3></div>' +
-        '<p style="font-size:12px;color:var(--ink-soft);margin-top:6px">Das una licuadora valorada en $880 y te ofrecen una bici de $2,600. ' +
-          'La app marca el trueque <b>a tu favor</b>. Si fuera al revés, te pediría compensar la diferencia en efectivo.</p>' +
+        '<p style="font-size:12px;color:var(--ink-soft);margin-top:6px">Marcas una blusa bordada y una conserva. ' +
+          'La dueña, a su vez, marcó tu bocina. Eso es match: se abre el chat con «le interesan 2 de tus objetos y tú 2 de los suyos». ' +
+          'Si ella no hubiera marcado nada tuyo, nunca se enteraría de tu interés.</p>' +
       '</div>' +
       '<div class="actions-block">' +
         '<button class="btn primary block" data-act="tab" data-id="publish">Publicar mi primer objeto</button>' +
@@ -1170,9 +1462,8 @@
     if (route.name === 'feed') html = feedView();
     else if (route.name === 'item') html = itemView(route.id);
     else if (route.name === 'trades') html = tradesView();
-    else if (route.name === 'deal') html = dealView(route.id);
+    else if (route.name === 'match') html = matchView(route.id);
     else if (route.name === 'profile') html = profileView(route.id);
-    else if (route.name === 'trade') html = tradePickView(route.id);
     else if (route.name === 'publish') html = publishView();
     else if (route.name === 'how') html = howView();
     else html = feedView();
@@ -1189,14 +1480,14 @@
     updateTabs();
     if (route.name === 'feed') wireSearch();
     if (route.name === 'publish') wirePublish();
-    if (route.name === 'deal') wireDeal();
-    if (route.name === 'trade') wireTrade();
+    if (route.name === 'match') wireChat();
+    if (route.name === 'profile') wireProfile();
   }
 
   function updateTabs() {
     var tabOf = {
-      feed: 'feed', item: 'feed', how: 'feed', trade: 'feed',
-      trades: 'trades', deal: 'trades',
+      feed: 'feed', item: 'feed', how: 'feed',
+      trades: 'trades', match: 'trades',
       publish: 'publish',
       profile: 'me'
     };
@@ -1290,7 +1581,7 @@
       var subtitle = hint.parentNode.querySelector('.txt span');
       if (subtitle) {
         subtitle.textContent = value.hasValue
-          ? 'Tu objeto entra al intercambio de la comunidad'
+          ? 'Se abre chat sólo cuando haya interés de las dos partes'
           : 'Primero valora el objeto para poder activar el trueque';
       }
     }
@@ -1319,14 +1610,23 @@
     }
   }
 
-  function wireTrade() {
-    var message = document.getElementById('tradeMsg');
-    if (message) message.addEventListener('input', function () { ui.tradeMessage = message.value; });
-  }
-
-  function wireDeal() {
+  function wireChat() {
+    var input = document.getElementById('chatInput');
+    if (input) input.addEventListener('input', function () { ui.chatDraft = input.value; });
     var cash = document.getElementById('cashInput');
     if (cash) cash.addEventListener('input', function () { ui.cash = cash.value; });
+    var log = document.getElementById('chatLog');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+
+  function wireProfile() {
+    if (!ui.editingProfile) return;
+    var name = document.getElementById('pName');
+    var phone = document.getElementById('pPhone');
+    var town = document.getElementById('pTown');
+    if (name) name.addEventListener('input', function () { ui.profileName = name.value; });
+    if (phone) phone.addEventListener('input', function () { ui.profilePhone = phone.value; });
+    if (town) town.addEventListener('input', function () { ui.profileTown = town.value; });
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -1356,140 +1656,199 @@
     if (tab === 'feed') { ui.route = { name: 'feed' }; render(); }
     else if (tab === 'trades') { ui.route = { name: 'trades' }; render(); }
     else if (tab === 'publish') { ui.route = { name: 'publish' }; render(); }
-    else if (tab === 'me') { ui.route = { name: 'profile', id: data.me }; render(); }
+    else if (tab === 'me') { ui.editingProfile = false; ui.route = { name: 'profile', id: data.me }; render(); }
   }
 
-  function sendOffer(targetId) {
-    var target = listing(targetId);
-    var chosen = listing(ui.tradePick);
-    if (!target || !chosen) { flash('Elige qué vas a ofrecer'); return; }
-    if (chosen.ownerId !== data.me || !chosen.barter) { flash('Ese objeto no está abierto a trueque'); return; }
+  /**
+   * Marca o retira el interés. Retirar antes del match es silencioso para la otra persona.
+   * Si el interés se vuelve mutuo, reconcileMatches() abre el chat y avisa en Avisos.
+   */
+  function toggleInterest(listingId) {
+    var item = listing(listingId);
+    if (!item) { flash('Ese objeto ya no está disponible'); return; }
+    if (item.ownerId === data.me) { flash('Es tu propia publicación'); return; }
+    if (!item.barter) { flash('Ese objeto es sólo venta'); return; }
+    if (item.status !== 'DISPONIBLE') { flash('Ese objeto ya está apartado'); return; }
 
-    var duplicate = data.offers.some(function (item) {
-      return item.fromUserId === data.me && item.listingId === target.id &&
-        (item.status === 'PENDIENTE' || item.status === 'CONTRAPROPUESTA' || item.status === 'ACEPTADO');
-    });
-    if (duplicate) { flash('Ya tienes una propuesta abierta por este objeto'); return; }
-
-    var message = (ui.tradeMessage || '').trim();
-    if (!message) {
-      message = 'Hola, me interesa tu ' + target.title + '. Te ofrezco mi ' + chosen.title + '. ¿Te late?';
+    var existing = interestMark(listingId, data.me);
+    if (existing) {
+      if (matchWith(item.ownerId)) {
+        flash('Ya hay chat abierto: retira el interés desde el trueque');
+        return;
+      }
+      data.interests = data.interests.filter(function (mark) { return mark !== existing; });
+      save();
+      flash('Interés retirado. Nadie se enteró.');
+      render();
+      return;
     }
 
-    var offerItem = {
-      id: 'o_' + Date.now().toString(36),
-      listingId: target.id,
-      offeredListingId: chosen.id,
+    data.interests.push({
+      id: 'i_' + Date.now().toString(36),
+      listingId: listingId,
       fromUserId: data.me,
-      toUserId: target.ownerId,
-      message: message.slice(0, 240),
-      status: 'PENDIENTE',
-      cashCents: 0,
-      turnUserId: target.ownerId,
-      meeting: null,
-      createdAt: Date.now(),
-      history: []
-    };
-    data.offers.unshift(offerItem);
+      createdAt: Date.now()
+    });
     save();
-
-    var owner = user(target.ownerId);
-    var balance = balanceOf(chosen, target);
-    announce(
-      me().name + ' quiere truequear tu ' + target.title,
-      'Te ofrece ' + chosen.title + ' (' + money(appraise(chosen).estimatedCents) + '). ' + balance.message
-    );
-    try { if (window.Nahua && Nahua.toast) Nahua.toast('Propuesta enviada a ' + owner.name); } catch (error) { /* sin host */ }
-    flash('Avisamos a ' + owner.name + ' que te interesa truquear');
-
-    ui.tradeMessage = '';
-    ui.tradePick = null;
-    ui.tradesTab = 'sent';
-    history = [{ name: 'trades' }];
-    ui.route = { name: 'deal', id: offerItem.id };
+    var created = reconcileMatches();
+    if (created.length) {
+      var entry = created[0];
+      flash('¡Match con ' + entry.other.name + '! Ya pueden hablar');
+      try { if (window.Nahua && Nahua.haptic) Nahua.haptic('confirm'); } catch (error) { /* sin host */ }
+    } else {
+      flash('Te interesa. Es privado: sólo se avisa si hay match.');
+    }
     render();
   }
 
-  function acceptOffer(offerId) {
-    var offerItem = offer(offerId);
-    if (!offerItem || !waitingOnMe(offerItem)) { flash('Este trato ya se movió'); return; }
-    offerItem.status = 'ACEPTADO';
-    offerItem.turnUserId = null;
-    offerItem.history.push({ at: Date.now(), actor: data.me, action: 'aceptar' });
+  function openMatchWith(otherId) {
+    var item = matchWith(otherId);
+    if (!item) { flash('Todavía no hay match con esa persona'); return; }
+    navigate({ name: 'match', id: item.id });
+  }
 
-    var want = listing(offerItem.listingId);
-    var give = listing(offerItem.offeredListingId);
-    if (want) want.status = 'RESERVADO';
-    if (give) give.status = 'RESERVADO';
+  function openMatch(id) {
+    var item = match(id);
+    if (!item) return;
+    item.lastReadByMe = Date.now();
     save();
+    ui.chatDraft = '';
+    ui.cash = '';
+    navigate({ name: 'match', id: id });
+  }
 
-    var other = user(offerItem.fromUserId === data.me ? offerItem.toUserId : offerItem.fromUserId);
-    announce('Trato cerrado con ' + other.name, 'El trueque quedó aceptado. Acuerden punto de encuentro en el Bazar/Trueque.');
-    flash('¡Trato cerrado! Acuerden el punto de encuentro');
+  function sendMessage(id) {
+    var item = match(id);
+    if (!item || item.status !== 'CHAT') return;
+    var text = (ui.chatDraft || '').trim();
+    if (!text) { flash('Escribe algo primero'); return; }
+    item.messages.push({
+      id: 'g_' + Date.now().toString(36),
+      fromUserId: data.me,
+      kind: 'text',
+      at: Date.now(),
+      text: text.slice(0, 240)
+    });
+    item.lastReadByMe = Date.now();
+    save();
+    ui.chatDraft = '';
     render();
   }
 
-  function rejectOffer(offerId) {
-    var offerItem = offer(offerId);
-    if (!offerItem) return;
-    offerItem.status = 'RECHAZADO';
-    offerItem.turnUserId = null;
-    offerItem.history.push({ at: Date.now(), actor: data.me, action: 'rechazar' });
+  function agreeTrade(id) {
+    var item = match(id);
+    if (!item || item.status !== 'CHAT') return;
+    var pair = selectedPair(item);
+    if (!pair.give || !pair.get) { flash('Falta un objeto de cada lado para cerrar el trato'); return; }
+    var select = document.getElementById('meetingSelect');
+    var meeting = select ? select.value : MEETING_POINTS[0];
+
+    item.status = 'ACORDADO';
+    item.meeting = meeting;
+    item.cashCents = pesosToCents(ui.cash);
+    item.giveIds = [pair.give.id];
+    item.getIds = [pair.get.id];
+    pair.give.status = 'RESERVADO';
+    pair.get.status = 'RESERVADO';
+    item.messages.push({
+      id: 'g_' + Date.now().toString(36),
+      fromUserId: 'system',
+      kind: 'system',
+      at: Date.now(),
+      text: 'Trato acordado: ' + pair.give.title + ' ⇄ ' + pair.get.title + ' en ' + meeting +
+        (item.cashCents > 0 ? ', con ' + money(item.cashCents) + ' de compensación' : '') + '.'
+    });
     save();
-    flash('Propuesta rechazada');
-    render();
-  }
-
-  function cancelOffer(offerId) {
-    var offerItem = offer(offerId);
-    if (!offerItem) return;
-    offerItem.status = 'CANCELADO';
-    offerItem.turnUserId = null;
-    offerItem.history.push({ at: Date.now(), actor: data.me, action: 'cancelar' });
-    save();
-    flash('Propuesta cancelada');
-    render();
-  }
-
-  function askCash(offerId) {
-    var offerItem = offer(offerId);
-    if (!offerItem || !waitingOnMe(offerItem)) { flash('Este trato ya se movió'); return; }
-    var cents = pesosToCents(ui.cash);
-    if (cents <= 0) { flash('Escribe cuánto quieres en efectivo'); return; }
-
-    var receiver = offerItem.toUserId === data.me;
-    offerItem.status = 'CONTRAPROPUESTA';
-    offerItem.cashCents = cents;
-    offerItem.turnUserId = receiver ? offerItem.fromUserId : offerItem.toUserId;
-    offerItem.history.push({ at: Date.now(), actor: data.me, action: 'contraoferta', cashCents: cents });
-    save();
-
-    var other = user(offerItem.turnUserId);
-    announce(me().name + ' pide ' + money(cents) + ' de compensación',
-      'En el trueque por ' + (listing(offerItem.listingId) ? listing(offerItem.listingId).title : 'un objeto') +
-      ' pide esa diferencia en efectivo para emparejar el valor.');
-    flash('Le pediste ' + money(cents) + ' a ' + other.name);
+    announce('Trato acordado con ' + user(otherOf(item)).name,
+      pair.give.title + ' ⇄ ' + pair.get.title + '. Punto de encuentro: ' + meeting + '.');
+    flash('Trato acordado. Acuerden día y hora en el chat');
     ui.cash = '';
     render();
   }
 
-  function completeOffer(offerId) {
-    var offerItem = offer(offerId);
-    if (!offerItem || offerItem.status !== 'ACEPTADO') return;
-    var select = document.getElementById('meetingSelect');
-    offerItem.meeting = select ? select.value : MEETING_POINTS[0];
-    offerItem.status = 'CERRADO';
-    offerItem.history.push({ at: Date.now(), actor: data.me, action: 'cerrar' });
-
-    var want = listing(offerItem.listingId);
-    var give = listing(offerItem.offeredListingId);
-    if (want) want.status = 'TRUEQUEADO';
+  function completeTrade(id) {
+    var item = match(id);
+    if (!item || item.status !== 'ACORDADO') return;
+    var pair = selectedPair(item);
+    var give = item.giveIds && item.giveIds.length ? listing(item.giveIds[0]) : pair.give;
+    var get = item.getIds && item.getIds.length ? listing(item.getIds[0]) : pair.get;
     if (give) give.status = 'TRUEQUEADO';
+    if (get) get.status = 'TRUEQUEADO';
 
-    if (data.users[offerItem.fromUserId]) data.users[offerItem.fromUserId].trades += 1;
-    if (data.users[offerItem.toUserId]) data.users[offerItem.toUserId].trades += 1;
+    item.status = 'CERRADO';
+    item.messages.push({
+      id: 'g_' + Date.now().toString(36),
+      fromUserId: 'system',
+      kind: 'system',
+      at: Date.now(),
+      text: 'Trueque marcado como intercambiado' + (item.meeting ? ' en ' + item.meeting : '') + '.'
+    });
+    if (data.users[data.me]) data.users[data.me].trades += 1;
+    var otherId = otherOf(item);
+    if (data.users[otherId]) data.users[otherId].trades += 1;
     save();
+    announce('Trueque completado con ' + user(otherId).name, 'El intercambio quedó registrado en el bazar.');
     flash('Trueque completado. ¡Gracias por mover la comunidad!');
+    render();
+  }
+
+  function archiveTrade(id) {
+    var item = match(id);
+    if (!item) return;
+    item.status = 'ARCHIVADO';
+    var pair = selectedPair(item);
+    if (pair.give && pair.give.status === 'RESERVADO') pair.give.status = 'DISPONIBLE';
+    if (pair.get && pair.get.status === 'RESERVADO') pair.get.status = 'DISPONIBLE';
+
+    // Retirar mi interés cierra el match pero deja el historial del chat intacto.
+    var otherId = otherOf(item);
+    data.interests = data.interests.filter(function (mark) {
+      if (mark.fromUserId !== data.me) return true;
+      var target = listing(mark.listingId);
+      return !(target && target.ownerId === otherId);
+    });
+    item.messages.push({
+      id: 'g_' + Date.now().toString(36),
+      fromUserId: 'system',
+      kind: 'system',
+      at: Date.now(),
+      text: 'Retiraste tu interés. El chat queda como historial y los objetos vuelven al bazar.'
+    });
+    save();
+    flash('Interés retirado. Los objetos vuelven al bazar');
+    render();
+  }
+
+  function copyPhone(userId) {
+    var profile = user(userId);
+    var phone = formatPhone(profile.phone);
+    if (!phone) { flash('Ese perfil no tiene teléfono'); return; }
+    try {
+      if (window.Nahua && Nahua.copy) Nahua.copy(phone);
+    } catch (error) { /* sin portapapeles del host */ }
+    flash('Teléfono copiado: ' + phone);
+  }
+
+  function saveProfile() {
+    var profile = me();
+    var name = (ui.profileName != null ? ui.profileName : profile.name).trim();
+    var phone = phoneDigits(ui.profilePhone != null ? ui.profilePhone : profile.phone);
+    var town = (ui.profileTown != null ? ui.profileTown : profile.town).trim();
+
+    if (name.length < 4) { flash('Escribe tu nombre completo'); return; }
+    if (phone.length !== 10) { flash('El teléfono debe tener 10 dígitos'); return; }
+    if (!town) { flash('Escribe tu comunidad o municipio'); return; }
+
+    profile.name = name.slice(0, 40);
+    profile.phone = phone;
+    profile.town = town.slice(0, 40);
+    data.users[data.me] = profile;
+    save();
+    ui.editingProfile = false;
+    ui.profileName = null;
+    ui.profilePhone = null;
+    ui.profileTown = null;
+    flash('Datos guardados. Tu teléfono sólo se comparte con match');
     render();
   }
 
@@ -1505,7 +1864,7 @@
       amount: item.askingCents / 100,
       concept: item.title,
       merchant: owner.name
-    }).then(function (result) {
+    }).then(function () {
       item.status = 'VENDIDO';
       save();
       flash('Pagaste ' + money(item.askingCents) + ' a ' + owner.name);
@@ -1549,7 +1908,7 @@
 
     data.listings.unshift(item);
     save();
-    flash(item.barter ? 'Publicado con trueque habilitado' : 'Publicado en el bazar');
+    flash(item.barter ? 'Publicado con trueque: el chat se abre sólo con match' : 'Publicado en el bazar');
     try { if (window.Nahua && Nahua.toast) Nahua.toast('Tu objeto ya está en el bazar'); } catch (error) { /* sin host */ }
     ui.form = freshForm();
     history = [{ name: 'feed' }];
@@ -1581,30 +1940,33 @@
     }
     if (action === 'open') return navigate({ name: 'item', id: id });
     if (action === 'profile') return navigate({ name: 'profile', id: id });
-    if (action === 'deal') {
-      return navigate({ name: 'deal', id: id });
-    }
-    if (action === 'trade') {
-      ui.tradePick = null;
-      ui.tradeMessage = '';
-      return navigate({ name: 'trade', id: id });
-    }
-    if (action === 'pick') {
-      ui.tradePick = id;
-      render();
-      return;
-    }
-    if (action === 'send-offer') return sendOffer(id);
-    if (action === 'accept') return acceptOffer(id);
-    if (action === 'reject') return rejectOffer(id);
-    if (action === 'cancel') return cancelOffer(id);
-    if (action === 'ask-cash') return askCash(id);
-    if (action === 'complete') return completeOffer(id);
+    if (action === 'interest') return toggleInterest(id);
+    if (action === 'open-match') return openMatchWith(id);
+    if (action === 'match') return openMatch(id);
+    if (action === 'pick-give') { ui.giveId = id; render(); return; }
+    if (action === 'pick-get') { ui.getId = id; render(); return; }
+    if (action === 'send-msg') return sendMessage(id);
+    if (action === 'agree') return agreeTrade(id);
+    if (action === 'complete') return completeTrade(id);
+    if (action === 'archive') return archiveTrade(id);
+    if (action === 'copy-phone') return copyPhone(id);
     if (action === 'buy') return buyListing(id);
     if (action === 'filter') { ui.filter = id; render(); return; }
     if (action === 'trades-tab') { ui.tradesTab = id; render(); return; }
     if (action === 'how') return navigate({ name: 'how' });
     if (action === 'publish') return publishListing();
+    if (action === 'edit-profile') {
+      var profile = me();
+      if (!ui.editingProfile) {
+        ui.profileName = profile.name;
+        ui.profilePhone = formatPhone(profile.phone);
+        ui.profileTown = profile.town;
+      }
+      ui.editingProfile = !ui.editingProfile;
+      render();
+      return;
+    }
+    if (action === 'save-profile') return saveProfile();
     if (action === 'retire') {
       ui.confirmRetire = id;
       render();
@@ -1675,17 +2037,27 @@
       if (session && session.name) {
         var mine = me();
         mine.name = session.name;
-        if (session.handle) mine.handle = session.handle;
+        if (session.phone) {
+          var digits = phoneDigits(session.phone);
+          if (digits.length === 10) mine.phone = digits;
+        }
       }
     } catch (error) {
       // sin sesión: se usa el perfil de la comunidad
     }
 
-    var brand = document.getElementById('brandName');
-    if (brand) brand.textContent = 'Bazar/Trueque';
-
+    reconcileMatches();
     render();
   }
+
+  // Expuesto a propósito: el candado de pruebas del bundle verifica la regla del match.
+  window.Bazar = {
+    rule: 'chat-only-on-mutual-interest',
+    data: function () { return data; },
+    mutual: function (otherId) { return isMutual(otherId); },
+    pending: function () { return pendingCount(); },
+    formatPhone: formatPhone
+  };
 
   start();
 })();
