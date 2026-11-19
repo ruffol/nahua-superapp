@@ -22,7 +22,7 @@
     {
       "id": "mapa",
       "name": "Mapas",
-      "tagline": "Mapa estatal, GPS y servicios",
+      "tagline": "Mapa estatal, GPS y búsqueda",
       "version": "1.2.0",
       "entry": "miniapps/mapa/index.html",
       "accent": "#2F6BFF",

@@ -182,7 +182,7 @@
   .routecard {
     position: fixed; z-index: 850;
     left: 8px; right: 62px;
-    bottom: calc(var(--sheet-h) + 12px);
+    bottom: calc(10px + env(safe-area-inset-bottom));
     display: flex; align-items: center; gap: 8px;
     padding: 8px 10px; border-radius: 12px;
     background: var(--card); border: 1.5px solid rgba(215, 154, 69, 0.8);
@@ -206,10 +206,9 @@
 
   .controls {
     position: fixed; z-index: 820; right: 9px;
-    bottom: calc(var(--sheet-h) + 12px);
+    bottom: calc(10px + env(safe-area-inset-bottom));
     display: flex; flex-direction: column; gap: 7px;
   }
-  body.has-route .controls { bottom: calc(var(--sheet-h) + 76px); }
   .ctl {
     width: 42px; height: 42px; border-radius: 8px;
     border: 1.5px solid rgba(201, 139, 75, 0.7);
@@ -256,7 +255,7 @@
   }
   .leaflet-control-attribution a { color: var(--gold-soft); }
   .leaflet-bottom.leaflet-right { bottom: 2px; }
-  .leaflet-bottom.leaflet-left { bottom: calc(var(--sheet-h) + 4px); }
+  .leaflet-bottom.leaflet-left { bottom: 2px; }
   .leaflet-control-scale-line {
     background: rgba(58, 33, 23, 0.7); border-color: rgba(247, 233, 207, 0.6);
     color: var(--cream); font-size: 9px;
@@ -337,18 +336,17 @@
 <div class="top">
   <div class="card">
     <div class="head">
-      <div class="brand">Colima<small id="cityLabel">Mapa offline · tianguis y GPS</small></div>
+      <div class="brand">Colima<small id="cityLabel">Mapa offline · GPS y búsqueda</small></div>
       <span class="badge">OFFLINE</span>
       <span class="zoomBadge" id="zoomLevel">z13</span>
       <button class="close" onclick="Nahua.close()">Cerrar</button>
     </div>
     <div class="searchrow">
       <span class="glass">⌕</span>
-      <input id="search" type="search" autocomplete="off" placeholder="Buscar tianguis, plaza o coordenadas">
+      <input id="search" type="search" autocomplete="off" placeholder="Buscar lugar, calle o coordenadas">
       <button class="clear" id="searchClear" aria-label="Limpiar">×</button>
     </div>
     <div class="suggest hidden" id="suggest"></div>
-    <div class="cities" id="cities"></div>
     <div class="livebar" id="livebar">
       <span class="liveDot" id="liveDot"></span>
       <strong id="liveText">Toca ◎ para GPS en vivo</strong>
@@ -358,11 +356,7 @@
 </div>
 
 <div class="controls">
-  <button class="ctl" id="zoomIn" aria-label="Acercar">+</button>
-  <button class="ctl" id="zoomOut" aria-label="Alejar">−</button>
-  <button class="ctl locate" id="locate" aria-label="Mi ubicación">◎</button>
-  <button class="ctl follow active" id="follow" aria-label="Seguir mi ubicación">➤</button>
-  <button class="ctl services" id="servicesBtn" aria-label="Servicios">▣</button>
+  <button class="ctl locate" id="locate" aria-label="Centrar en mi ubicación">◎</button>
 </div>
 
 <div class="routecard hidden" id="routecard">
@@ -373,21 +367,6 @@
   </div>
   <button class="navBtn" id="routeNav">Navegar</button>
   <button class="routeClose" id="routeClear" aria-label="Quitar destino">×</button>
-</div>
-
-<div class="bottom">
-  <div class="card sheet" id="sheet">
-    <div class="tabs">
-      <button class="tab active" data-tab="lugares">Lugares</button>
-      <button class="tab" data-tab="ruta">Ruta</button>
-      <button class="tab" data-tab="gps">GPS</button>
-      <span class="tabSpacer"></span>
-      <button class="collapseBtn" id="collapseBtn" aria-label="Contraer">▾</button>
-    </div>
-    <div class="pane" id="paneLugares"></div>
-    <div class="pane hidden" id="paneRuta"></div>
-    <div class="pane hidden" id="paneGps"></div>
-  </div>
 </div>
 
 <script src="../vendor/leaflet/leaflet.js"></script>
@@ -442,8 +421,8 @@
     { city: 'armeria', name: 'Centro de Armería', sub: 'Plaza principal', lat: 18.9372, lng: -103.9638, icon: '🌾' }
   ];
 
-  var TRANSPARENT = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-  var BOUNDS = L.latLngBounds([18.55, -104.85], [19.50, -103.30]);
+  var TRANSPARENT = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  var BOUNDS = L.latLngBounds([18.40, -105.05], [19.65, -103.15]);
   var STATE_BOUNDS = L.latLngBounds([18.42, -104.98], [19.62, -103.20]);
   var COLIMA_CENTER = [19.2433, -103.7250];
 
@@ -455,6 +434,11 @@
     maxBoundsViscosity: 0.9,
     preferCanvas: true
   }).setView(COLIMA_CENTER, 13);
+
+  if (!isCompact) {
+    // Vista inicial: todo el estado, ya descargado en z9–13.
+    map.fitBounds(STATE_BOUNDS, { padding: [4, 4] });
+  }
 
   map.attributionControl.setPrefix(false);
 
@@ -476,19 +460,13 @@
 
   L.control.scale({ imperial: false, position: 'bottomleft', maxWidth: 90 }).addTo(map);
 
-  var markerLayer = L.layerGroup().addTo(map);
   var routeLayer = L.layerGroup().addTo(map);
-  var serviceLayer = L.layerGroup();
-  var servicesOn = false;
-  var markers = {};
   var userMarker = null;
   var userCircle = null;
   var destMarker = null;
-  var currentCity = 'colima';
   var state = {
     fix: null,
     dest: null,
-    follow: true,
     stopWatch: null,
     stopError: null,
     searchTimer: null,
@@ -571,94 +549,7 @@
     return null;
   }
 
-  // ---------- capas y marcadores ----------
-
-  function marketIcon(market, active) {
-    var size = active ? 42 : 36;
-    return L.divIcon({
-      className: '',
-      html: '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:7px;display:grid;' +
-        'place-items:center;font-size:' + (active ? 19 : 16) + 'px;background:' + (active ? '#D79A45' : '#F7E9CF') + ';' +
-        'box-shadow:0 3px 0 rgba(15,8,5,0.35);border:2px solid ' + (active ? '#B5643F' : '#C98B4B') + ';">' +
-        market.emoji + '</div>',
-      iconSize: [size, size],
-      iconAnchor: [size / 2, size / 2]
-    });
-  }
-
-  function drawMarkers() {
-    markerLayer.clearLayers();
-    markers = {};
-    TIANGUIS.forEach(function (market, index) {
-      var key = 'm' + index;
-      var marker = L.marker([market.lat, market.lng], { icon: marketIcon(market, false), title: market.name }).addTo(markerLayer);
-      marker.bindPopup(
-        '<strong>' + escapeHtml(market.name) + '</strong><br>' +
-        '<span class="popupMeta">' + escapeHtml(market.area) + ' · ' + escapeHtml(market.specialty) + '<br>' +
-        escapeHtml(market.day) + '</span><br>' +
-        '<button class="popupBtn" onclick="window.goToMarket(\'' + key + '\')">Ir aquí</button>'
-      );
-      markers[key] = marker;
-    });
-  }
-
-
-  function renderServiceMarkers() {
-    serviceLayer.clearLayers();
-    if (!servicesOn || !EXTRA_PLACES.length) return;
-    EXTRA_PLACES.forEach(function (place, index) {
-      if (place.k === 'Localidad') return;
-      var marker = L.marker([place.lat, place.lon], {
-        icon: L.divIcon({
-          className: '',
-          html: '<div class="svc-dot"></div>',
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
-        }),
-        title: place.n
-      });
-      marker.bindPopup(
-        '<strong>' + escapeHtml(place.n) + '</strong><br>' +
-        '<span class="popupMeta">' + escapeHtml(place.k || 'Servicio') +
-        (place.m ? ' · ' + escapeHtml(place.m) : '') + '</span><br>' +
-        '<button class="popupBtn" onclick="window.goToService(' + index + ')">Ir aquí</button>'
-      );
-      serviceLayer.addLayer(marker);
-    });
-  }
-
-  function toggleServices() {
-    servicesOn = !servicesOn;
-    el('servicesBtn').classList.toggle('active', servicesOn);
-    if (servicesOn) {
-      serviceLayer.addTo(map);
-      renderServiceMarkers();
-      Nahua.toast(EXTRA_PLACES.length ? 'Servicios del INEGI activados' : 'Cargando servicios…');
-    } else {
-      map.removeLayer(serviceLayer);
-      serviceLayer.clearLayers();
-      Nahua.toast('Servicios ocultos');
-    }
-  }
-
-  function loadExtraPlaces() {
-    fetch('places.json', { cache: 'force-cache' })
-      .then(function (response) { return response.json(); })
-      .then(function (data) {
-        EXTRA_PLACES = (data && data.places) || [];
-        if (servicesOn) renderServiceMarkers();
-      })
-      .catch(function () {
-        // Sin places.json la app sigue funcionando con los destinos locales.
-      });
-  }
-
-  function refreshMarkerIcons() {
-    TIANGUIS.forEach(function (market, index) {
-      var key = 'm' + index;
-      if (markers[key]) markers[key].setIcon(marketIcon(market, !!(state.dest && state.dest.key === key)));
-    });
-  }
+  // ---------- lugares, GPS y rutas ----------
 
   function destinationIcon(place) {
     return L.divIcon({
@@ -667,6 +558,13 @@
       iconSize: [30, 30],
       iconAnchor: [15, 28]
     });
+  }
+
+  function loadExtraPlaces() {
+    fetch('places.json', { cache: 'force-cache' })
+      .then(function (response) { return response.json(); })
+      .then(function (data) { EXTRA_PLACES = (data && data.places) || []; })
+      .catch(function () { /* la búsqueda local sigue funcionando */ });
   }
 
   // ---------- ubicación ----------
@@ -716,32 +614,16 @@
     el('livebar').classList.remove('hidden');
     el('liveCoords').textContent = fix.lat.toFixed(5) + ', ' + fix.lng.toFixed(5);
     var acc = Math.round(fix.accuracy || 0);
-    setStatus('live', 'GPS en vivo · ±' + acc + ' m');
-
-    var lat = el('gpsLat'), lng = el('gpsLng');
-    if (lat) lat.textContent = fix.lat.toFixed(6);
-    if (lng) lng.textContent = fix.lng.toFixed(6);
-    var accEl = el('gpsAcc');
-    if (accEl) accEl.textContent = '±' + acc + ' m';
-    var speedEl = el('gpsSpeed');
-    if (speedEl) speedEl.textContent = fix.speed == null ? '—' : (fix.speed * 3.6).toFixed(1) + ' km/h';
-    var altEl = el('gpsAlt');
-    if (altEl) altEl.textContent = fix.altitude == null ? '—' : Math.round(fix.altitude) + ' m';
-    var bearingEl = el('gpsBearing');
-    if (bearingEl) {
-      bearingEl.textContent = fix.bearing == null ? '—' : Math.round(fix.bearing) + '° ' + cardinal(fix.bearing);
+    var text = 'GPS en vivo · ±' + acc + ' m';
+    if (fix.speed != null && fix.speed > 0.3) {
+      text += ' · ' + Math.round(fix.speed * 3.6) + ' km/h';
     }
-    var ageEl = el('gpsAge');
-    if (ageEl) ageEl.textContent = 'ahora';
-    var providerEl = el('gpsProvider');
-    if (providerEl) providerEl.textContent = fix.provider ? String(fix.provider) : 'GPS del teléfono';
+    setStatus('live', text);
   }
 
   function updateAge() {
     if (!state.fix) return;
     var age = Math.max(0, Math.round((Date.now() - state.fix.receivedAt) / 1000));
-    var ageEl = el('gpsAge');
-    if (ageEl) ageEl.textContent = age < 2 ? 'ahora' : 'hace ' + age + ' s';
     if (state.stopWatch && age > 25) {
       setStatus('search', 'Señal débil · última hace ' + age + ' s');
     }
@@ -777,23 +659,10 @@
     updateGpsUi(fix);
     updateRouteUi();
     drawRoute();
-    updatePlaceDistances();
-
-    if (first) {
-      // No llamar a setFollow aquí: su panTo cancelaría el flyTo y el mapa se quedaría en z13.
-      state.follow = true;
-      el('follow').classList.add('active');
-      if (fly) {
-        var target = detailZoom(fix.lat, fix.lng);
-        if (fix.accuracy > 80) target = Math.min(15, target);
-        map.flyTo([fix.lat, fix.lng], target, { duration: 0.9 });
-      }
-    } else if (state.follow) {
-      var point = map.latLngToContainerPoint([fix.lat, fix.lng]);
-      var center = map.getSize().divideBy(2);
-      if (point.distanceTo(center) > 42) {
-        map.panTo([fix.lat, fix.lng], { animate: true, duration: 0.35 });
-      }
+    if (first && fly) {
+      var target = detailZoom(fix.lat, fix.lng);
+      if (fix.accuracy > 80) target = Math.min(15, target);
+      map.flyTo([fix.lat, fix.lng], target, { duration: 0.9 });
     }
   }
 
@@ -804,12 +673,6 @@
       setStatus('error', 'Permiso de ubicación denegado');
     } else {
       setStatus('error', 'GPS no disponible');
-    }
-    var hint = el('gpsHint');
-    if (hint) {
-      hint.textContent = error && error.error === 'permission_denied'
-        ? 'Permite la ubicación en los ajustes del teléfono y vuelve a tocar ◎.'
-        : 'Activa la ubicación del teléfono y sal al aire libre para recibir señal.';
     }
     if (state.stopWatch) {
       try { state.stopWatch(); } catch (ignore) {}
@@ -862,21 +725,12 @@
     setStatus('search', 'Buscando señal GPS…');
     Nahua.location().then(function (fix) {
       applyFix(fix, true);
-      setFollow(false);
     }).catch(function (error) {
       onLocationError(error);
       Nahua.toast(error && error.error === 'permission_denied'
         ? 'Permite la ubicación para verte en el mapa'
         : 'No se pudo obtener tu ubicación');
     });
-  }
-
-  function setFollow(on) {
-    state.follow = !!on;
-    el('follow').classList.toggle('active', state.follow);
-    if (on && state.fix) {
-      map.panTo([state.fix.lat, state.fix.lng], { animate: true, duration: 0.4 });
-    }
   }
 
   // ---------- destino y ruta ----------
@@ -903,20 +757,14 @@
       '<span class="popupMeta">' + escapeHtml(state.dest.sub || 'Destino') + '</span><br>' +
       '<button class="popupBtn" onclick="window.openNavigation()">Navegar</button>'
     );
-    refreshMarkerIcons();
     drawRoute();
     updateRouteUi();
-    renderRoutePane();
-    showTab('ruta');
-    // Espera a que la hoja cambie de tamaño antes de encuadrar la ruta.
-    setTimeout(fitRoute, 140);
+    setTimeout(fitRoute, 80);
   }
 
   function setDestinationByKey(key) {
     var item = findItem(key);
     if (!item) return;
-    // setDestination ya encuadra la ruta completa; no forzar z16 en un destino lejano
-    // (quedaría fuera de las teselas de detalle y se vería borroso).
     setDestination(item);
   }
 
@@ -927,9 +775,7 @@
       destMarker = null;
     }
     routeLayer.clearLayers();
-    refreshMarkerIcons();
     updateRouteUi();
-    renderRoutePane();
   }
 
   function drawRoute() {
@@ -953,7 +799,7 @@
     if (state.fix) {
       map.fitBounds(L.latLngBounds([state.fix, state.dest]), {
         paddingTopLeft: [24, 190],
-        paddingBottomRight: [24, 300],
+        paddingBottomRight: [24, 90],
         maxZoom: 16
       });
     } else {
@@ -966,11 +812,9 @@
     var card = el('routecard');
     if (!state.dest) {
       card.classList.add('hidden');
-      document.body.classList.remove('has-route');
       return;
     }
     card.classList.remove('hidden');
-    document.body.classList.add('has-route');
     el('routeName').textContent = state.dest.name;
     var meta = 'Activa el GPS para calcular distancia y tiempo';
     if (state.fix) {
@@ -983,185 +827,11 @@
       el('routeArrow').style.transform = 'rotate(0deg)';
     }
     el('routeMeta').textContent = meta;
-
-    if (el('routePaneDist')) {
-      if (state.fix) {
-        var m = haversine(state.fix, state.dest);
-        var b = bearing(state.fix, state.dest);
-        el('routePaneDist').textContent = fmtDist(m);
-        el('routePaneBearing').textContent = Math.round(b) + '° ' + cardinal(b);
-        el('routePaneWalk').textContent = fmtEta(m, 4.8);
-        el('routePaneDrive').textContent = fmtEta(m, 28);
-      } else {
-        el('routePaneDist').textContent = '—';
-        el('routePaneBearing').textContent = '—';
-        el('routePaneWalk').textContent = '—';
-        el('routePaneDrive').textContent = '—';
-      }
-    }
-    updatePlaceDistances();
-  }
-
-  function renderRoutePane() {
-    var pane = el('paneRuta');
-    if (!state.dest) {
-      pane.innerHTML = '<div class="empty"><strong>Elige un destino.</strong><br>' +
-        'Toca un tianguis o un punto de interés y pulsa <b>Ir</b>. También puedes buscar una calle, ' +
-        'una plaza o escribir coordenadas (19.2433, -103.7250).</div>';
-      return;
-    }
-    var d = state.dest;
-    pane.innerHTML =
-      '<div class="destHead"><div class="pin">' + escapeHtml(d.icon) + '</div>' +
-      '<div><strong>' + escapeHtml(d.name) + '</strong><span>' + escapeHtml(d.sub || 'Destino') + '</span></div></div>' +
-      '<div class="gpsGrid">' +
-      '<div><span>DISTANCIA</span><strong id="routePaneDist">—</strong></div>' +
-      '<div><span>RUMBO</span><strong id="routePaneBearing">—</strong></div>' +
-      '<div><span>A PIE</span><strong id="routePaneWalk">—</strong></div>' +
-      '<div><span>EN AUTO</span><strong id="routePaneDrive">—</strong></div>' +
-      '</div>' +
-      '<button class="primaryBtn" id="routePaneNav">Abrir navegación</button>' +
-      '<button class="ghostBtn" id="routePaneFit">Centrar ruta</button>' +
-      '<button class="ghostBtn" id="routePaneClear">Quitar destino</button>' +
-      '<p class="hint">La línea azul es la distancia directa. Para giro a giro se abre tu app de mapas ' +
-      'con el destino ya puesto.</p>';
-    el('routePaneNav').onclick = openNavigation;
-    el('routePaneFit').onclick = fitRoute;
-    el('routePaneClear').onclick = clearDestination;
-    updateRouteUi();
   }
 
   function openNavigation() {
     if (!state.dest) return;
     Nahua.openDirections(state.dest.lat, state.dest.lng, state.dest.name);
-  }
-
-  // ---------- lista de lugares ----------
-
-  function renderPlaces() {
-    var city = cityById(currentCity);
-    var markets = [];
-    TIANGUIS.forEach(function (m, index) { if (m.city === currentCity) markets.push({ m: m, key: 'm' + index }); });
-    var pois = [];
-    PLACES.forEach(function (p, index) { if (p.city === currentCity) pois.push({ p: p, key: 'p' + index }); });
-
-    var html = '<div class="sectionTitle">TIANGUIS EN ' + escapeHtml(city.label.toUpperCase()) + '</div>';
-    if (!markets.length) {
-      html += '<div class="empty">Sin tianguis registrados en este municipio.</div>';
-    }
-    markets.forEach(function (entry) {
-      var m = entry.m;
-      html += '<div class="row">' +
-        '<div class="pin">' + m.emoji + '</div>' +
-        '<div class="rowBody"><strong>' + escapeHtml(m.name) + '</strong>' +
-        '<span>' + escapeHtml(m.area) + ' · ' + escapeHtml(m.specialty) + '</span>' +
-        '<span>' + escapeHtml(m.day) + '</span></div>' +
-        '<div class="rowMeta" data-dist data-lat="' + m.lat + '" data-lng="' + m.lng + '"></div>' +
-        '<div class="rowActions">' +
-        '<button class="miniBtn" data-action="view" data-key="' + entry.key + '">Ver</button>' +
-        '<button class="goBtn" data-action="route" data-key="' + entry.key + '">Ir</button>' +
-        '</div></div>';
-    });
-
-    html += '<div class="sectionTitle">PUNTOS DE INTERÉS</div>';
-    if (!pois.length) {
-      html += '<div class="empty">Sin puntos de interés en este municipio.</div>';
-    }
-    pois.forEach(function (entry) {
-      var p = entry.p;
-      html += '<div class="row">' +
-        '<div class="pin">' + p.icon + '</div>' +
-        '<div class="rowBody"><strong>' + escapeHtml(p.name) + '</strong><span>' + escapeHtml(p.sub) + '</span></div>' +
-        '<div class="rowMeta" data-dist data-lat="' + p.lat + '" data-lng="' + p.lng + '"></div>' +
-        '<div class="rowActions">' +
-        '<button class="miniBtn" data-action="view" data-key="' + entry.key + '">Ver</button>' +
-        '<button class="goBtn" data-action="route" data-key="' + entry.key + '">Ir</button>' +
-        '</div></div>';
-    });
-
-    el('paneLugares').innerHTML = html;
-    updatePlaceDistances();
-  }
-
-  function updatePlaceDistances() {
-    if (!state.fix) return;
-    var nodes = document.querySelectorAll('[data-dist]');
-    for (var i = 0; i < nodes.length; i++) {
-      var node = nodes[i];
-      var lat = parseFloat(node.getAttribute('data-lat'));
-      var lng = parseFloat(node.getAttribute('data-lng'));
-      if (!isFinite(lat) || !isFinite(lng)) continue;
-      var meters = haversine(state.fix, { lat: lat, lng: lng });
-      node.textContent = fmtDist(meters);
-    }
-  }
-
-  function renderCities() {
-    var container = el('cities');
-    container.innerHTML = '';
-    MUNICIPIOS.forEach(function (city) {
-      var button = document.createElement('button');
-      button.className = 'city' + (city.id === currentCity ? ' active' : '');
-      button.textContent = city.label;
-      button.onclick = function () { goToCity(city.id); };
-      container.appendChild(button);
-    });
-    var city = cityById(currentCity);
-    el('cityLabel').textContent = city.label + ' · © OSM · INEGI';
-  }
-
-  function goToCity(id) {
-    currentCity = id;
-    var city = cityById(id);
-    renderCities();
-    renderPlaces();
-    map.flyTo(city.center, city.zoom, { duration: 0.7 });
-  }
-
-  // ---------- GPS pane ----------
-
-  function renderGpsPane() {
-    el('paneGps').innerHTML =
-      '<div class="gpsGrid">' +
-      '<div><span>LATITUD</span><strong id="gpsLat">—</strong></div>' +
-      '<div><span>LONGITUD</span><strong id="gpsLng">—</strong></div>' +
-      '<div><span>PRECISIÓN</span><strong id="gpsAcc">—</strong></div>' +
-      '<div><span>VELOCIDAD</span><strong id="gpsSpeed">—</strong></div>' +
-      '<div><span>ALTITUD</span><strong id="gpsAlt">—</strong></div>' +
-      '<div><span>RUMBO</span><strong id="gpsBearing">—</strong></div>' +
-      '<div><span>ACTUALIZADO</span><strong id="gpsAge">—</strong></div>' +
-      '<div><span>FUENTE</span><strong id="gpsProvider">—</strong></div>' +
-      '</div>' +
-      '<button class="primaryBtn" id="copyCoords">Copiar coordenadas</button>' +
-      '<button class="ghostBtn" id="gpsCenter">Centrar en mí</button>' +
-      '<button class="ghostBtn" id="gpsStop">Detener seguimiento</button>' +
-      '<p class="hint" id="gpsHint">El GPS se activa al abrir el mapa. Si no hay señal, sal al aire libre; ' +
-      'la ubicación nunca se envía a un servidor.</p>';
-    el('copyCoords').onclick = function () {
-      if (!state.fix) {
-        Nahua.toast('Todavía no hay una posición');
-        return;
-      }
-      var text = state.fix.lat.toFixed(6) + ', ' + state.fix.lng.toFixed(6);
-      Nahua.copy(text).then(function () {
-        Nahua.toast('Coordenadas copiadas');
-      }).catch(function () {
-        Nahua.toast(text);
-      });
-    };
-    el('gpsCenter').onclick = function () {
-      if (!state.fix) {
-        Nahua.toast('Todavía no hay una posición');
-        return;
-      }
-      setFollow(true);
-      map.flyTo([state.fix.lat, state.fix.lng], 16, { duration: 0.6 });
-    };
-    el('gpsStop').onclick = function () {
-      stopTracking(true);
-      setStatus('search', 'Seguimiento detenido');
-      Nahua.toast('Seguimiento detenido');
-    };
   }
 
   // ---------- búsqueda ----------
@@ -1259,83 +929,55 @@
       setDestinationByKey(item.key);
       return;
     }
-    if (item.kind === 'coord') {
-      setDestination({ name: 'Coordenadas', sub: item.name, lat: item.lat, lng: item.lng, icon: '⌖' });
-      return;
-    }
-    if (item.kind === 'inegi') {
+    if (item.kind === 'coord' || item.kind === 'inegi') {
       setDestination({
         name: item.name, sub: item.sub, lat: item.lat, lng: item.lng,
-        icon: item.icon, key: null
+        icon: item.icon || '◆', key: null
       });
     }
   }
 
-  // ---------- pestañas y layout ----------
-
-  function showTab(name) {
-    var tabs = document.querySelectorAll('.tab');
-    for (var i = 0; i < tabs.length; i++) {
-      tabs[i].classList.toggle('active', tabs[i].getAttribute('data-tab') === name);
-    }
-    el('paneLugares').classList.toggle('hidden', name !== 'lugares');
-    el('paneRuta').classList.toggle('hidden', name !== 'ruta');
-    el('paneGps').classList.toggle('hidden', name !== 'gps');
-    el('sheet').classList.remove('collapsed');
-    el('collapseBtn').textContent = '▾';
-    syncSheetHeight();
-  }
-
-  function syncSheetHeight() {
-    var sheet = el('sheet');
-    if (!sheet) return;
-    // WebView puede dejar las unidades vh en 0 al medir por primera vez; calculamos el alto
-    // máximo en píxeles para que la hoja siempre sea visible.
-    if (!isCompact) {
-      sheet.style.maxHeight = sheet.classList.contains('collapsed')
-        ? '44px'
-        : Math.max(140, Math.round(window.innerHeight * 0.34)) + 'px';
-    }
-    var height = !isCompact ? sheet.getBoundingClientRect().height : 0;
-    document.documentElement.style.setProperty('--sheet-h', Math.round(height) + 'px');
-    setTimeout(function () { map.invalidateSize(); }, 60);
+  function goToCity(id) {
+    var city = cityById(id);
+    if (city) map.flyTo(city.center, city.zoom, { duration: 0.7 });
   }
 
   // ---------- eventos ----------
 
   el('locate').onclick = function () {
     if (state.stopWatch) {
-      // Recentrar siempre; para soltar el seguimiento está el botón ➤ o arrastrar el mapa.
-      setFollow(true);
       if (state.fix) {
-        map.flyTo([state.fix.lat, state.fix.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
-      }
-    } else {
-      state.manualStop = false;
-      state.blocked = false;
-      if (isCompact) {
-        locateOnce();
+        var target = Math.max(15, detailZoom(state.fix.lat, state.fix.lng));
+        map.flyTo([state.fix.lat, state.fix.lng], target, { duration: 0.6 });
       } else {
         startTracking();
-        setFollow(true);
       }
+      return;
+    }
+    state.manualStop = false;
+    state.blocked = false;
+    if (isCompact) {
+      locateOnce();
+    } else {
+      startTracking();
     }
   };
-
-  el('follow').onclick = function () {
-    setFollow(!state.follow);
-    if (state.follow && state.fix) {
-      map.flyTo([state.fix.lat, state.fix.lng], Math.max(map.getZoom(), 15), { duration: 0.5 });
-    }
-  };
-
-  el('zoomIn').onclick = function () { map.zoomIn(1); };
-  el('zoomOut').onclick = function () { map.zoomOut(1); };
 
   el('routeNav').onclick = openNavigation;
   el('routeClear').onclick = clearDestination;
-  el('servicesBtn').onclick = toggleServices;
-  el('livebar').onclick = function () { showTab('gps'); };
+
+  el('livebar').onclick = function () {
+    if (!state.fix) {
+      Nahua.toast('Todavía no hay una posición');
+      return;
+    }
+    var text = state.fix.lat.toFixed(6) + ', ' + state.fix.lng.toFixed(6);
+    Nahua.copy(text).then(function () {
+      Nahua.toast('Coordenadas copiadas');
+    }).catch(function () {
+      Nahua.toast(text);
+    });
+  };
 
   el('search').addEventListener('input', function (event) {
     renderSuggestions(event.target.value);
@@ -1349,40 +991,6 @@
     el('search').value = '';
     el('suggest').classList.add('hidden');
   };
-
-  var tabs = document.querySelectorAll('.tab');
-  for (var t = 0; t < tabs.length; t++) {
-    tabs[t].onclick = function () { showTab(this.getAttribute('data-tab')); };
-  }
-
-  el('collapseBtn').onclick = function () {
-    var sheet = el('sheet');
-    sheet.classList.toggle('collapsed');
-    this.textContent = sheet.classList.contains('collapsed') ? '▴' : '▾';
-    syncSheetHeight();
-  };
-
-  el('paneLugares').onclick = function (event) {
-    var button = event.target;
-    while (button && button !== this && !button.getAttribute('data-action')) button = button.parentElement;
-    if (!button || button === this) return;
-    var key = button.getAttribute('data-key');
-    var action = button.getAttribute('data-action');
-    var item = findItem(key);
-    if (!item) return;
-    if (action === 'route') {
-      setDestinationByKey(key);
-      return;
-    }
-    if (action === 'view') {
-      map.flyTo([item.lat, item.lng], detailZoom(item.lat, item.lng), { duration: 0.7 });
-      if (item.kind === 'tianguis' && markers[key]) markers[key].openPopup();
-    }
-  };
-
-  map.on('dragstart', function () {
-    if (state.follow) setFollow(false);
-  });
 
   map.on('zoomend', function () {
     el('zoomLevel').textContent = 'z' + map.getZoom();
@@ -1399,36 +1007,15 @@
 
   window.addEventListener('resize', function () {
     map.invalidateSize();
-    syncSheetHeight();
   });
 
   window.triggerResize = function () {
     map.invalidateSize();
-    syncSheetHeight();
   };
 
   window.locateUser = function () {
     if (isCompact) locateOnce();
-    else {
-      startTracking();
-      setFollow(true);
-    }
-  };
-
-  window.goToMarket = function (key) {
-    setDestinationByKey(key);
-  };
-
-  window.goToService = function (index) {
-    var place = EXTRA_PLACES[index];
-    if (!place) return;
-    setDestination({
-      name: place.n,
-      sub: (place.k || 'Servicio') + (place.m ? ' · ' + place.m : ''),
-      lat: place.lat,
-      lng: place.lon,
-      icon: '▣'
-    });
+    else startTracking();
   };
 
   window.openNavigation = openNavigation;
@@ -1436,20 +1023,14 @@
   // ---------- arranque ----------
 
   loadExtraPlaces();
-  renderCities();
-  renderPlaces();
-  renderGpsPane();
-  renderRoutePane();
-  drawMarkers();
   updateRouteUi();
-  syncSheetHeight();
+  el('cityLabel').textContent = 'Colima · © OSM · INEGI';
   el('zoomLevel').textContent = 'z' + map.getZoom();
 
   state.ageTimer = setInterval(updateAge, 1000);
 
   setTimeout(function () { map.invalidateSize(); }, 100);
-  setTimeout(function () { map.invalidateSize(); syncSheetHeight(); }, 450);
-  setTimeout(function () { map.invalidateSize(); syncSheetHeight(); }, 1200);
+  setTimeout(function () { map.invalidateSize(); }, 500);
 
   if (!isCompact) {
     setTimeout(startTracking, 700);

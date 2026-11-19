@@ -20,7 +20,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 - **Mapa estatal de Colima** con teselas propias (z9–16, Natural Earth + OSM + cartografía
   geoestadística del INEGI), manzanas y ejes viales de las localidades, estilo de papel cálido,
-  **GPS en vivo** con coordenadas, velocidad y rumbo, ruta directa y capa de servicios.
+  **GPS en vivo** con coordenadas, velocidad y rumbo, ruta directa y búsqueda estatal.
 - **Bazar/Trueque comunitario**: cualquiera publica lo que ya no usa, la app lo **valora** (precio
   nuevo, estado, uso y accesorios) y el dueño decide si lo vende o lo abre a **trueque**. El botón
   **Truquear** avisa al dueño en su bandeja de Avisos; él ve el perfil del interesado con los objetos
@@ -41,7 +41,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 | App | Tipo | Qué hace | Integración |
 | --- | --- | --- | --- |
-| **Mapas** | mini-app | mapa estatal z9–16 con manzanas, GPS, rutas y servicios | Leaflet + GPS + INEGI |
+| **Mapas** | mini-app | mapa estatal z9–16 con manzanas, GPS, rutas y búsqueda | Leaflet + GPS + INEGI |
 | **Bazar/Trueque** | mini-app | publicar, valorar, vender y truequear entre vecinos | `Nahua.pay` · `Nahua.valuate` · `Nahua.announce` |
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
@@ -63,15 +63,18 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   zonas urbanas con mayor densidad (Colima–Villa, Manzanillo, Tecomán, Comala, Armería, Coquimatlán,
   Cuauhtémoc, Minatitlán y otras); z17 escala z16 ×2. La capa base z9–13 cubre todo el estado y las
   zonas sin manzanas.
+- **Interfaz limpia**: sólo buscador, barra de GPS y el botón **◎** para centrar el mapa en tu
+  ubicación. No hay panel de lugares, ni chips de municipios, ni botones de acercar/alejar; el zoom
+  se hace con pellizco.
 - **Buscar en todo el estado**: además de tianguis y plazas, el buscador incluye **395 localidades y
-  servicios del INEGI**. El botón **▣ Servicios** activa una capa de plazas, mercados, iglesias,
-  escuelas y hospitales de las localidades.
+  servicios del INEGI** (plazas, mercados, iglesias, escuelas, hospitales). Los servicios también
+  aparecen como etiquetas dentro de las teselas, sin una capa flotante que estorbe.
 - **GPS en vivo**: `LocationProvider` usa `LocationManager` (sin Google Play Services) y emite un
   flujo con latitud, longitud, precisión, velocidad, rumbo y altitud. El mapa dibuja tu posición con
   pulso, círculo de precisión y cono de rumbo; puedes seguirte o moverte libremente por el mapa.
   El seguimiento se pausa al ocultar la app para no gastar batería.
-- **Coordenadas**: la barra superior muestra lat/lng y precisión en tiempo real; la pestaña **GPS**
-  añade velocidad, altitud, rumbo, antigüedad de la lectura y un botón para copiar las coordenadas.
+- **Coordenadas**: la barra superior muestra lat/lng, precisión y velocidad en tiempo real; al
+  tocarla copia las coordenadas al portapapeles.
 - **Ir a un lugar**: busca un tianguis, una localidad, un servicio o escribe coordenadas
   (`19.2433, -103.7250`). El mapa traza la distancia directa con rumbo y ETA a pie y en auto, y
   **Navegar** abre la app de mapas del sistema con el destino ya puesto (`geo:`).

@@ -12,13 +12,16 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
   224 servicios). Las teselas z14–16 ahora cubren las localidades amanzanadas de todo el estado, no
   solo el área metropolitana, y se guardan en WebP para que el paquete ronde los 10 MB.
 - **Buscador de 395 lugares**: localidades y servicios del INEGI se suman a tianguis y puntos de
-  interés. El botón **▣ Servicios** activa una capa de plazas, mercados, iglesias, escuelas y
-  hospitales.
+  interés; los servicios aparecen como etiquetas en las teselas y se pueden buscar sin una capa
+  flotante.
 - **Enlaces de descarga**: README documenta las URLs directas del INEGI para el paquete urbano, las
   hojas topográficas 1:50 000, la serie estatal 1:250 000, carreteras, uso de suelo y el MDE.
 
 ### Cambiado
 
+- **Interfaz del mapa simplificada**: se quitaron el panel de lugares, la lista de tianguis, los
+  chips de municipios, los botones de zoom, el botón de seguimiento y la capa de servicios. Quedan
+  el buscador, la barra de GPS y un único botón **◎** para centrar el mapa.
 - La capa de detalle es una sola capa estatal WebP z14–16; la base z9–13 sigue en PNG.
 - Se regeneraron las teselas de detalle (2,306 archivos, 3,686 en total, ~10 MB) con
   `.tmp/inegi/render_v4.py`.

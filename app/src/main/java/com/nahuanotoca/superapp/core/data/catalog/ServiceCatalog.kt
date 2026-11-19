@@ -93,7 +93,7 @@ object ServiceCatalog {
         Service(
             id = "mapas",
             name = "Mapas",
-            tagline = "Mapa estatal, GPS y servicios",
+            tagline = "Mapa estatal, GPS y búsqueda",
             category = ServiceCategory.TRANSPORT,
             icon = Icons.Rounded.Explore,
             accent = Sky,
