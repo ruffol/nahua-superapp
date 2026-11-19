@@ -157,6 +157,95 @@
       });
   }
 
+  // --- Configuración de la consola (joystick, tamaño y posición) -------------
+
+  // EmulatorJS trae una cruceta fija y CSS con tamaños fijos. Aquí se reemplaza por un joystick
+  // ("zone" + joystickInput, el mismo mecanismo que el stick del N64) y se ajustan tamaños y
+  // posición con variables CSS, para que se vean al instante sin reiniciar la partida.
+  var CONTROLS_KEY = 'nahua.gba.controls';
+  var CONTROLS_DEFAULTS = { pad: 'joystick', scale: 1, bottom: 50, side: 10 };
+
+  function readControls() {
+    var stored = {};
+    try {
+      var raw = window.localStorage.getItem(CONTROLS_KEY);
+      stored = raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      stored = {};
+    }
+    var config = {};
+    var key;
+    for (key in CONTROLS_DEFAULTS) {
+      if (Object.prototype.hasOwnProperty.call(CONTROLS_DEFAULTS, key)) config[key] = CONTROLS_DEFAULTS[key];
+    }
+    if (stored.pad === 'joystick' || stored.pad === 'dpad') config.pad = stored.pad;
+    config.scale = clampNumber(stored.scale, 0.7, 1.5, config.scale);
+    config.bottom = clampNumber(stored.bottom, 0, 240, config.bottom);
+    config.side = clampNumber(stored.side, 0, 140, config.side);
+    return config;
+  }
+
+  function clampNumber(value, min, max, fallback) {
+    var number = Number(value);
+    if (!isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+  }
+
+  function saveControls(config) {
+    try {
+      window.localStorage.setItem(CONTROLS_KEY, JSON.stringify(config));
+    } catch (error) {
+      // Sin localStorage la configuración vive solo en esta sesión.
+    }
+  }
+
+  /** Variables CSS del gamepad: se aplican en vivo, sin reconstruir el emulador. */
+  function applyControlsCss(config) {
+    var style = document.getElementById('nahua-pad-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'nahua-pad-style';
+      document.head.appendChild(style);
+    }
+    var scale = config.scale;
+    var bottom = config.bottom;
+    var side = config.side;
+    style.textContent = [
+      // El mando izquierdo (joystick o cruceta) crece desde su esquina inferior izquierda.
+      '.ejs_virtualGamepad_left{transform:scale(' + scale + ');transform-origin:bottom left;',
+      'left:' + side + 'px !important;bottom:' + bottom + 'px !important;}',
+      // Botones A/B desde la esquina inferior derecha.
+      '.ejs_virtualGamepad_right{transform:scale(' + scale + ');transform-origin:bottom right;',
+      'right:' + side + 'px !important;bottom:' + bottom + 'px !important;}',
+      // Start/Select centrados, un poco más arriba que los mandos para no chocar.
+      '.ejs_virtualGamepad_bottom{transform:scale(' + scale + ');transform-origin:bottom center;',
+      'bottom:' + Math.round(bottom * 0.6) + 'px !important;}'
+    ].join('');
+  }
+
+  /**
+   * Sustituye el gamepad por defecto de EmulatorJS. Se declara ANTES de inyectar loader.js:
+   * el emulador construye los controles una sola vez al arrancar.
+   */
+  function gamepadSettings(config) {
+    // "zone" es el joystick de EmulatorJS (nipplejs, modo estático). El color sale de la paleta
+    // de Nahua; sin él, nipplejs lo pinta rojo. El tamaño del contenedor lo pone gba.css, porque
+    // EmulatorJS crea el zone sin dimensiones (la cruceta, en cambio, llena con .ejs_dpad_main).
+    var stick = config.pad === 'joystick'
+      ? { type: 'zone', id: 'stick', location: 'left', left: '50%', top: '50%', joystickInput: true, color: '#58D6B8', inputValues: [4, 5, 6, 7] }
+      : { type: 'dpad', id: 'dpad', location: 'left', left: '50%', top: '50%', joystickInput: false, inputValues: [4, 5, 6, 7] };
+    // Mismo mapa de botones que el layout de GBA de EmulatorJS, sin los botones Fast/Slow.
+    return [
+      stick,
+      { type: 'button', text: 'B', id: 'b', location: 'right', left: 10, top: 70, bold: true, input_value: 0 },
+      { type: 'button', text: 'A', id: 'a', location: 'right', left: 81, top: 40, bold: true, input_value: 8 },
+      { type: 'button', text: 'L', id: 'l', location: 'left', left: 3, top: -90, bold: true, block: true, input_value: 10 },
+      { type: 'button', text: 'R', id: 'r', location: 'right', right: 3, top: -90, bold: true, block: true, input_value: 11 },
+      { type: 'button', text: 'Start', id: 'start', location: 'center', left: 60, fontSize: 15, block: true, input_value: 3 },
+      { type: 'button', text: 'Select', id: 'select', location: 'center', left: -5, fontSize: 15, block: true, input_value: 2 }
+    ];
+  }
+
   // --- Háptica --------------------------------------------------------------
 
   // EmulatorJS dibuja sus controles como divs (".ejs_virtualGamepad_button"), no como botones
@@ -369,8 +458,11 @@
       exitEmulation: false
     };
 
-    // Sin EJS_VirtualGamepadSettings a propósito: EmulatorJS trae la disposición táctil
-    // correcta de GBA (A/B, cruceta, L/R, Start/Select) para el esquema "gba".
+    // Gamepad propio: joystick (o cruceta) + A/B/L/R/Start/Select, con el tamaño y la posición
+    // que el usuario eligió en "Configuración de la consola". Debe fijarse antes de loader.js.
+    var controls = readControls();
+    window.EJS_VirtualGamepadSettings = gamepadSettings(controls);
+    applyControlsCss(controls);
 
     window.localStorage.setItem(LAST_ROM_KEY, JSON.stringify(rom));
 
@@ -422,6 +514,94 @@
   });
 
   // --- Cableado -------------------------------------------------------------
+
+  // --- Panel de configuración de la consola --------------------------------
+
+  var consolePanel = document.getElementById('consolePanel');
+  var padJoystick = document.getElementById('padJoystick');
+  var padDpad = document.getElementById('padDpad');
+  var ctlScale = document.getElementById('ctlScale');
+  var ctlScaleOut = document.getElementById('ctlScaleOut');
+  var ctlBottom = document.getElementById('ctlBottom');
+  var ctlBottomOut = document.getElementById('ctlBottomOut');
+  var ctlSide = document.getElementById('ctlSide');
+  var ctlSideOut = document.getElementById('ctlSideOut');
+
+  function syncConsoleUi(config) {
+    padJoystick.classList.toggle('seg-btn-on', config.pad === 'joystick');
+    padDpad.classList.toggle('seg-btn-on', config.pad === 'dpad');
+    ctlScale.value = String(Math.round(config.scale * 100));
+    ctlScaleOut.textContent = Math.round(config.scale * 100) + ' %';
+    ctlBottom.value = String(Math.round(config.bottom));
+    ctlBottomOut.textContent = Math.round(config.bottom) + ' px';
+    ctlSide.value = String(Math.round(config.side));
+    ctlSideOut.textContent = Math.round(config.side) + ' px';
+  }
+
+  function updateControls(patch) {
+    var next = readControls();
+    var key;
+    for (key in patch) {
+      if (Object.prototype.hasOwnProperty.call(patch, key)) next[key] = patch[key];
+    }
+    saveControls(next);
+    // Tamaño y posición se ven al instante (CSS); el tipo de mando es estructura y espera al
+    // siguiente arranque, porque EmulatorJS construye el gamepad una sola vez.
+    applyControlsCss(next);
+    syncConsoleUi(next);
+    return next;
+  }
+
+  function openConsole(open) {
+    consolePanel.classList.toggle('hidden', !open);
+    if (open) syncConsoleUi(readControls());
+  }
+
+  if (consolePanel) {
+    syncConsoleUi(readControls());
+    padJoystick.addEventListener('click', function () { updateControls({ pad: 'joystick' }); });
+    padDpad.addEventListener('click', function () { updateControls({ pad: 'dpad' }); });
+    ctlScale.addEventListener('input', function () {
+      updateControls({ scale: clampNumber(Number(ctlScale.value) / 100, 0.7, 1.5, 1) });
+    });
+    ctlBottom.addEventListener('input', function () {
+      updateControls({ bottom: clampNumber(ctlBottom.value, 0, 240, 50) });
+    });
+    ctlSide.addEventListener('input', function () {
+      updateControls({ side: clampNumber(ctlSide.value, 0, 140, 10) });
+    });
+    document.getElementById('ctlReset').addEventListener('click', function () {
+      updateControls({ pad: CONTROLS_DEFAULTS.pad, scale: CONTROLS_DEFAULTS.scale, bottom: CONTROLS_DEFAULTS.bottom, side: CONTROLS_DEFAULTS.side });
+    });
+    document.getElementById('ctlClose').addEventListener('click', function () { openConsole(false); });
+    document.getElementById('ctlEjs').addEventListener('click', function () {
+      openConsole(false);
+      if (window.EJS_emulator && window.EJS_emulator.menu) window.EJS_emulator.menu.toggle();
+    });
+    document.getElementById('ctlRestart').addEventListener('click', function () {
+      // Reconstruye el gamepad con el tipo de mando elegido (la partida sigue en "Continuar").
+      window.location.reload();
+    });
+    consolePanel.addEventListener('click', function (event) {
+      if (event.target === consolePanel) openConsole(false);
+    });
+  }
+
+  var consoleBtn = document.getElementById('consoleBtn');
+  if (consoleBtn) consoleBtn.addEventListener('click', function () { openConsole(true); });
+
+  // El botón Menú de la tira nativa abre este panel (la configuración de la consola), y desde
+  // aquí se llega a los ajustes propios de EmulatorJS.
+  window.NahuaConsole = {
+    open: function () { openConsole(true); },
+    close: function () { openConsole(false); },
+    toggle: function () {
+      if (!consolePanel) return false;
+      openConsole(consolePanel.classList.contains('hidden'));
+      return true;
+    },
+    config: function () { return readControls(); }
+  };
 
   pickBtn.addEventListener('click', function () {
     if (!hasSdk()) {

@@ -7,6 +7,13 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Mando del emulador con joystick y menú de configuración de la consola**: el mando izquierdo
+  pasa de cruceta a **joystick** (tipo `zone` de EmulatorJS, nipplejs) y un panel nuevo permite
+  ajustar **tamaño**, **altura** y **margen lateral** del gamepad, además de alternar
+  joystick/cruceta. El tamaño y la posición se aplican **en vivo** por variables CSS (sin
+  reiniciar la partida); el tipo de mando se aplica al reiniciar. Se guarda en
+  `localStorage` (`nahua.gba.controls`) y el botón **Menú** de la tira nativa abre este panel,
+  que a su vez enlaza con los ajustes propios de EmulatorJS.
 - **Háptica real en los controles del emulador**: `NahuaNative.haptic(style)` en el puente y
   `Nahua.haptic()` en el SDK (v1.4). El host ejecuta `performHapticFeedback` sobre el WebView, sin
   permiso `VIBRATE` y respetando el ajuste del sistema; la mini-app `gba` lo engancha por

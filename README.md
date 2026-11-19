@@ -173,6 +173,10 @@ sin tocar una línea de NDK.
 - **Controles que se sienten nativos**: los botones del gamepad son HTML, así que la vibración la
   ejecuta el anfitrión (`Nahua.haptic` → `performHapticFeedback`, sin permiso `VIBRATE` y
   respetando el ajuste del sistema) con un tope de 40 ms por pulsación.
+- **Joystick y controles a tu medida**: el mando izquierdo es un **joystick** (no una cruceta) y el
+  panel *Configurar controles* ajusta **tamaño, altura y margen lateral** del gamepad en vivo,
+  además de alternar joystick/cruceta. La configuración queda guardada en el dispositivo y el
+  botón **Menú** la abre también en mitad del juego.
 - **Medido, no supuesto**: cada partida publica un reporte `[perf]` en logcat (frame pacing +
   latencias de WebAudio) y `scripts/gba-perf.ps1` lo convierte en el veredicto Go/No-Go sobre
   pasar a un núcleo nativo. Criterio y procedimiento en [docs/GBA-PERF.md](docs/GBA-PERF.md).

@@ -229,6 +229,20 @@ h1 {
    aseguramos que su contenedor llene la pantalla sin scroll. */
 #game .ejs_parent { width: 100%; height: 100%; }
 
+/* Joystick: EmulatorJS crea el "zone" sin dimensiones (a diferencia de la cruceta,
+   que llena con .ejs_dpad_main), asi que aqui se le da el tamano del mando izquierdo
+   y un fondo tenue para que se vea donde apoyar el dedo. */
+.ejs_virtualGamepad_left > .b_stick {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 /* --- Overlay de error ----------------------------------------------------- */
 
 .overlay {
@@ -258,6 +272,105 @@ h1 {
 .panel-title { margin: 0; font-size: 18px; font-weight: 900; }
 
 .panel-body { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+
+/* --- Configuración de la consola ------------------------------------------ */
+
+/* El overlay es fixed; el panel toma % de esa altura (nada de vh/dvh) y hace scroll
+   en horizontal, donde la pantalla es baja. */
+.console-panel {
+  max-height: 92%;
+  overflow-y: auto;
+  text-align: left;
+  gap: 12px;
+}
+
+.console-panel .panel-title { text-align: center; }
+
+.field-label {
+  display: block;
+  margin: 0;
+  color: var(--jade-bright);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.field-label b { color: var(--ink); font-weight: 800; }
+
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: var(--surface-alt);
+  border: 2px solid var(--line);
+  border-radius: 3px;
+  padding: 4px;
+}
+
+.seg-btn {
+  font: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 9px 10px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.seg-btn-on {
+  color: #04240F;
+  background: var(--jade);
+  border-color: var(--jade);
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+
+.field input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
+  background: transparent;
+}
+
+.field input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  background: var(--surface-alt);
+  border: 2px solid var(--line);
+  border-radius: 3px;
+}
+
+.field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -11px;
+  background: var(--jade);
+  border: 3px solid #04240F;
+  border-radius: 3px;
+}
+
+.console-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.45;
+  border-top: 2px dashed var(--line-soft);
+  padding-top: 8px;
+}
+
+.console-actions { display: flex; gap: 8px; }
+
+.console-actions .btn { flex: 1; }
+
+/* En horizontal la portada cabe en dos columnas; el panel de ajustes sigue siendo de una. */
+@media (orientation: landscape) {
+  .console-panel { max-width: 560px; }
+}
 
 /* --- Horizontal ----------------------------------------------------------- */
 

@@ -30,6 +30,7 @@
         <p id="romEmpty" class="empty">Todavía no hay ROMs. Carga la primera.</p>
       </div>
       <button id="pickBtn" class="btn primary" type="button">Cargar ROM (.gba)</button>
+      <button id="consoleBtn" class="btn ghost" type="button">Configurar controles</button>
     </section>
 
     <p class="legal">
@@ -49,6 +50,47 @@
   <main id="game" class="screen hidden">
     <div id="display"></div>
   </main>
+
+  <!-- Configuración de la consola: joystick/cruceta, tamaño y posición del gamepad.
+       Se abre desde la portada o con el botón Menú de la tira nativa, en mitad del juego. -->
+  <div id="consolePanel" class="overlay hidden">
+    <div class="panel console-panel">
+      <p class="panel-title">Configuración de la consola</p>
+
+      <p class="field-label">Mando izquierdo</p>
+      <div class="seg" role="group" aria-label="Mando izquierdo">
+        <button id="padJoystick" class="seg-btn" type="button" data-pad="joystick">Joystick</button>
+        <button id="padDpad" class="seg-btn" type="button" data-pad="dpad">Cruceta</button>
+      </div>
+
+      <label class="field" for="ctlScale">
+        <span class="field-label">Tamaño <b id="ctlScaleOut">100 %</b></span>
+        <input id="ctlScale" type="range" min="70" max="150" step="5" value="100">
+      </label>
+
+      <label class="field" for="ctlBottom">
+        <span class="field-label">Altura <b id="ctlBottomOut">50 px</b></span>
+        <input id="ctlBottom" type="range" min="0" max="240" step="10" value="50">
+      </label>
+
+      <label class="field" for="ctlSide">
+        <span class="field-label">Margen lateral <b id="ctlSideOut">10 px</b></span>
+        <input id="ctlSide" type="range" min="0" max="140" step="5" value="10">
+      </label>
+
+      <p id="ctlNote" class="console-note">
+        El tamaño y la posición se ven al instante. Cambiar de joystick a cruceta se aplica al
+        reiniciar la partida.
+      </p>
+
+      <button id="ctlRestart" class="btn ghost" type="button">Reiniciar partida con estos controles</button>
+      <div class="console-actions">
+        <button id="ctlReset" class="btn ghost" type="button">Restablecer</button>
+        <button id="ctlEjs" class="btn primary" type="button">Ajustes del emulador</button>
+      </div>
+      <button id="ctlClose" class="btn ghost" type="button">Cerrar</button>
+    </div>
+  </div>
 
   <!-- Error fatal (motor dañado o descarga imposible): recargar es la salida limpia. -->
   <div id="overlay" class="overlay hidden">

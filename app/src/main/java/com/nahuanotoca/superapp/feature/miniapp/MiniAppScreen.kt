@@ -278,10 +278,12 @@ fun MiniAppScreen(
                 reloadSignal += 1
             },
             onMenu = {
-                // Menú/ajustes del propio EmulatorJS (volumen, estados, controles): el botón
-                // nativo lo abre donde la cámara nunca lo tapa, a diferencia del engrane web.
+                // Menú = configuración de la consola (joystick, tamaño y posición del gamepad).
+                // Desde ese panel se llega a los ajustes propios de EmulatorJS, que si no
+                // existen (portada, sin partida) dejan el panel abierto igual.
                 bridge.sendToWeb?.invoke(
-                    "window.EJS_emulator && window.EJS_emulator.menu && window.EJS_emulator.menu.toggle()",
+                    "(window.NahuaConsole && window.NahuaConsole.toggle()) || " +
+                        "(window.EJS_emulator && window.EJS_emulator.menu && window.EJS_emulator.menu.toggle())",
                 )
             },
             content = {

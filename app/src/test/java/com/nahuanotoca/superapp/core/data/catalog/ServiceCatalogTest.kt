@@ -153,6 +153,36 @@ class ServiceCatalogTest {
         assertTrue("El presupuesto de frame no es el del GBA", gbaJs.contains("16.746"))
     }
 
+    /**
+     * El mando izquierdo es un joystick (no la cruceta por defecto de EmulatorJS) y su tamaño y
+     * posicion se configuran desde un panel propio. Si alguien vuelve al gamepad por defecto o
+     * quita el panel, el bundle no falla: simplemente el usuario pierde la configuracion.
+     */
+    @Test
+    fun gbaShipsJoystickAndConsoleSettingsPanel() {
+        val gbaJs = File("src/main/assets/miniapps/gba/gba.js").readText()
+        // "zone" + joystickInput es el mecanismo de EmulatorJS para el stick analogico (N64).
+        assertTrue("El mando izquierdo no es un joystick", gbaJs.contains("type: 'zone'"))
+        assertTrue("El joystick no declara joystickInput", gbaJs.contains("joystickInput: true"))
+        assertTrue("Se perdio la opcion de cruceta", gbaJs.contains("type: 'dpad'"))
+        assertTrue("No se declara EJS_VirtualGamepadSettings", gbaJs.contains("EJS_VirtualGamepadSettings"))
+        // Tamano y posicion en vivo por CSS (sin reconstruir el emulador).
+        assertTrue("No se aplican variables CSS del gamepad", gbaJs.contains("applyControlsCss"))
+        assertTrue("No se persiste la configuracion", gbaJs.contains("nahua.gba.controls"))
+        assertTrue("No existe el menu de la consola", gbaJs.contains("window.NahuaConsole"))
+
+        val html = File("src/main/assets/miniapps/gba/index.html").readText()
+        listOf("consolePanel", "padJoystick", "padDpad", "ctlScale", "ctlBottom", "ctlSide").forEach { id ->
+            assertTrue("Falta el control " + id + " en el panel de la consola", html.contains(id))
+        }
+
+        // El boton Menú de la tira nativa abre ese panel, no directamente el menu de EmulatorJS.
+        val screen = File(
+            "src/main/java/com/nahuanotoca/superapp/feature/miniapp/MiniAppScreen.kt",
+        ).readText()
+        assertTrue("El boton Menú no abre NahuaConsole", screen.contains("NahuaConsole && window.NahuaConsole.toggle()"))
+    }
+
     @Test
     fun searchIsCaseInsensitiveAndMatchesTagline() {
         val byName = ServiceCatalog.search("ride")
