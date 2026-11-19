@@ -5,6 +5,8 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-11-18
+
 ### Añadido
 
 - **Emulador de Game Boy Advance como mini-app**: nueva mini-app inmersiva `gba` sobre EmulatorJS
