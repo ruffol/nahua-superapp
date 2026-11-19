@@ -15,9 +15,9 @@ android {
         applicationId = "com.nahuanotoca.superapp"
         minSdk = 26
         targetSdk = 35
-        // Overridable from CI: -PnahuaVersionCode=1600 -PnahuaVersionName=0.16.0
-        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "1600").toInt()
-        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.16.0"
+        // Overridable from CI: -PnahuaVersionCode=1601 -PnahuaVersionName=0.16.1
+        versionCode = (providers.gradleProperty("nahuaVersionCode").orNull ?: "1601").toInt()
+        versionName = providers.gradleProperty("nahuaVersionName").orNull ?: "0.16.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

@@ -5,6 +5,24 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.16.1] — 2026-11-18
+
+### Corregido
+
+- **Pantalla negra al cargar la ROM**: los nucleos de EmulatorJS viajan empaquetados en 7z y el
+  bundle no incluía `compression/extract7z.js`, así que el nucleo se descargaba pero nunca se
+  descomprimía (404 del asset → fallback al CDN → 404 del bloqueo offline → pantalla negra).
+  Ahora se vendoriza el extractor y la carga quedó verificada de punta a punta en navegador
+  contra el bundle del APK: mGBA arranca la ROM de prueba y renderiza el título con letterbox
+  3:2.
+- **Botón de salida tapado por la cámara en horizontal**: el ✕ estaba en la esquina sin
+  respetar el recorte del notch; solo se veía una franja inutilizable. Se sustituye por una tira
+  nativa — **Salir**, **Menú** (abre el menú/ajustes de EmulatorJS vía
+  `EJS_emulator.menu.toggle()`) y **Recargar** — con `displayCutout`/`statusBars` insets, y el
+  bundle web suma `safe-area-inset` y una portada deslizable en landscape.
+- `rooms/` queda ignorado: las ROMs de prueba del usuario nunca al repositorio ni al APK, y el
+  test de integridad del bundle exige el extractor 7z para que la regresión no regrese.
+
 ## [0.16.0] — 2026-11-18
 
 ### Añadido
