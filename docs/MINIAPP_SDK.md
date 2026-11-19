@@ -328,6 +328,17 @@ selector del sistema (SAF) y el anfitrión hace la copia.
   archivos estáticos; no comparten código fuente con el proyecto (MIT), así que no hay obra
   derivada del código GPL dentro del binario de Nahua.
 
+## Notas del WebView (importante para bundles)
+
+- **No uses `height: 100%` ni unidades de viewport (`vh`, `dvh`, `svh`) para el layout raíz.** En el
+  WebView de Android en modo inmersivo el *initial containing block* mide 0 y todas resuelven a
+  `0px`: la pantalla queda recortada o en blanco y los toques no alcanzan los botones. Patrón que
+  sí funciona (el que usa `gba`): pantallas con `position: fixed; inset: 0;` y scroll interno, y
+  los hijos que deben llenar con `flex: 1 1 auto; min-height: 0`.
+- **La Fullscreen API no existe** en el WebView: la pantalla completa la da el anfitrión con
+  `display: "immersive"`. No pongas botones de fullscreen en el bundle.
+- **Nada de red**: todo subrequest a otro origen se corta con un 404 vacío.
+
 ## Desarrollo local
 
 1. Crea `app/src/main/assets/miniapps/mi-app/index.html`.

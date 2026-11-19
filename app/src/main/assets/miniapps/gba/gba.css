@@ -23,10 +23,17 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+/*
+ * Layout a prueba del WebView de Android: ni height:100% ni unidades de viewport.
+ * En el WebView (al menos en modo inmersivo con ventana redimensionada) el bloque
+ * contenedor inicial mide 0, asi que 100% / 100vh / 100dvh / 100svh resuelven a 0
+ * y la pantalla queda en blanco. Las pantallas usan position:fixed; inset:0, que si
+ * toma el tamano real del viewport, y el scroll vive dentro de cada pantalla.
+ */
 html, body {
   margin: 0;
   padding: 0;
-  height: 100%;
+  height: auto;
   background: var(--bg);
   color: var(--ink);
   font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -38,11 +45,16 @@ html, body {
 .hidden { display: none !important; }
 
 .screen {
-  min-height: 100%;
+  /* inset:0 sobre el viewport real: funciona aunque el ICB mida 0. */
+  position: fixed;
+  inset: 0;
   padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* --- Portada -------------------------------------------------------------- */
@@ -194,6 +206,9 @@ h1 {
 
 #game {
   padding: 0;
+  /* El juego no debe hacer scroll: el canvas y los controles de EmulatorJS se
+     acomodan solos dentro del area. */
+  overflow: hidden;
   /* En horizontal la camara/notch vive en los bordes largos: sin esto, el
      engrane de ajustes de EmulatorJS queda detras del recorte. */
   padding-left: env(safe-area-inset-left, 0px);
@@ -202,8 +217,11 @@ h1 {
 
 #display {
   width: 100%;
-  height: 100vh;
-  height: 100dvh;
+  /* flex:1 sobre un padre fixed con altura definida: el canvas de EmulatorJS
+     siempre recibe un alto real, sin unidades de viewport. */
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
   background: #000;
 }
 
@@ -248,12 +266,15 @@ h1 {
    con notch o sin el. */
 @media (orientation: landscape) {
   #home {
+    /* Sin max-height en unidades de viewport: #home ya ocupa el viewport y hace
+       scroll por dentro. */
     max-width: 720px;
     margin: 0 auto;
-    max-height: 100dvh;
-    overflow-y: auto;
+    padding-top: 8px;
     padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-left: 16px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: 16px;
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
@@ -262,6 +283,6 @@ h1 {
   h1 { font-size: 18px; }
   .tagline { font-size: 11px; }
 
-  #home .card { max-height: 40vh; overflow-y: auto; }
+  #home .card { padding: 10px; }
   #home .legal { font-size: 10px; line-height: 1.4; padding: 6px 10px; }
 }

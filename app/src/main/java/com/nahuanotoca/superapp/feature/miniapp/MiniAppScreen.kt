@@ -272,6 +272,11 @@ fun MiniAppScreen(
                 recreateSignal += 1
             },
             onClose = onClose,
+            onHome = {
+                // Vuelve a la portada (biblioteca de ROMs) sin salir de la mini-app: recargar
+                // deja el juego en la tarjeta "Seguir jugando", con su partida en IndexedDB.
+                reloadSignal += 1
+            },
             onMenu = {
                 // Menú/ajustes del propio EmulatorJS (volumen, estados, controles): el botón
                 // nativo lo abre donde la cámara nunca lo tapa, a diferencia del engrane web.
@@ -279,7 +284,6 @@ fun MiniAppScreen(
                     "window.EJS_emulator && window.EJS_emulator.menu && window.EJS_emulator.menu.toggle()",
                 )
             },
-            onReload = { reloadSignal += 1 },
             content = {
                 MiniAppWebView(
                     manifest = manifest,
@@ -439,8 +443,8 @@ private fun ImmersiveMiniApp(
     rendererGone: Boolean,
     onRetry: () -> Unit,
     onClose: () -> Unit,
+    onHome: () -> Unit,
     onMenu: () -> Unit,
-    onReload: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -513,20 +517,20 @@ private fun ImmersiveMiniApp(
                 PixelGlyph(PixelIcons.close, color = PixelInk, size = 15.dp)
             }
             PixelIconButton(
+                onClick = onHome,
+                modifier = Modifier.size(46.dp),
+                fill = PixelPanelDeep,
+                border = PixelBorder,
+            ) {
+                PixelGlyph(PixelAppGlyphs.house, color = PixelInk, size = 16.dp)
+            }
+            PixelIconButton(
                 onClick = onMenu,
                 modifier = Modifier.size(46.dp),
                 fill = PixelPanelDeep,
                 border = PixelBorder,
             ) {
                 PixelGlyph(PixelIcons.gear, color = PixelInk, size = 16.dp)
-            }
-            PixelIconButton(
-                onClick = onReload,
-                modifier = Modifier.size(46.dp),
-                fill = PixelPanelDeep,
-                border = PixelBorder,
-            ) {
-                PixelGlyph(PixelAppGlyphs.refresh, color = PixelInk, size = 16.dp)
             }
         }
     }
