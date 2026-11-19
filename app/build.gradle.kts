@@ -46,6 +46,11 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Firma estable: sin esto el APK de release queda sin firmar y el actualizador OTA
+            // no puede instalarlo sobre la versión anterior.
+            if (demoKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("nahuaDemo")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
