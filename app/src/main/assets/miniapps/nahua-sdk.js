@@ -1,10 +1,10 @@
 /*
- * Nahua Mini App SDK (v1.3)
+ * Nahua Mini App SDK (v1.4)
  * -------------------------------------------------------------
  * The host injects window.NahuaNative (addJavascriptInterface). This script turns the raw
  * bridge into a small promise-based API: session, payments, one-shot and live location,
- * external directions, clipboard, barter valuation, inbox notices, toast, close and, desde
- * v1.3, la gestion de ROMs del emulador (pickRom, listRoms, deleteRom).
+ * external directions, clipboard, háptica, barter valuation, inbox notices, toast, close y,
+ * desde v1.3, la gestion de ROMs del emulador (pickRom, listRoms, deleteRom).
  *
  * Location in the browser (dev) falls back to navigator.geolocation, so the map can be
  * tested outside the APK. Valuation returns null without a host: callers keep their own
@@ -204,6 +204,32 @@
       }
       var url = 'https://www.google.com/maps/dir/?api=1&destination=' + payload.lat + ',' + payload.lng;
       window.open(url, '_blank');
+    },
+
+    /**
+     * Retroalimentación háptica. Un control dibujado en HTML no vibra por sí solo: el host
+     * ejecuta performHapticFeedback sobre el WebView (sin permiso VIBRATE y respetando el ajuste
+     * del sistema, así que en silencio/molesto sigue funcionando bien).
+     *
+     * @param {string} [style] tap | press | long | confirm | reject
+     * @returns {boolean} false si no hay anfitrión ni vibración del navegador.
+     */
+    haptic: function (style) {
+      var value = String(style || 'press');
+      try {
+        if (window.NahuaNative && window.NahuaNative.haptic) {
+          window.NahuaNative.haptic(value);
+          return true;
+        }
+        // Navegador de escritorio (desarrollo): imitación inofensiva si el equipo vibra.
+        if (navigator.vibrate) {
+          navigator.vibrate(value === 'long' ? 24 : 8);
+          return true;
+        }
+      } catch (error) {
+        // La háptica nunca debe romper una pulsación.
+      }
+      return false;
     },
 
     /** Copies text to the system clipboard through the host (fallback: navigator.clipboard). */

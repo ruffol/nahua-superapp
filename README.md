@@ -170,6 +170,12 @@ sin tocar una línea de NDK.
   `assets/licenses/`. Es un bundle estático sin modificar, integrado por configuración
   (`EJS_*`), no código enlazado: el proyecto sigue siendo MIT y el emulador se puede quitar
   borrando una carpeta del APK.
+- **Controles que se sienten nativos**: los botones del gamepad son HTML, así que la vibración la
+  ejecuta el anfitrión (`Nahua.haptic` → `performHapticFeedback`, sin permiso `VIBRATE` y
+  respetando el ajuste del sistema) con un tope de 40 ms por pulsación.
+- **Medido, no supuesto**: cada partida publica un reporte `[perf]` en logcat (frame pacing +
+  latencias de WebAudio) y `scripts/gba-perf.ps1` lo convierte en el veredicto Go/No-Go sobre
+  pasar a un núcleo nativo. Criterio y procedimiento en [docs/GBA-PERF.md](docs/GBA-PERF.md).
 
 <p align="center">
   <img src="docs/screens/inicio-aplicaciones.png" width="330" alt="Hub de servicios de Nahua" />

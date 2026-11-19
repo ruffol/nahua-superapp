@@ -75,8 +75,22 @@ class MiniAppBridge(
     /** "A <usuario> le interesa truequear tu <objeto>": termina en la bandeja nativa de Avisos. */
     var onBarterNotice: (BarterNotice) -> Unit = {}
 
+    /**
+     * Vibración corta pedida por la página. Un botón dibujado en HTML no hereda la respuesta
+     * táctil de un botón nativo, así que los controles del emulador la piden por aquí y el host
+     * la ejecuta con [android.view.View.performHapticFeedback] (sin permiso VIBRATE, y respetando
+     * el ajuste del sistema: si el usuario apagó la respuesta táctil, no vibra).
+     */
+    var onHaptic: (String) -> Unit = {}
+
     @JavascriptInterface
     fun getSession(): String = sessionJson()
+
+    /** Fuego y olvido: nunca bloquea al WebView, nunca devuelve resultado. */
+    @JavascriptInterface
+    fun haptic(style: String) {
+        mainHandler.post { onHaptic(style) }
+    }
 
     @JavascriptInterface
     fun pay(payloadJson: String, requestId: String) {

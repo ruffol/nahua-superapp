@@ -3,7 +3,9 @@ package com.nahuanotoca.superapp.feature.miniapp
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Build
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import android.webkit.ConsoleMessage
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
@@ -148,6 +150,9 @@ fun MiniAppWebView(
 
                     addJavascriptInterface(bridge, "NahuaNative")
                     bridge.sendToWeb = { script -> post { evaluateJavascript(script, null) } }
+                    // La háptica la ejecuta el WebView: es el View que está bajo el dedo, no la
+                    // Activity, y así no hace falta permiso VIBRATE ni un Vibrator propio.
+                    bridge.onHaptic = { style -> performHapticFeedback(hapticConstant(style)) }
 
                     loadUrl(manifest.entryUrl)
                     webViewState.value = this
@@ -156,6 +161,7 @@ fun MiniAppWebView(
             update = {},
             onRelease = { view ->
                 // El proceso de render pudo morir: destruir es lo unico seguro antes de crear otro.
+                bridge.onHaptic = {}
                 runCatching {
                     view.destroy()
                 }
@@ -191,6 +197,27 @@ fun MiniAppWebView(
     LaunchedEffect(reloadSignal) {
         if (reloadSignal > 0) webViewState.value?.reload()
     }
+}
+
+/**
+ * Traduce el estilo que pide la página a una constante de háptica. Las constantes modernas
+ * (CONFIRM/REJECT, API 30) caen a las clásicas en minSdk 26; un valor desconocido no vibra
+ * raro: cae en VIRTUAL_KEY, que es el "clic de tecla" del sistema.
+ */
+private fun hapticConstant(style: String): Int = when (style.trim().lowercase()) {
+    "tap" -> HapticFeedbackConstants.KEYBOARD_TAP
+    "long", "longpress" -> HapticFeedbackConstants.LONG_PRESS
+    "confirm", "ok" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        HapticFeedbackConstants.CONFIRM
+    } else {
+        HapticFeedbackConstants.VIRTUAL_KEY
+    }
+    "reject", "error" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        HapticFeedbackConstants.REJECT
+    } else {
+        HapticFeedbackConstants.LONG_PRESS
+    }
+    else -> HapticFeedbackConstants.VIRTUAL_KEY
 }
 
 /** 404 vacio e inmediato: el WebView no toca la red y la pagina ve el fallo al instante. */

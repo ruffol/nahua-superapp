@@ -122,6 +122,37 @@ class ServiceCatalogTest {
         assertNotNull("Falta el servicio del emulador en el catalogo", ServiceCatalog.find("gba"))
     }
 
+    /**
+     * Los controles del emulador son divs de EmulatorJS, no botones nativos: si alguien quita la
+     * delegacion tactil o el puente, la vibracion desaparece y nada falla. La telemetria tampoco
+     * es adorno: es lo unico que permite decidir la Fase 2 (nucleo nativo + AAudio) con datos en
+     * lugar de intuicion, y se pierde sin ruido en cualquier refactor del bundle.
+     */
+    @Test
+    fun gbaKeepsNativeHapticsAndFrameTelemetry() {
+        val sdk = File("src/main/assets/miniapps/nahua-sdk.js").readText()
+        assertTrue("El SDK no expone Nahua.haptic", sdk.contains("haptic: function"))
+        assertTrue("El SDK no llama al puente haptic", sdk.contains("NahuaNative.haptic"))
+
+        val bridge = File(
+            "src/main/java/com/nahuanotoca/superapp/core/miniapp/MiniAppBridge.kt",
+        ).readText()
+        assertTrue("El puente perdio el metodo haptic", bridge.contains("fun haptic("))
+        assertTrue("El puente perdio el callback onHaptic", bridge.contains("var onHaptic"))
+
+        val gbaJs = File("src/main/assets/miniapps/gba/gba.js").readText()
+        assertTrue(
+            "gba.js no engancha los controles del gamepad",
+            gbaJs.contains(".ejs_virtualGamepad_button"),
+        )
+        assertTrue("gba.js no aplica el tope de vibracion", gbaJs.contains("HAPTIC_GAP_MS"))
+        assertTrue("gba.js no sondea el AudioContext", gbaJs.contains("installAudioProbe"))
+        assertTrue("gba.js no mide frame pacing", gbaJs.contains("window.NahuaPerf"))
+        assertTrue("gba.js no arranca la ventana de medicion", gbaJs.contains("Perf.start()"))
+        // El presupuesto es el del GBA real (16.777216 MHz / 280896 ciclos por frame), no 16.67 ms.
+        assertTrue("El presupuesto de frame no es el del GBA", gbaJs.contains("16.746"))
+    }
+
     @Test
     fun searchIsCaseInsensitiveAndMatchesTagline() {
         val byName = ServiceCatalog.search("ride")

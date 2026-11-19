@@ -5,6 +5,24 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Añadido
+
+- **Háptica real en los controles del emulador**: `NahuaNative.haptic(style)` en el puente y
+  `Nahua.haptic()` en el SDK (v1.4). El host ejecuta `performHapticFeedback` sobre el WebView, sin
+  permiso `VIBRATE` y respetando el ajuste del sistema; la mini-app `gba` lo engancha por
+  delegación en `touchstart` sobre los botones virtuales de EmulatorJS (`.ejs_virtualGamepad_button`)
+  con un tope de 40 ms para que un dedo apoyado no zumba sin fin.
+- **Telemetría de frame pacing y audio** en la mini-app `gba`: ventana de 60 s por partida que
+  publica `[perf]` en logcat (fps, p50/p95/max en ms, % fuera de presupuesto, frames perdidos y
+  `baseLatency`/`outputLatency` de WebAudio), más `NahuaPerf.start()/report()/stop()` para medir a
+  mano desde `chrome://inspect`. Es la base para decidir si vale la pena un núcleo nativo
+  (mGBA + AAudio): el GBA refresca a 59.7275 Hz, no a 60, y esa deriva no se ve con
+  `requestAnimationFrame` — el reporte lo deja claro para no leerlo de más.
+- **`scripts/gba-perf.ps1`**: captura esa ventana desde adb (limpia el buffer, espera el `[perf]`,
+  guarda el JSON en `app/build/perf/`) y emite el veredicto **Go/No-Go** de la Fase 2 con el
+  criterio documentado en [docs/GBA-PERF.md](docs/GBA-PERF.md), incluido el orden de trabajo si
+  el veredicto es Go (NDK, núcleo mGBA, EGL, AAudio, APK único).
+
 ## [0.16.2] — 2026-11-18
 
 ### Corregido

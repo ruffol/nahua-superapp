@@ -157,6 +157,177 @@
       });
   }
 
+  // --- Háptica --------------------------------------------------------------
+
+  // EmulatorJS dibuja sus controles como divs (".ejs_virtualGamepad_button"), no como botones
+  // nativos: el WebView no les da respuesta táctil. Nahua.haptic() la ejecuta en Kotlin con
+  // performHapticFeedback sobre el propio WebView (sin permiso VIBRATE y respetando el ajuste
+  // del sistema: si el usuario apagó la respuesta táctil, no vibra, y eso es lo correcto).
+  var HAPTIC_GAP_MS = 40;
+  var lastHapticAt = 0;
+
+  function haptic(style) {
+    var now = Date.now();
+    // Un dedo apoyado no debe zumbar sin fin: solo el primer contacto de cada pulsación.
+    if (now - lastHapticAt < HAPTIC_GAP_MS) return;
+    lastHapticAt = now;
+    if (hasSdk() && typeof window.Nahua.haptic === 'function') window.Nahua.haptic(style || 'press');
+  }
+
+  function wireHaptics() {
+    // Delegación en fase de captura: los controles los crea EmulatorJS después de arrancar, así
+    // que no se pueden enganchar uno por uno. passive: no se toca el input del emulador.
+    document.addEventListener('touchstart', function (event) {
+      var target = event.target;
+      if (!target || typeof target.closest !== 'function') return;
+      if (!target.closest('.ejs_virtualGamepad_button')) return;
+      haptic('press');
+    }, { capture: true, passive: true });
+  }
+
+  // --- Telemetría (decidir la Fase 2 con números, no con corazonadas) --------
+  //
+  // Qué mide y qué NO mide, para no leer de más el reporte:
+  //  - Mide frame pacing: cuántos frames se pasan del presupuesto y por cuánto. Un frame de GBA
+  //    dura 16.746 ms (16.777216 MHz / 280896 ciclos por frame), pero el vsync de la pantalla
+  //    marca 16.67 ms: requestAnimationFrame no puede distinguir 59.7275 de 60 Hz, así que la
+  //    deriva exacta del reloj del GBA contra el de la pantalla NO sale de aquí.
+  //  - Mide lo que WebAudio reporta (baseLatency/outputLatency/sampleRate): es el piso de
+  //    latencia que añade Chromium antes de tocar AAudio.
+  //  - No mide latencia de entrada: eso necesita el dispositivo en la mano.
+  // Sale por NahuaNative.log -> logcat, etiqueta NahuaMiniApp, prefijo "[perf]".
+  var GBA_FRAME_MS = 16.746;
+  var audioContexts = [];
+
+  /**
+   * EmulatorJS crea su AudioContext y no lo expone. Se intercepta el constructor (antes de
+   * inyectar loader.js) para poder leer sus latencias; el objeto devuelto es el original.
+   */
+  function installAudioProbe() {
+    var Original = window.AudioContext || window.webkitAudioContext;
+    if (!Original || Original.__nahuaProbe) return;
+    function Probed() {
+      var args = [null].concat(Array.prototype.slice.call(arguments));
+      var ctx = new (Function.prototype.bind.apply(Original, args))();
+      audioContexts.push(ctx);
+      return ctx;
+    }
+    Probed.prototype = Original.prototype;   // instanceof y chequeos de tipo siguen funcionando
+    Probed.__nahuaProbe = true;
+    window.AudioContext = Probed;
+    if (window.webkitAudioContext) window.webkitAudioContext = Probed;
+  }
+
+  var Perf = (function () {
+    var running = false;
+    var frameMs = [];
+    var lastTs = 0;
+    var startedAt = 0;
+    var dropped = 0;
+    var wasHidden = false;
+
+    function log(line) {
+      if (hasHost()) {
+        try {
+          window.NahuaNative.log(line);
+          return;
+        } catch (error) {
+          // sin puente: cae a la consola del WebView
+        }
+      }
+      if (window.console) console.log(line);
+    }
+
+    function tick(ts) {
+      if (!running) return;
+      var hiddenNow = document.hidden;
+      // Con la página oculta (app en segundo plano) el vsync se congela y al volver llega un
+      // delta gigante: ninguna de las dos cosas describe el juego, así que el reloj se reinicia.
+      if (hiddenNow || wasHidden) {
+        wasHidden = hiddenNow;
+        lastTs = 0;
+        window.requestAnimationFrame(tick);
+        return;
+      }
+      var delta = lastTs ? ts - lastTs : 0;
+      lastTs = ts;
+      // delta <= 0 = timestamp repetido (algunos WebView lo hacen al reanudar): no es un frame.
+      if (delta > 0) {
+        frameMs.push(delta);
+        // Se cuenta como frame perdido lo que excede 1.5 frames: por debajo es ruido del vsync.
+        if (delta > GBA_FRAME_MS * 1.5) {
+          dropped += Math.max(1, Math.round(delta / GBA_FRAME_MS) - 1);
+        }
+      }
+      window.requestAnimationFrame(tick);
+    }
+
+    function percentile(sorted, p) {
+      if (!sorted.length) return 0;
+      var index = Math.min(sorted.length - 1, Math.floor(sorted.length * p));
+      return Math.round(sorted[index] * 100) / 100;
+    }
+
+    function audioSummary() {
+      var ctx = audioContexts[0];
+      if (!ctx) return null;
+      var toMs = function (value) {
+        return typeof value === 'number' ? Math.round(value * 10000) / 10 : null;
+      };
+      return {
+        sampleRate: ctx.sampleRate,
+        state: ctx.state,
+        baseLatencyMs: toMs(ctx.baseLatency),
+        outputLatencyMs: toMs(ctx.outputLatency)
+      };
+    }
+
+    return {
+      start: function () {
+        if (running) return;
+        running = true;
+        frameMs = [];
+        dropped = 0;
+        lastTs = 0;
+        wasHidden = document.hidden;
+        startedAt = window.performance.now();
+        window.requestAnimationFrame(tick);
+      },
+
+      report: function (label) {
+        if (!frameMs.length) return null;
+        var elapsed = window.performance.now() - startedAt;
+        var seconds = Math.round(elapsed / 100) / 10;
+        var sorted = frameMs.slice().sort(function (a, b) { return a - b; });
+        var sum = sorted.reduce(function (a, b) { return a + b; }, 0);
+        var over = sorted.filter(function (delta) { return delta > GBA_FRAME_MS * 1.5; });
+        var summary = {
+          label: label || 'gba',
+          seconds: seconds,
+          frames: sorted.length,
+          fps: Math.round((sorted.length / (seconds || 1)) * 10) / 10,
+          avgMs: Math.round((sum / sorted.length) * 100) / 100,
+          p50Ms: percentile(sorted, 0.5),
+          p95Ms: percentile(sorted, 0.95),
+          maxMs: Math.round(sorted[sorted.length - 1] * 100) / 100,
+          overBudgetPct: Math.round((over.length / sorted.length) * 1000) / 10,
+          droppedFrames: dropped,
+          audio: audioSummary()
+        };
+        log('[perf] ' + JSON.stringify(summary));
+        return summary;
+      },
+
+      stop: function () {
+        running = false;
+        return this.report('stop');
+      }
+    };
+  })();
+
+  // A mano desde chrome://inspect: NahuaPerf.report('manual') / NahuaPerf.stop()
+  window.NahuaPerf = Perf;
+
   // --- Arranque del juego ---------------------------------------------------
 
   /**
@@ -205,6 +376,16 @@
 
     home.classList.add('hidden');
     game.classList.remove('hidden');
+
+    // Antes de inyectar el loader: el sondeo de AudioContext tiene que existir cuando EmulatorJS
+    // construya el suyo, y la háptica debe estar enganchada cuando cree los controles.
+    installAudioProbe();
+    wireHaptics();
+
+    // Ventana de medición: 60 s de juego real y un resumen a logcat. NO se repite sola; para
+    // volver a medir, NahuaPerf.start() desde chrome://inspect.
+    Perf.start();
+    window.setTimeout(function () { Perf.report('60s'); }, 60000);
 
     var script = document.createElement('script');
     script.src = 'emulatorjs/loader.js';

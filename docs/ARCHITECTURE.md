@@ -102,7 +102,7 @@ MiniAppScreen ──► MiniAppWebView ──► MiniAppAssetLoader ─┘
 - **Offline por diseño**: todo request `http(s)` a otro host se responde con un 404 vacío en
   `shouldInterceptRequest`. EmulatorJS trae un *failsafe* que cae a `cdn.emulatorjs.org` si falta
   un archivo del núcleo; con el bloqueo no hay tráfico real ni timeouts, el error es inmediato.
-- **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`, más `valuate`,
+- **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`, `haptic`, más `valuate`,
   `compareBarter` y `announceBarter` para el bazar, y `pickRom`/`listRoms`/`deleteRom`
   para el emulador.
 - **Confirmación obligatoria**: ningún pago se ejecuta desde JS; siempre pasa por una hoja de
@@ -114,8 +114,14 @@ MiniAppScreen ──► MiniAppWebView ──► MiniAppAssetLoader ─┘
   audio del emulador no sigue sonando en segundo plano. Si el proceso de render muere, la app
   sobrevive (`onRenderProcessGone` → `true`) y el WebView se recrea (`recreateSignal`).
 - **Presupuesto del emulador**: el bundle de EmulatorJS 4.2.3 (solo núcleo mGBA, dos variantes
-  wasm y dos idiomas) pesa **2.47 MB** vendorizados en `assets/miniapps/gba/emulatorjs/`, sin
+  wasm y dos idiomas) pesa **2.74 MB** vendorizados en `assets/miniapps/gba/emulatorjs/`, sin
   ROMs ni BIOS; véase [MINIAPP_SDK.md](MINIAPP_SDK.md).
+- **Medir antes de reescribir**: la mini-app `gba` instrumenta su propio frame pacing y las
+  latencias que reporta WebAudio (`[perf]` en logcat) durante 60 s por partida. La decisión de
+  bajar a un núcleo nativo (mGBA + AAudio) depende de esos números, no de la intuición: el GBA
+  refresca a 59.7275 Hz y el vsync de la pantalla a ~60, así que el WASM solo se justifica fuera
+  de presupuesto si el frame pacing se cae o el audio se estira. Procedimiento y criterio Go/No-Go
+  en [GBA-PERF.md](GBA-PERF.md).
 
 Más detalle en [MINIAPP_SDK.md](MINIAPP_SDK.md).
 

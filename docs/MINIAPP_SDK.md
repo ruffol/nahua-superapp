@@ -1,9 +1,10 @@
-# Nahua Mini App SDK (v1.3)
+# Nahua Mini App SDK (v1.4)
 
 Una mini app es un bundle web (HTML/CSS/JS) que vive en `app/src/main/assets/miniapps/<id>/` y se
 declara en `app/src/main/assets/miniapps/index.json`. La app anfitriona la carga en un WebView
 aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, valoración de
-objetos, avisos a la bandeja nativa, navegación y, desde la v1.3, la gestión de ROMs del emulador.
+objetos, avisos a la bandeja nativa, háptica, navegación y, desde la v1.3, la gestión de ROMs del
+emulador.
 
 ## Manifiesto
 
@@ -169,6 +170,29 @@ solo calcula distancia, rumbo y ETA aproximados.
 ```js
 Nahua.openDirections(19.2436, -103.7246, 'Jardín Libertad');
 ```
+
+### `Nahua.haptic(style)`
+
+Respuesta táctil para controles que la página dibuja ella misma (el gamepad del emulador, por
+ejemplo): el host ejecuta `performHapticFeedback` sobre el WebView. **No requiere permiso
+`VIBRATE`** y respeta el ajuste del sistema — si el usuario apagó la respuesta táctil, no vibra,
+y eso es lo correcto. Es fuego y olvido: no devuelve promesa y nunca bloquea.
+
+| `style` | Efecto |
+|---|---|
+| `tap` | toque de teclado (el más suave) |
+| `press` (por defecto) | clic de tecla virtual |
+| `long` | pulsación larga |
+| `confirm` / `reject` | aceptar / rechazar (Android 11+; en versiones previas caen en `press`/`long`) |
+
+```js
+document.addEventListener('touchstart', event => {
+  if (event.target.closest('.ejs_virtualGamepad_button')) Nahua.haptic('press');
+}, { passive: true });
+```
+
+Evita llamarlo en cada frame: un dedo apoyado dispara `touchstart` una sola vez, pero si enganchas
+también `touchmove`, pon tu propio límite (el emulador usa 40 ms).
 
 ### `Nahua.copy(text)`
 
