@@ -45,6 +45,8 @@ class MiniAppRegistry(private val context: Context) {
                                     }
                                 }
                             } ?: emptyList(),
+                            display = MiniAppDisplay.from(item.optString("display")),
+                            orientation = MiniAppOrientation.from(item.optString("orientation")),
                         ),
                     )
                 }

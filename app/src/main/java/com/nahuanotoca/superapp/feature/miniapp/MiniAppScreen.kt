@@ -5,13 +5,13 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,9 +39,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nahuanotoca.superapp.core.design.PixelAppGlyphs
 import com.nahuanotoca.superapp.core.design.PixelBg
@@ -62,17 +66,28 @@ import com.nahuanotoca.superapp.core.design.PixelPanelDeep
 import com.nahuanotoca.superapp.core.design.PixelRed
 import com.nahuanotoca.superapp.core.design.PixelTitle
 import com.nahuanotoca.superapp.core.design.PixelViolet
+import com.nahuanotoca.superapp.core.miniapp.BarterNotice
 import com.nahuanotoca.superapp.core.miniapp.DirectionsRequest
 import com.nahuanotoca.superapp.core.miniapp.MiniAppBridge
+import com.nahuanotoca.superapp.core.miniapp.MiniAppDisplay
+import com.nahuanotoca.superapp.core.miniapp.MiniAppManifest
+import com.nahuanotoca.superapp.core.miniapp.MiniAppOrientation
 import com.nahuanotoca.superapp.core.miniapp.PayRequest
+import com.nahuanotoca.superapp.core.miniapp.RomImportException
 import com.nahuanotoca.superapp.core.model.Money
 import com.nahuanotoca.superapp.core.model.PaymentResult
+import com.nahuanotoca.superapp.ui.findActivity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
  * Contenedor de mini-apps con el marco en pixel art. El contenido sigue siendo HTML dentro del
- * WebView aislado; aquí sólo se rediseña la cabecera, la barra de saldo y el diálogo de pago.
+ * WebView aislado; aqui se rediseña la cabecera, la barra de saldo y el dialogo de pago.
+ *
+ * Un manifiesto puede pedir dos variantes:
+ *  - "chrome": la mini-app vive bajo el marco de Nahua (cabecera, pie de saldo, pagos, GPS).
+ *  - "immersive": la mini-app es toda la pantalla (emulador GBA): el host rota a horizontal,
+ *    oculta las barras del sistema y deja solo un boton ✕ flotante para salir.
  */
 @Composable
 fun MiniAppScreen(
@@ -91,6 +106,8 @@ fun MiniAppScreen(
 
     var pendingPayment by remember { mutableStateOf<PayRequest?>(null) }
     var reloadSignal by remember { mutableIntStateOf(0) }
+    var recreateSignal by remember { mutableIntStateOf(0) }
+    var rendererGone by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     val wallet by viewModel.wallet.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -116,8 +133,8 @@ fun MiniAppScreen(
         pendingLocationId = null
         pendingWatchInterval = null
 
-        // En Android 12+ el usuario puede conceder solo ubicación aproximada: el permiso
-        // "fine" llega como denegado pero el coarse ya está activo.
+        // En Android 12+ el usuario puede conceder solo ubicacion aproximada: el permiso
+        // "fine" llega como denegado pero el coarse ya esta activo.
         if (!granted && !viewModel.hasLocationPermission()) {
             if (requestId != null) {
                 bridge.resolveLocation(requestId, null, "permission_denied")
@@ -160,6 +177,35 @@ fun MiniAppScreen(
         locationJob.value = null
     }
 
+    // ROMs del emulador: el picker es del sistema (SAF). Muchos providers etiquetan los .gba como
+    // application/octet-stream, asi que se pide */* y la validacion real de extension/tamano
+    // vive en RomStore al momento de copiar.
+    var pendingRomRequestId by remember { mutableStateOf<String?>(null) }
+    val romPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        val requestId = pendingRomRequestId
+        pendingRomRequestId = null
+        if (requestId == null) return@rememberLauncherForActivityResult
+        if (uri == null) {
+            bridge.resolveRomError(requestId, RomImportException.CANCELLED)
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            try {
+                val rom = viewModel.importRom(uri)
+                bridge.resolveRom(requestId, rom)
+                onMessage("ROM lista: " + rom.displayName)
+            } catch (importFailure: RomImportException) {
+                bridge.resolveRomError(requestId, importFailure.code)
+                onMessage(romImportMessage(importFailure.code))
+            } catch (unexpected: Exception) {
+                bridge.resolveRomError(requestId, RomImportException.READ_FAILED)
+                onMessage(romImportMessage(RomImportException.READ_FAILED))
+            }
+        }
+    }
+
     SideEffect {
         bridge.onLocationRequest = { requestId ->
             if (viewModel.hasLocationPermission()) {
@@ -180,6 +226,20 @@ fun MiniAppScreen(
             viewModel.announceBarter(notice)
             onMessage(notice.title)
         }
+        bridge.onRomPickRequest = { requestId ->
+            pendingRomRequestId = requestId
+            runCatching { romPicker.launch(arrayOf("*/*")) }
+                .onFailure {
+                    pendingRomRequestId = null
+                    bridge.resolveRomError(requestId, "unavailable")
+                }
+        }
+        bridge.onRomListRequest = { requestId ->
+            scope.launch { bridge.resolveRomList(requestId, viewModel.listRoms()) }
+        }
+        bridge.onRomDeleteRequest = { requestId, name ->
+            scope.launch { bridge.resolveDeleted(requestId, viewModel.deleteRom(name)) }
+        }
     }
 
     DisposableEffect(bridge) {
@@ -191,76 +251,117 @@ fun MiniAppScreen(
             bridge.onDirectionsRequest = {}
             bridge.onCopyToClipboard = {}
             bridge.onBarterNotice = {}
+            bridge.onRomPickRequest = {}
+            bridge.onRomListRequest = {}
+            bridge.onRomDeleteRequest = { _, _ -> }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PixelBg)
-            .navigationBarsPadding(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PixelIconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
-                PixelGlyph(PixelIcons.close, color = PixelInk, size = 14.dp)
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                PixelTitle(text = manifest.name, size = 9.sp)
-                Spacer(Modifier.height(3.dp))
-                PixelBodyText(
-                    text = "Mini app · v" + manifest.version,
-                    size = 14.sp,
-                    color = PixelMuted,
-                    maxLines = 1,
+    if (manifest.display == MiniAppDisplay.IMMERSIVE) {
+        ImmersiveMiniApp(
+            manifest = manifest,
+            loading = loading,
+            rendererGone = rendererGone,
+            onRetry = {
+                rendererGone = false
+                recreateSignal += 1
+            },
+            onClose = onClose,
+            content = {
+                MiniAppWebView(
+                    manifest = manifest,
+                    bridge = bridge,
+                    reloadSignal = reloadSignal,
+                    recreateSignal = recreateSignal,
+                    immersive = true,
+                    onLoadingChanged = { loading = it },
+                    onRendererGone = {
+                        rendererGone = true
+                        onMessage("El motor de video se reinicio")
+                    },
+                    modifier = Modifier.fillMaxSize(),
                 )
-            }
-            PixelIconButton(
-                onClick = { reloadSignal += 1 },
-                modifier = Modifier.size(36.dp),
-            ) {
-                PixelGlyph(PixelAppGlyphs.refresh, color = PixelInk, size = 16.dp)
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .background(if (loading) PixelViolet else PixelBorderSoft.copy(alpha = 0.4f)),
+            },
         )
+    } else {
+        // Modo chrome: la mini-app bajo el marco de Nahua. Si el render muere, se avisa y el
+        // WebView se recrea en silencio: las mini-apps de contenido (mapa, bazar) no pierden nada.
+        run {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PixelBg)
+                    .navigationBarsPadding(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PixelIconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+                        PixelGlyph(PixelIcons.close, color = PixelInk, size = 14.dp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        PixelTitle(text = manifest.name, size = 9.sp)
+                        Spacer(Modifier.height(3.dp))
+                        PixelBodyText(
+                            text = "Mini app · v" + manifest.version,
+                            size = 14.sp,
+                            color = PixelMuted,
+                            maxLines = 1,
+                        )
+                    }
+                    PixelIconButton(
+                        onClick = { reloadSignal += 1 },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        PixelGlyph(PixelAppGlyphs.refresh, color = PixelInk, size = 16.dp)
+                    }
+                }
 
-        Box(modifier = Modifier.weight(1f)) {
-            MiniAppWebView(
-                manifest = manifest,
-                bridge = bridge,
-                reloadSignal = reloadSignal,
-                onLoadingChanged = { loading = it },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(if (loading) PixelViolet else PixelBorderSoft.copy(alpha = 0.4f)),
+                )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(PixelPanelDeep)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PixelGlyph(PixelAppGlyphs.shield, color = PixelGreen, size = 13.dp)
-            Spacer(Modifier.width(8.dp))
-            PixelBodyText(
-                text = "Pagos protegidos por Nahua · saldo " + Money.format(wallet.balanceCents),
-                size = 14.sp,
-                color = PixelMuted,
-                maxLines = 1,
-            )
+                Box(modifier = Modifier.weight(1f)) {
+                    MiniAppWebView(
+                        manifest = manifest,
+                        bridge = bridge,
+                        reloadSignal = reloadSignal,
+                        recreateSignal = recreateSignal,
+                        immersive = false,
+                        onLoadingChanged = { loading = it },
+                        onRendererGone = {
+                            onMessage("La mini app se reinicio")
+                            recreateSignal += 1
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(PixelPanelDeep)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PixelGlyph(PixelAppGlyphs.shield, color = PixelGreen, size = 13.dp)
+                    Spacer(Modifier.width(8.dp))
+                    PixelBodyText(
+                        text = "Pagos protegidos por Nahua · saldo " + Money.format(wallet.balanceCents),
+                        size = 14.sp,
+                        color = PixelMuted,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 
@@ -291,7 +392,7 @@ fun MiniAppScreen(
 
                         PaymentResult.InvalidAmount -> {
                             bridge.resolvePay(request.requestId, success = false, error = "invalid_amount")
-                            onMessage("Monto inválido")
+                            onMessage("Monto invalido")
                         }
                     }
                 }
@@ -304,6 +405,138 @@ fun MiniAppScreen(
     }
 }
 
+/** Traduce el codigo estable de [RomImportException] a algo que el usuario entienda. */
+private fun romImportMessage(code: String): String = when (code) {
+    RomImportException.UNSUPPORTED -> "Ese archivo no es una ROM de GBA (.gba, .agb o .bin)"
+    RomImportException.TOO_LARGE -> "La ROM supera los 64 MB"
+    RomImportException.READ_FAILED -> "No se pudo leer el archivo"
+    RomImportException.WRITE_FAILED -> "No se pudo guardar la ROM"
+    else -> "No se pudo importar la ROM"
+}
+
+/**
+ * Variante inmersiva: rota a horizontal (si el manifiesto lo pide), oculta las barras del
+ * sistema y deja un boton ✕ flotante. EmulatorJS coloca su propio menu en la esquina superior
+ * derecha, asi que el cierre va a la izquierda.
+ */
+@Composable
+private fun ImmersiveMiniApp(
+    manifest: MiniAppManifest,
+    loading: Boolean,
+    rendererGone: Boolean,
+    onRetry: () -> Unit,
+    onClose: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val context = LocalContext.current
+    val view = LocalView.current
+    val activity = remember(context) { context.findActivity() }
+
+    DisposableEffect(activity, view) {
+        val previousOrientation = activity?.requestedOrientation
+            ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        if (manifest.orientation == MiniAppOrientation.LANDSCAPE) {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+
+        // La Fullscreen API no existe en el WebView de Android: la inmersion la maneja el host.
+        val controller = activity?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).also { insets ->
+                insets.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insets.hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+
+        onDispose {
+            if (manifest.orientation == MiniAppOrientation.LANDSCAPE) {
+                activity?.requestedOrientation = previousOrientation
+            }
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PixelBg),
+    ) {
+        if (rendererGone) {
+            RendererGonePanel(onRetry = onRetry, onClose = onClose)
+        } else {
+            content()
+        }
+
+        if (loading && !rendererGone) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(PixelViolet),
+            )
+        }
+
+        // Salida siempre visible, sin estorbar el menu de EmulatorJS (esquina superior derecha).
+        PixelIconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(10.dp)
+                .size(40.dp),
+        ) {
+            PixelGlyph(PixelIcons.close, color = PixelInk, size = 16.dp)
+        }
+    }
+}
+
+@Composable
+private fun RendererGonePanel(onRetry: () -> Unit, onClose: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PixelBg),
+        contentAlignment = Alignment.Center,
+    ) {
+        PixelPanel(
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            fill = PixelPanelDeep,
+            border = PixelBorder,
+            borderWidth = 3.dp,
+            cut = 8.dp,
+            contentPadding = PaddingValues(16.dp),
+        ) {
+            PixelTitle(text = "El juego se cerro", size = 9.sp)
+            Spacer(Modifier.height(10.dp))
+            PixelBodyText(
+                text = "El motor de video se quedo sin memoria. Tu partida guardada esta a salvo: " +
+                    "vuelve a entrar y continua desde donde la dejaste.",
+                size = 15.sp,
+                color = PixelMuted,
+            )
+            Spacer(Modifier.height(12.dp))
+            PixelButton(
+                text = "Reintentar",
+                onClick = onRetry,
+                expand = true,
+                color = PixelGreen,
+                textColor = Color(0xFF04240F),
+                fontSize = 6.sp,
+                contentPadding = PaddingValues(vertical = 11.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            PixelButton(
+                text = "Salir",
+                onClick = onClose,
+                expand = true,
+                color = PixelPanel,
+                borderColor = PixelBorderSoft,
+                fontSize = 5.6.sp,
+                contentPadding = PaddingValues(vertical = 9.dp),
+            )
+        }
+    }
+}
 
 private fun openDirections(
     context: Context,
@@ -336,7 +569,7 @@ private fun PaymentDialog(
     val hasFunds = request.amountCents <= balanceCents
 
     Dialog(onDismissRequest = onCancel) {
-        com.nahuanotoca.superapp.core.design.PixelPanel(
+        PixelPanel(
             modifier = Modifier.fillMaxWidth(),
             fill = PixelPanelDeep,
             border = PixelBorder,
@@ -383,7 +616,7 @@ private fun PaymentDialog(
             ) {
                 PixelBodyText(
                     text = if (hasFunds) {
-                        "Se descontará de tu saldo Nahua"
+                        "Se descontara de tu saldo Nahua"
                     } else {
                         "Saldo insuficiente para completar el pago"
                     },

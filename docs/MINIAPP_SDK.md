@@ -1,9 +1,9 @@
-# Nahua Mini App SDK (v1.2)
+# Nahua Mini App SDK (v1.3)
 
 Una mini app es un bundle web (HTML/CSS/JS) que vive en `app/src/main/assets/miniapps/<id>/` y se
 declara en `app/src/main/assets/miniapps/index.json`. La app anfitriona la carga en un WebView
 aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, valoración de
-objetos, avisos a la bandeja nativa y navegación.
+objetos, avisos a la bandeja nativa, navegación y, desde la v1.3, la gestión de ROMs del emulador.
 
 ## Manifiesto
 
@@ -27,7 +27,9 @@ objetos, avisos a la bandeja nativa y navegación.
 | `version` | no | Semver mostrado en el chrome de la mini app |
 | `entry` | sí | Ruta relativa a `assets/` del HTML de entrada |
 | `accent` | no | Color de marca en formato `#RRGGBB` |
-| `permissions` | no | Scopes declarativos (`wallet.pay`, `user.profile`, `storage.local`, `inbox.notify`, `location`, `map.tiles`): documentan lo que usa el bundle |
+| `permissions` | no | Scopes declarativos (`wallet.pay`, `user.profile`, `storage.local`, `inbox.notify`, `location`, `map.tiles`, `rom.read`): documentan lo que usa el bundle |
+| `display` | no | `"chrome"` (predeterminado) mantiene el marco de Nahua: cabecera, pie de saldo y diálogo de pagos. `"immersive"` le da toda la pantalla al bundle y el anfitrión oculta las barras del sistema; queda solo un botón ✕ flotante para salir |
+| `orientation` | no | `"auto"` (predeterminado) deja el sensor tal cual. `"landscape"` rota a horizontal mientras la mini app esté abierta y restaura al salir. Solo tiene sentido junto a `display: "immersive"` |
 
 ## API de JavaScript
 
@@ -178,6 +180,52 @@ Nahua.copy('19.243600, -103.725000')
   .catch(() => Nahua.toast('No se pudo copiar'));
 ```
 
+### `Nahua.pickRom()`
+
+Abre el selector de archivos del sistema. El anfitrión copia la ROM a su almacenamiento privado
+(`filesDir/roms`) validando extensión (`.gba`, `.agb`, `.bin`) y tamaño (≤ 64 MiB), y resuelve con
+la URL `https` del propio origen desde la que el WebView la sirve. La página nunca ve URIs de
+contenido ni rutas de archivos, y no hay `file://` de por medio. Requiere el permiso `rom.read`.
+
+```js
+Nahua.pickRom()
+  .then(rom => {
+    console.log(rom.name, rom.displayName, rom.sizeBytes, rom.url);
+    // rom.name  -> "pokemon-esmeralda-a1b2c3d4.gba" (estable: incluye el sha8 del contenido)
+    // rom.url   -> "https://appassets.androidplatform.net/rom/pokemon-esmeralda-a1b2c3d4.gba"
+  })
+  .catch(error => {
+    // error.error: cancelled | unsupported_rom | too_large | read_failed | write_failed | unavailable
+  });
+```
+
+La importación es idempotente: el nombre final lleva un sha8 del contenido, así que volver a
+elegir la misma ROM no duplica el archivo ni pierde las partidas guardadas.
+
+### `Nahua.listRoms()`
+
+Devuelve las ROMs ya importadas, la más reciente primero. Cada entrada trae `name`,
+`displayName`, `sizeBytes` y `url`.
+
+```js
+Nahua.listRoms()
+  .then(result => {
+    result.roms.forEach(rom => console.log(rom.displayName, rom.url));
+  })
+  .catch(error => console.log(error.error)); // unavailable
+```
+
+### `Nahua.deleteRom(name)`
+
+Borra una ROM importada. El nombre se valida en el anfitrión: solo se aceptan nombres devueltos
+por `pickRom`/`listRoms`, sin separadores ni `..`, así que nada fuera de `roms/` es tocable.
+
+```js
+Nahua.deleteRom('pokemon-esmeralda-a1b2c3d4.gba')
+  .then(() => Nahua.toast('ROM borrada'))
+  .catch(error => console.log(error.error)); // invalid_name | not_found
+```
+
 ### `Nahua.toast(message)`
 
 Muestra un snackbar nativo.
@@ -250,16 +298,40 @@ Reglas:
 - `WebViewAssetLoader` sirve los assets desde `https://appassets.androidplatform.net`, así que el
   WebView no tiene acceso a `file://` ni a contenido local arbitrario.
 - `settings.allowFileAccess = false` y `allowContentAccess = false`.
+- **Todo subrequest a otro origen se bloquea**: `shouldInterceptRequest` responde con un 404
+  vacío para cualquier `http(s)` que no venga de `appassets.androidplatform.net` (`data:` y
+  `blob:` sí pasan, son locales). Las mini-apps son offline por construcción; esto corta también
+  el *failsafe* de EmulatorJS hacia su CDN.
 - Navegación externa: cualquier `http(s)` fuera del origen se abre en el navegador del sistema.
 - El puente solo publica métodos anotados con `@JavascriptInterface`; el resto de la API de Android
   queda fuera del alcance de la página.
 - En producción: firmar el bundle, validar el manifiesto contra una lista blanca y limitar los
   permisos por scope.
 
+## ROMs: almacenamiento y legalidad
+
+La mini-app del emulador no lee el almacenamiento del teléfono: el usuario elige su ROM con el
+selector del sistema (SAF) y el anfitrión hace la copia.
+
+- **Dónde viven**: `filesDir/roms/*.gba`. Se borran si el usuario limpia los datos de la app;
+  la portada de la mini-app lo avisa. No hay exportación/importación de partidas en esta versión.
+- **Cómo llegan a la página**: `WebViewAssetLoader` sirve `/rom/<nombre>` desde ese directorio
+  con una URL `https` del propio origen. EmulatorJS necesita precisamente una URL (no un
+  `blob:`) para habilitar el guardado en IndexedDB, así que las partidas sobreviven entre
+  sesiones con el nombre estable del archivo.
+- **Sin BIOS, sin ROMs en el APK**: mGBA no necesita BIOS de GBA y el proyecto no incluye ni
+  enlaza ROMs; cada usuario carga copias de cartuchos que posea. La licencia del emulador
+  (GPL-3.0) se conserva en `assets/licenses/EmulatorJS-GPL-3.0.txt` con su aviso en
+  `EmulatorJS-NOTICE.txt`, y el bundle se vendorizó sin modificar con
+  `scripts/fetch-emulatorjs.ps1`.
+- **Aislamiento GPL**: la mini-app habla con EmulatorJS mediante configuración (`EJS_*`) y
+  archivos estáticos; no comparten código fuente con el proyecto (MIT), así que no hay obra
+  derivada del código GPL dentro del binario de Nahua.
+
 ## Desarrollo local
 
 1. Crea `app/src/main/assets/miniapps/mi-app/index.html`.
-2. Agrega su entrada a `index.json`.
+2. Agrega su entrada a `index.json` (y `display`/`orientation` si quieres modo inmersivo).
 3. Añade el `Service` correspondiente en `ServiceCatalog` con `ServiceTarget.MiniApp("mi-app")`.
 4. Corre `./gradlew installDebug` y ábrela desde el hub.
 5. Agrega un test de integridad: `ServiceCatalogTest` verifica que el bundle exista.

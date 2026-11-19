@@ -1,0 +1,5 @@
+﻿EmulatorJS 4.2.3 (canal: stable)
+Origen: https://cdn.emulatorjs.org/stable/data/
+Descargado con scripts/fetch-emulatorjs.ps1
+Licencia: GPL-3.0 (ver app/src/main/assets/licenses/EmulatorJS-GPL-3.0.txt)
+Solo se vendorizo el nucleo mgba (Game Boy Advance) y las localizaciones en-US/es-ES.

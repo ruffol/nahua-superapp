@@ -1,0 +1,249 @@
+/*
+ * Emulador GBA — hoja de estilos
+ * Misma paleta oscura del marco pixel de Nahua (barro, cal y volcán) para que la mini-app se
+ * sienta parte del anfitrión. Todo se dibuja con CSS: sin imágenes, sin fuentes web.
+ */
+
+:root {
+  --bg: #0A0F14;
+  --surface: #161E26;
+  --surface-alt: #1E2833;
+  --ink: #E9EEF5;
+  --ink-soft: #9AA7B6;
+  --jade: #4F7A3F;
+  --jade-deep: #2F4A26;
+  --jade-bright: #58D6B8;
+  --hero-start: #0E7C66;
+  --hero-end: #0B5A7A;
+  --coral: #C65A32;
+  --line: #2A3541;
+  --line-soft: #33404D;
+  --shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  overscroll-behavior: none;
+}
+
+.hidden { display: none !important; }
+
+.screen {
+  min-height: 100%;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --- Portada -------------------------------------------------------------- */
+
+.hero { text-align: center; }
+
+/* Cartucho pixel dibujado con spans: cero imágenes. */
+.cart {
+  width: 66px;
+  height: 60px;
+  margin: 0 auto 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 2px;
+  padding: 5px;
+  background: var(--hero-start);
+  background: linear-gradient(160deg, var(--hero-start), var(--hero-end));
+  border: 3px solid var(--line-soft);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+
+.cart span {
+  background: var(--surface);
+  border: 2px solid var(--line);
+}
+
+.cart span:nth-child(1) { grid-column: 1 / 4; grid-row: 1; }
+.cart span:nth-child(2) { grid-column: 1; grid-row: 2 / 5; background: var(--jade-deep); }
+.cart span:nth-child(3) { grid-column: 3; grid-row: 2 / 5; background: var(--jade-deep); }
+.cart span:nth-child(4) { grid-column: 2; grid-row: 2 / 5; }
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.tagline { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
+
+.card {
+  background: var(--surface);
+  border: 3px solid var(--line);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card.continue { border-color: var(--jade); }
+
+.card-label {
+  margin: 0;
+  color: var(--jade-bright);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.card-title { margin: 0; font-size: 17px; font-weight: 800; }
+
+.rom-list { display: flex; flex-direction: column; gap: 8px; }
+
+.empty { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+.rom {
+  background: var(--surface-alt);
+  border: 2px solid var(--line-soft);
+  border-radius: 3px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rom-info { flex: 1; min-width: 0; }
+
+.rom-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rom-size { margin: 2px 0 0; color: var(--ink-soft); font-size: 11px; }
+
+.legal {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--surface);
+  border: 2px dashed var(--line-soft);
+  border-radius: 3px;
+}
+
+.hint {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--coral);
+  font-size: 12px;
+  background: var(--surface);
+  border: 2px solid var(--coral);
+  border-radius: 3px;
+}
+
+/* --- Botones ------------------------------------------------------------- */
+
+.btn {
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  border: 3px solid transparent;
+  border-radius: 3px;
+  padding: 11px 16px;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--surface-alt);
+  box-shadow: var(--shadow);
+}
+
+.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
+
+.btn.primary {
+  background: var(--jade);
+  color: #04240F;
+}
+
+.btn.small { padding: 7px 10px; font-size: 12px; }
+
+.btn.danger {
+  background: transparent;
+  border-color: var(--line-soft);
+  color: var(--coral);
+}
+
+.btn.ghost { background: transparent; border-color: var(--line-soft); }
+
+/* --- Juego --------------------------------------------------------------- */
+
+#game { padding: 0; }
+
+#display {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: #000;
+}
+
+/* El UI de EmulatorJS (barra inferior, menu) respeta su propio estilo; solo
+   aseguramos que su contenedor llene la pantalla sin scroll. */
+#game .ejs_parent { width: 100%; height: 100%; }
+
+/* --- Overlay de error ----------------------------------------------------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(4, 8, 12, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.panel {
+  width: min(420px, 100%);
+  background: var(--surface);
+  border: 3px solid var(--line);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.panel-title { margin: 0; font-size: 18px; font-weight: 900; }
+
+.panel-body { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+
+/* --- Horizontal ----------------------------------------------------------- */
+
+/* En landscape (la mini-app gira sola) la portada se acomoda en dos columnas para
+   que la lista de ROMs quepa sin scroll eterno. */
+@media (orientation: landscape) {
+  #home {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  #home .card { max-height: 46vh; overflow: auto; }
+}

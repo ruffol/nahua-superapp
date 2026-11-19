@@ -35,7 +35,9 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **140 tests unitarios** y CI en GitHub Actions.
+- **Emulador de Game Boy Advance**: mini-app inmersiva horizontal con EmulatorJS 4.2.3 (núcleo
+  mGBA en WebAssembly), 100 % offline, controles táctiles y partidas que sobreviven al cierre.
+- **156 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -46,6 +48,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
 | **Axolote** | mini-app | mascota virtual con hambre, ánimo y niveles | `localStorage` |
+| **Emulador GBA** | mini-app | tus cartuchos de Game Boy Advance, horizontal y sin red | EmulatorJS 4.2.3 (mGBA) · `Nahua.pickRom` |
 | **Nahuanotoka** | feature nativa | mesas de estudio: resumen, ideas, correlación y PDF | HTTP + PDFBox |
 
 ---
@@ -138,6 +141,39 @@ La aritmética vive en Kotlin (`core/model/Barter.kt`) y es la misma que expone 
 `Nahua.valuate`: la página nunca decide cuánto vale un objeto por su cuenta. El bundle
 (`assets/miniapps/bazar/`) guarda publicaciones y tratos en `localStorage`; el día que exista backend,
 esa capa se sustituye sin tocar la UI.
+
+## Emulador GBA
+
+Una mini-app inmersiva para jugar tus cartuchos de Game Boy Advance dentro de Nahua, sin red y
+sin tocar una línea de NDK.
+
+- **Motor**: [EmulatorJS](https://emulatorjs.org/) 4.2.3 con el núcleo **mGBA** compilado a
+  WebAssembly, vendorizado (2.47 MB, sin tocar) en `assets/miniapps/gba/emulatorjs/` con
+  `scripts/fetch-emulatorjs.ps1`. Se incluyen las variantes normal y `-legacy` (equipos sin
+  WebGL2) y las localizaciones en-US/es-ES.
+- **Tus ROMs, tu decisión**: la app no incluye ni enlaza ROMs ni BIOS. Tocas **Cargar ROM**, el
+  selector del sistema (`OpenDocument`) te deja elegir el `.gba`, y el anfitrión lo copia a
+  `filesDir/roms` validando extensión y tope de 64 MiB, con deduplicación por SHA-256 (el nombre
+  final lleva el `sha8`). La página lo recibe como URL `https` del propio origen: nunca hay
+  `file://` ni URIs de contenido en el WebView.
+- **Offline de verdad**: cualquier subrequest a otro origen se responde con un 404 vacío en
+  `shouldInterceptRequest`, así que ni siquiera el *failsafe* de EmulatorJS hacia su CDN puede
+  generar tráfico.
+- **Inmersivo y horizontal**: el manifiesto declara `display: "immersive"` +
+  `orientation: "landscape"`; el anfitrión oculta las barras del sistema, rota a horizontal y
+  deja solo un botón ✕ flotante. `configChanges` evita que la rotación recre la Activity (y el
+  juego). El ciclo de vida pausa el WebView en segundo plano para que el audio no siga sonando.
+- **Partidas**: EmulatorJS guarda SRAM y estados en IndexedDB del origen, keyficado por el nombre
+  estable de la ROM; cierra la app, vuelve y **Continuar** te deja donde estabas. Si el proceso
+  de render muere (OOM de GPU), la app sobrevive y ofrece reintentar.
+- **Licencias**: EmulatorJS es **GPL-3.0**; el texto completo y el aviso viven en
+  `assets/licenses/`. Es un bundle estático sin modificar, integrado por configuración
+  (`EJS_*`), no código enlazado: el proyecto sigue siendo MIT y el emulador se puede quitar
+  borrando una carpeta del APK.
+
+<p align="center">
+  <img src="docs/screens/inicio-aplicaciones.png" width="330" alt="Hub de servicios de Nahua" />
+</p>
 
 ## Nahuanotoka (mesas de trabajo)
 

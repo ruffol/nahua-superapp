@@ -117,6 +117,19 @@ object PixelAppGlyphs {
         ".........",
     )
 
+    /** Mando clastico: cruceta a la izquierda, botones a la derecha. */
+    val gamepad = rows(
+        ".........",
+        ".XXXXXXX.",
+        "XXXXXXXXX",
+        "XX.XXX.XX",
+        "XX.XXX.XX",
+        "XXXXXXXXX",
+        ".XXXXXXX.",
+        ".........",
+        ".........",
+    )
+
     val paw = rows(
         "XX...XX..",
         "XXX.XXX..",
@@ -298,6 +311,7 @@ object PixelAppGlyphs {
         "mapas" to map,
         "bazar" to store,
         "tamagochi" to paw,
+        "gba" to gamepad,
         "studio" to sparkleGlyph,
         "topup" to phone,
         "transit" to bus,

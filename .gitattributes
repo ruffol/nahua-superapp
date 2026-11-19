@@ -11,3 +11,5 @@
 *.jpg binary
 *.webp binary
 *.apk binary
+# Nucleos de EmulatorJS ya comprimidos: se versionan byte-exact, sin normalizacion.
+*.data binary

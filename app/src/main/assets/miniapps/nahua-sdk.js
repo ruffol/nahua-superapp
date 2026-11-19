@@ -1,9 +1,10 @@
 /*
- * Nahua Mini App SDK (v1.2)
+ * Nahua Mini App SDK (v1.3)
  * -------------------------------------------------------------
  * The host injects window.NahuaNative (addJavascriptInterface). This script turns the raw
  * bridge into a small promise-based API: session, payments, one-shot and live location,
- * external directions, clipboard, barter valuation, inbox notices, toast and close.
+ * external directions, clipboard, barter valuation, inbox notices, toast, close and, desde
+ * v1.3, la gestion de ROMs del emulador (pickRom, listRoms, deleteRom).
  *
  * Location in the browser (dev) falls back to navigator.geolocation, so the map can be
  * tested outside the APK. Valuation returns null without a host: callers keep their own
@@ -101,7 +102,7 @@
   }
 
   window.Nahua = {
-    version: '1.2.0',
+    version: '1.3.0',
     _resolve: resolve,
     _emit: emit,
 
@@ -273,6 +274,36 @@
         title: String((options && options.title) || '').slice(0, 90),
         body: String((options && options.body) || '').slice(0, 240)
       });
+    },
+
+    /**
+     * Abre el selector de ROMs del sistema. El host copia el archivo a su almacenamiento
+     * privado y resuelve con la URL https desde la que el WebView lo sirve.
+     * @returns {Promise<{status: string, name: string, displayName: string,
+     *                    sizeBytes: number, url: string}>}
+     * @rejects {{status: string, error: string}} cancelled | unsupported_rom | too_large |
+     *           read_failed | write_failed | unavailable
+     */
+    pickRom: function () {
+      return post('pickRom', {});
+    },
+
+    /**
+     * ROMs ya importadas, la mas reciente primero.
+     * @returns {Promise<{status: string, roms: Array<{name, displayName, sizeBytes, url}>}>}
+     */
+    listRoms: function () {
+      return post('listRoms', {});
+    },
+
+    /**
+     * Borra una ROM importada. El nombre se valida en el host: nada fuera de roms/ es tocable.
+     * @param {string} name  el "name" devuelto por pickRom/listRoms.
+     * @returns {Promise<{status: string}>}
+     * @rejects {{status: string, error: string}} invalid_name | not_found
+     */
+    deleteRom: function (name) {
+      return post('deleteRom', { name: String(name == null ? '' : name) });
     },
 
     /** Closes the mini app and returns to the Nahua home. */

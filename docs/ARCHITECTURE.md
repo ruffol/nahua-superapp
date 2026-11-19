@@ -82,22 +82,40 @@ compartan firma; en producción debe sustituirse.
 
 ```
 assets/miniapps/index.json  ──►  MiniAppRegistry  ──►  MiniAppManifest
-                                                          │
-MiniAppScreen ──► MiniAppWebView ──► WebViewAssetLoader ──┘
-       │                   │
-       │                   └── window.NahuaNative (addJavascriptInterface)
+      │                                        (display, orientation)
+      │                                                  │
+      │         /assets/  bundles HTML + emulatorjs/      │
+      │         /rom/     filesDir/roms (ROMs del GBA)    │
+      ▼                                                  ▼
+MiniAppScreen ──► MiniAppWebView ──► MiniAppAssetLoader ─┘
+   (chrome |      │      │
+   inmersivo)     │      └── request a otro host → 404 vacío (offline garantizado)
+       │          └── window.NahuaNative (addJavascriptInterface)
        └── MiniAppBridge ──► WalletRepository.pay() / LocationManager / geo: intent
+                            / RomStore (filesDir/roms) para el emulador
 ```
 
 - **Origen seguro**: los assets se sirven en `https://appassets.androidplatform.net/assets/...`,
-  así el WebView no necesita `file://` ni tráfico en claro.
+  así el WebView no necesita `file://` ni tráfico en claro. Las ROMs del emulador se sirven de
+  `/rom/` (`InternalStoragePathHandler` sobre `filesDir/roms`): la página solo ve ese directorio,
+  nunca `databases/` ni `shared_prefs/`.
+- **Offline por diseño**: todo request `http(s)` a otro host se responde con un 404 vacío en
+  `shouldInterceptRequest`. EmulatorJS trae un *failsafe* que cae a `cdn.emulatorjs.org` si falta
+  un archivo del núcleo; con el bloqueo no hay tráfico real ni timeouts, el error es inmediato.
 - **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`, más `valuate`,
-  `compareBarter` y `announceBarter` para el bazar.
+  `compareBarter` y `announceBarter` para el bazar, y `pickRom`/`listRoms`/`deleteRom`
+  para el emulador.
 - **Confirmación obligatoria**: ningún pago se ejecuta desde JS; siempre pasa por una hoja de
   confirmación en Compose y por `WalletRepository`.
 - **Resultado asíncrono**: el puente responde con `window.Nahua._resolve(id, payload)`, que resuelve
   o rechaza el `Promise` del SDK. `valuate` y `compareBarter` son la excepción: devuelven JSON de
   forma síncrona porque el formulario de publicación recalcula al escribir.
+- **Ciclo de vida**: `ON_PAUSE`/`ON_RESUME` pausan el WebView (`onPause` + `pauseTimers`), así el
+  audio del emulador no sigue sonando en segundo plano. Si el proceso de render muere, la app
+  sobrevive (`onRenderProcessGone` → `true`) y el WebView se recrea (`recreateSignal`).
+- **Presupuesto del emulador**: el bundle de EmulatorJS 4.2.3 (solo núcleo mGBA, dos variantes
+  wasm y dos idiomas) pesa **2.47 MB** vendorizados en `assets/miniapps/gba/emulatorjs/`, sin
+  ROMs ni BIOS; véase [MINIAPP_SDK.md](MINIAPP_SDK.md).
 
 Más detalle en [MINIAPP_SDK.md](MINIAPP_SDK.md).
 

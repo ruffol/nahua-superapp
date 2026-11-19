@@ -60,9 +60,60 @@ class ServiceCatalogTest {
     @Test
     fun remainingMiniAppsStayDeclared() {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
-        listOf("ride", "bills", "mapa", "tamagochi", "bazar").forEach { id ->
+        listOf("ride", "bills", "mapa", "tamagochi", "bazar", "gba").forEach { id ->
             assertTrue("Falta la mini-app " + id, manifest.contains("\"" + id + "\""))
         }
+    }
+
+    /**
+     * Candado del emulador: el bundle debe estar completo (motor + nucleo + idiomas), el nucleo
+     * no puede ser una pagina de error del CDN, y ni el repo ni el APK pueden colar una ROM.
+     */
+    @Test
+    fun gbaEmulatorBundleIsCompleteAndShipsNoRoms() {
+        val manifest = File("src/main/assets/miniapps/index.json").readText()
+        assertTrue("Falta la mini-app gba", manifest.contains("\"gba\""))
+        assertTrue("El gba no pide modo inmersivo", manifest.contains("\"display\": \"immersive\""))
+        assertTrue("El gba no pide horizontal", manifest.contains("\"orientation\": \"landscape\""))
+        assertTrue("El gba no declara lectura de ROMs", manifest.contains("\"rom.read\""))
+
+        val root = File("src/main/assets/miniapps/gba")
+        listOf(
+            "index.html",
+            "gba.js",
+            "gba.css",
+            "emulatorjs/loader.js",
+            "emulatorjs/emulator.min.js",
+            "emulatorjs/emulator.min.css",
+            "emulatorjs/version.json",
+            "emulatorjs/localization/es-ES.json",
+            "emulatorjs/cores/mgba-wasm.data",
+            "emulatorjs/cores/mgba-legacy-wasm.data",
+            "emulatorjs/cores/reports/mgba.json",
+        ).forEach { relative ->
+            assertTrue("Falta " + relative + " en el bundle del emulador", File(root, relative).isFile)
+        }
+
+        // Un nucleo truncado (o una pagina de error del CDN) romperia la app en el primer arranque.
+        assertTrue(
+            "El nucleo mgba-wasm.data pesa muy poco",
+            File(root, "emulatorjs/cores/mgba-wasm.data").length() > 500_000,
+        )
+        assertTrue(
+            "El nucleo legacy pesa muy poco",
+            File(root, "emulatorjs/cores/mgba-legacy-wasm.data").length() > 500_000,
+        )
+
+        // Candado anti-ROM: nada de .gba/.agb/.bin/.zip dentro del bundle versionado.
+        val forbidden = setOf("gba", "agb", "bin", "zip", "7z", "rar")
+        root.walkTopDown().filter { it.isFile }.forEach { file ->
+            assertTrue(
+                "El bundle incluye un archivo prohibido: " + file,
+                file.extension.lowercase() !in forbidden,
+            )
+        }
+
+        assertNotNull("Falta el servicio del emulador en el catalogo", ServiceCatalog.find("gba"))
     }
 
     @Test

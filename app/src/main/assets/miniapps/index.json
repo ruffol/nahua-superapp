@@ -38,6 +38,17 @@
       "permissions": ["storage.local"]
     },
     {
+      "id": "gba",
+      "name": "Emulador GBA",
+      "tagline": "Tus cartuchos de Game Boy Advance, sin red",
+      "version": "1.0.0",
+      "entry": "miniapps/gba/index.html",
+      "accent": "#0E7C66",
+      "display": "immersive",
+      "orientation": "landscape",
+      "permissions": ["storage.local", "rom.read"]
+    },
+    {
       "id": "bazar",
       "name": "Bazar/Trueque",
       "tagline": "Compra, vende y truequea en tu colonia",

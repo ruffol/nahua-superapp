@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Emulador GBA · Nahua</title>
+  <link rel="stylesheet" href="gba.css">
+</head>
+<body>
+
+  <!-- Portada: aviso legal, seguir jugando y biblioteca de ROMs. -->
+  <main id="home" class="screen">
+    <header class="hero">
+      <div class="cart" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <h1>Emulador GBA</h1>
+      <p class="tagline">Game Boy Advance en tu Nahua · 100% sin red</p>
+    </header>
+
+    <section id="continueCard" class="card continue hidden">
+      <p class="card-label">Seguir jugando</p>
+      <p id="continueName" class="card-title"></p>
+      <button id="continueBtn" class="btn primary" type="button">Continuar</button>
+    </section>
+
+    <section class="card">
+      <p class="card-label">Tus ROMs</p>
+      <div id="romList" class="rom-list">
+        <p id="romEmpty" class="empty">Todavía no hay ROMs. Carga la primera.</p>
+      </div>
+      <button id="pickBtn" class="btn primary" type="button">Cargar ROM (.gba)</button>
+    </section>
+
+    <p class="legal">
+      Trae cartuchos que sean tuyos: usa solo copias de juegos que poseas legalmente.
+      Nahua no incluye, distribuye ni enlaza ROMs, y el emulador funciona sin BIOS.
+    </p>
+
+    <button id="exitBtn" class="btn ghost" type="button">Salir</button>
+
+    <p id="hint" class="hint hidden">
+      Esta mini-app necesita el anfitrión de Nahua para leer tus ROMs.
+      Ábrela desde la app para jugar.
+    </p>
+  </main>
+
+  <!-- Juego: aqui inyecta EmulatorJS su canvas y sus controles táctiles. -->
+  <main id="game" class="screen hidden">
+    <div id="display"></div>
+  </main>
+
+  <!-- Error fatal (motor dañado o descarga imposible): recargar es la salida limpia. -->
+  <div id="overlay" class="overlay hidden">
+    <div class="panel">
+      <p id="overlayTitle" class="panel-title">Ups</p>
+      <p id="overlayBody" class="panel-body"></p>
+      <button id="overlayAction" class="btn primary" type="button">Volver al inicio</button>
+    </div>
+  </div>
+
+  <script src="../nahua-sdk.js"></script>
+  <script src="gba.js"></script>
+</body>
+</html>

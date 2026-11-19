@@ -60,6 +60,18 @@ class MiniAppBridge(
 
     var onCopyToClipboard: (String) -> Unit = {}
 
+    /**
+     * ROMs del emulador: el host abre el selector del sistema (SAF), copia el archivo a
+     * filesDir/roms y resuelve con la URL https que sirve el WebViewAssetLoader. La pagina
+     * nunca recibe URIs de contenido ni rutas de archivos.
+     */
+    var onRomPickRequest: (String) -> Unit = {}
+
+    var onRomListRequest: (String) -> Unit = {}
+
+    /** (requestId, nombre del archivo en filesDir/roms). */
+    var onRomDeleteRequest: (String, String) -> Unit = { _, _ -> }
+
     /** "A <usuario> le interesa truequear tu <objeto>": termina en la bandeja nativa de Avisos. */
     var onBarterNotice: (BarterNotice) -> Unit = {}
 
@@ -112,6 +124,30 @@ class MiniAppBridge(
     @JavascriptInterface
     fun copy(text: String) {
         mainHandler.post { onCopyToClipboard(text.take(500)) }
+    }
+
+    /** Abre el selector de ROMs del sistema; el resultado llega por [resolveRom]. */
+    @JavascriptInterface
+    fun pickRom(payloadJson: String, requestId: String) {
+        mainHandler.post { onRomPickRequest(requestId) }
+    }
+
+    /** Lista las ROMs ya importadas (mas recientes primero). */
+    @JavascriptInterface
+    fun listRoms(payloadJson: String, requestId: String) {
+        mainHandler.post { onRomListRequest(requestId) }
+    }
+
+    /** Borra una ROM importada; el nombre se valida aqui para no tocar nada fuera de roms/. */
+    @JavascriptInterface
+    fun deleteRom(payloadJson: String, requestId: String) {
+        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+        val name = payload?.optString("name").orEmpty()
+        if (!RomStore.isSafeName(name)) {
+            deliver(requestId, JSONObject().put("status", "error").put("error", "invalid_name"))
+            return
+        }
+        mainHandler.post { onRomDeleteRequest(requestId, name) }
     }
 
     /**
@@ -185,6 +221,48 @@ class MiniAppBridge(
             fixJson(fix)
         } else {
             JSONObject().put("status", "error").put("error", error ?: "unavailable")
+        }
+        deliver(requestId, result)
+    }
+
+    /** Resultado de una importacion: {status, name, displayName, sizeBytes, url}. */
+    fun resolveRom(requestId: String, rom: RomFile?) {
+        val result = if (rom != null) {
+            JSONObject()
+                .put("status", "ok")
+                .put("name", rom.name)
+                .put("displayName", rom.displayName)
+                .put("sizeBytes", rom.sizeBytes)
+                .put("url", RomStore.url(rom.name))
+        } else {
+            JSONObject().put("status", "error").put("error", "unavailable")
+        }
+        deliver(requestId, result)
+    }
+
+    fun resolveRomList(requestId: String, roms: List<RomFile>) {
+        val array = org.json.JSONArray()
+        roms.forEach { rom ->
+            array.put(
+                JSONObject()
+                    .put("name", rom.name)
+                    .put("displayName", rom.displayName)
+                    .put("sizeBytes", rom.sizeBytes)
+                    .put("url", RomStore.url(rom.name)),
+            )
+        }
+        deliver(requestId, JSONObject().put("status", "ok").put("roms", array))
+    }
+
+    fun resolveRomError(requestId: String, error: String) {
+        deliver(requestId, JSONObject().put("status", "error").put("error", error))
+    }
+
+    fun resolveDeleted(requestId: String, deleted: Boolean) {
+        val result = if (deleted) {
+            JSONObject().put("status", "ok")
+        } else {
+            JSONObject().put("status", "error").put("error", "not_found")
         }
         deliver(requestId, result)
     }

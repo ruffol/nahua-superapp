@@ -7,6 +7,21 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Emulador de Game Boy Advance como mini-app**: nueva mini-app inmersiva `gba` sobre EmulatorJS
+  4.2.3 (núcleo mGBA en WebAssembly), vendorizada (2.47 MB) en `assets/miniapps/gba/emulatorjs/`
+  con `scripts/fetch-emulatorjs.ps1`. El usuario carga sus propias ROMs `.gba` con el selector del
+  sistema; el anfitrión las copia a `filesDir/roms` (validación de extensión, tope de 64 MiB y
+  deduplicación por SHA-256) y las sirve por el handler `/rom/` del asset loader. Partidas en
+  IndexedDB, pantalla completa horizontal, audio pausado en segundo plano y recuperación si el
+  proceso de render muere. Sin ROMs ni BIOS en el APK; licencia GPL-3.0 de EmulatorJS documentada
+  en `assets/licenses/`. El nucleo pesa 2.47 MB dentro de un APK de 41.9 MB y los tests suben a
+  156 (RomStore, MiniAppManifest y el candado anti-ROM del bundle).
+- **Runtime de mini-apps v1.3**: el manifiesto admite `display: "immersive"` (pantalla completa,
+  sin marco de Nahua) y `orientation: "landscape"`; el puente expone `pickRom`, `listRoms` y
+  `deleteRom`; `shouldInterceptRequest` responde con 404 vacío a cualquier origen externo
+  (offline garantizado); `ON_PAUSE`/`ON_RESUME` pausan el WebView y `onRenderProcessGone` evita
+  que un crash del render tire la app. El SDK JS (`nahua-sdk.js`) sube a v1.3 con las tres
+  funciones de ROMs.
 - **Mapa estatal con cartografía del INEGI**: se integró la *Cartografía Geoestadística Urbana y
   Rural Amanzanada, junio 2016* de Colima (171 localidades, 17,148 manzanas, 15,812 ejes viales y
   224 servicios). Las teselas z14–16 ahora cubren las localidades amanzanadas de todo el estado, no

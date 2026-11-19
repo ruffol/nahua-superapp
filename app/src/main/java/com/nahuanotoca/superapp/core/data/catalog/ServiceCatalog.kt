@@ -14,6 +14,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Storefront
 import com.nahuanotoca.superapp.core.design.Amber
 import com.nahuanotoca.superapp.core.design.Coral
@@ -117,6 +118,16 @@ object ServiceCatalog {
             icon = Icons.Rounded.Pets,
             accent = Coral,
             target = ServiceTarget.MiniApp("tamagochi"),
+        ),
+        Service(
+            id = "gba",
+            name = "Emulador GBA",
+            tagline = "Tus cartuchos de Game Boy Advance",
+            category = ServiceCategory.ENTERTAINMENT,
+            icon = Icons.Rounded.SportsEsports,
+            accent = Teal,
+            target = ServiceTarget.MiniApp("gba"),
+            badge = "Nuevo",
         ),
         Service(
             id = "studio",
