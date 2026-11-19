@@ -12,7 +12,7 @@ en mesas de trabajo por materia: resúmenes con página, ideas propias, correlac
 figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime de mini-apps** y
 **actualizaciones OTA** desde GitHub Releases.
 
-> **Estado:** v0.16.2 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
+> **Estado:** v0.16.3 — demo funcional, no lista para producción (sin backend, KYC ni PCI).
 
 ---
 

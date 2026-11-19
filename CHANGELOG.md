@@ -5,6 +5,8 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.16.3] — 2026-11-19
+
 ### Añadido
 
 - **Jugar en vertical**: el panel *Configurar controles* añade **Pantalla: Auto / Vertical /
