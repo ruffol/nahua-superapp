@@ -59,10 +59,11 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   junio 2016* de Colima: **171 localidades, 17,148 manzanas, 15,812 ejes viales y 224 servicios**
   (plazas, mercados, iglesias, escuelas, hospitales). Las manzanas y calles se dibujan sobre la base
   de OSM/Natural Earth.
-- **Cobertura por zoom**: z14–15 en todas las localidades amanzanadas del estado; z16 nativo en las
-  zonas urbanas con mayor densidad (Colima–Villa, Manzanillo, Tecomán, Comala, Armería, Coquimatlán,
-  Cuauhtémoc, Minatitlán y otras); z17 escala z16 ×2. La capa base z9–13 cubre todo el estado y las
-  zonas sin manzanas.
+- **Todo Colima está descargado**: no hay capa online ni peticiones de red. La base z9–13 cubre
+  todo el estado; z14–15 cubren todas las localidades amanzanadas y z16 las zonas urbanas de mayor
+  densidad (Colima–Villa, Manzanillo, Tecomán, Comala, Armería, Coquimatlán, Cuauhtémoc, Minatitlán
+  y otras). En una zona rural sin z16 se ve la base z13 ampliada, nunca un hueco ni un error.
+  z17 escala z16 ×2.
 - **Interfaz limpia**: sólo buscador, barra de GPS y el botón **◎** para centrar el mapa en tu
   ubicación. No hay panel de lugares, ni chips de municipios, ni botones de acercar/alejar; el zoom
   se hace con pellizco.
