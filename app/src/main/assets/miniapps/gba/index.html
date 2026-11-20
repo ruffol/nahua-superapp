@@ -72,8 +72,16 @@
     </p>
   </main>
 
-  <!-- Juego: aqui inyecta EmulatorJS su canvas y sus controles táctiles. -->
+  <!-- Juego: la franja de arriba queda libre para los accesos. La pantalla del telefono tiene
+       esquinas redondeadas y la camara en el borde, asi que el canvas arranca debajo de esa
+       franja y se ajusta a la proporcion original de la consola (no se estira). -->
   <main id="game" class="screen hidden">
+    <div id="gameBand">
+      <div id="gameBar">
+        <button id="gameSettings" class="pill-btn" type="button">Ajustes</button>
+        <button id="gamePadBtn" class="pill-btn pill-ghost" type="button">Mando</button>
+      </div>
+    </div>
     <div id="display"></div>
   </main>
 

@@ -291,6 +291,15 @@ class ServiceCatalogTest {
         listOf("consolePanel", "padJoystick", "padDpad", "ctlScale", "ctlBottom", "ctlSide").forEach { id ->
             assertTrue("Falta el control " + id + " en el panel de la consola", html.contains(id))
         }
+        // Accesos en la franja libre de arriba (esquinas redondeadas de los telefonos).
+        listOf("gameBand", "gameBar", "gameSettings", "gamePadBtn").forEach { id ->
+            assertTrue("Falta el acceso " + id + " en la franja del juego", html.contains(id))
+        }
+        // La pantalla conserva la proporcion del cartucho y se coloca debajo de la franja.
+        assertTrue("No hay proporcion por consola", gbaJs.contains("SCREEN_RATIO"))
+        assertTrue("No se ajusta la pantalla al hueco", gbaJs.contains("layoutScreen"))
+        assertTrue("La proporcion de GB no es 160x144", gbaJs.contains("160 / 144"))
+        assertTrue("La proporcion de GBA no es 240x160", gbaJs.contains("240 / 160"))
         // Vertical fijo: el panel ya no ofrece girar la pantalla.
         assertTrue("El panel no dice que la orientación es fija", html.contains("Vertical · fijo"))
         assertTrue("El panel no pide la orientación vertical", gbaJs.contains("Nahua.orientation('portrait')"))

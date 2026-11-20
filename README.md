@@ -195,9 +195,13 @@ dentro de Nahua, sin red y sin tocar una línea de NDK.
   px fijos, así que el layout es propio y escala según el lado corto de la pantalla. El panel
   también trae filtros de imagen (Pixel/LCD/CRT/Suave), avance rápido ×2/×3/×5, rebobinar, ranuras
   de guardado 1–5, guardado automático de pila y contador de FPS.
-- **Vertical u horizontal**: el mismo panel fija la **pantalla** (Auto, Vertical, Horizontal) y el
-  giro se aplica al instante, sin reiniciar la partida. En vertical el juego se ve a 3:2 arriba y
-  los mandos quedan abajo, al alcance de los pulgares.
+- **Pantalla a la medida del cartucho**: el canvas conserva la proporción original (GB/GBC
+  160×144, GBA 240×160) y se coloca **debajo de una franja libre superior** —los teléfonos tienen
+  esquinas redondeadas y cámara en el borde, y ahí el juego se recortaba—, centrado en el hueco
+  que deja el mando. En esa franja viven los accesos: **Ajustes** abre el menú del motor
+  (guardados, trucos, avance rápido, captura) y **Mando** el panel de controles.
+- **Vertical fijo**: un Game Boy es vertical y así el mando cabe en pantalla; girar el teléfono no
+  reacomoda nada a media partida.
 - **Medido, no supuesto**: cada partida publica un reporte `[perf]` en logcat (frame pacing +
   latencias de WebAudio) y `scripts/gba-perf.ps1` lo convierte en el veredicto Go/No-Go sobre
   pasar a un núcleo nativo. Criterio y procedimiento en [docs/GBA-PERF.md](docs/GBA-PERF.md).

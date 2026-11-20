@@ -341,18 +341,53 @@ h1 {
 
 #game {
   padding: 0;
+  gap: 0;
   overflow: hidden;
-  /* En horizontal la camara/notch vive en los bordes largos: sin esto, el
-     engrane de ajustes de EmulatorJS queda detras del recorte. */
+  /* En vertical la camara/notch vive en el borde superior: la franja #gameBand reserva ese
+     espacio y ahi viven los accesos, asi el juego no queda debajo del recorte. */
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
 
+/* Franja libre superior: alto de la barra de estado/recorte + una fila de botones. */
+#gameBand {
+  flex: none;
+  position: relative;
+  height: calc(env(safe-area-inset-top, 0px) + 62px);
+}
+
+#gameBar {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  gap: 7px;
+}
+
+.pill-btn {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--ink);
+  background: rgba(20, 28, 36, 0.94);
+  border: 2px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 7px 13px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+
+.pill-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45); }
+
+.pill-ghost { background: rgba(28, 38, 48, 0.94); color: var(--ink); }
+
+/* El canvas se centra y su tamano lo fija layoutScreen() con la proporcion de la consola. */
 #display {
+  flex: none;
   width: 100%;
-  flex: 1 1 auto;
-  height: 100%;
-  min-height: 0;
+  height: auto;
+  margin: 6px auto 0;
   background: #000;
   position: relative;
 }
@@ -492,12 +527,6 @@ h1 {
   grid-area: 2 / 2;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.05);
-}
-
-/* En vertical el juego va arriba y los mandos en la franja negra de abajo; el margen
-   superior aparta la imagen de la camara frontal (el WebView no expone el recorte). */
-@media (orientation: portrait) {
-  #game { padding-top: 30px; }
 }
 
 /* --- Overlays ------------------------------------------------------------ */

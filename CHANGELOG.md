@@ -5,6 +5,24 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.20.2] — 2026-11-20
+
+### Corregido
+
+- **Las esquinas redondeadas del teléfono recortaban el juego**: el canvas ocupaba desde el borde
+  superior de la pantalla, justo donde están el recorte y la cámara. Ahora hay una franja superior
+  reservada (`env(safe-area-inset-top)` + 62 px) y el juego arranca debajo, así que no se pierde ni
+  una esquina.
+- **La pantalla se estiraba a lo ancho**: ahora respeta la proporción del cartucho (GB/GBC
+  160×144, GBA 240×160), se centra horizontalmente y se baja al centro del hueco que queda entre
+  la franja y el mando, para que el espacio libre se reparta en vez de amontonarse arriba.
+
+### Añadido
+
+- **Accesos en la franja libre**: «Ajustes» abre el menú del motor (guardados, trucos, avance
+  rápido, captura de pantalla, ajustes del núcleo) y «Mando» abre el panel de controles. Ya no hay
+  que buscar el engrane flotante sobre la imagen del juego.
+
 ## [0.20.1] — 2026-11-20
 
 ### Corregido

@@ -1183,6 +1183,71 @@
   // A mano desde chrome://inspect: NahuaPerf.report('manual') / NahuaPerf.stop()
   window.NahuaPerf = Perf;
 
+  // --- Pantalla del juego: proporcion original y franja libre arriba ---------
+  //
+  // La pantalla se queda con la proporcion del cartucho (GB/GBC 160x144, GBA 240x160): estirarla
+  // a lo ancho deforma el juego. Y arranca DEBAJO de #gameBand, porque los telefonos actuales
+  // tienen esquinas redondeadas y camara en el borde: ahi no se ve nada.
+
+  var SCREEN_RATIO = { gb: 160 / 144, gba: 240 / 160 };
+  var currentCore = 'gba';
+
+  function layoutScreen() {
+    var host = byId('game');
+    var band = byId('gameBand');
+    var display = byId('display');
+    if (!host || !display) return;
+
+    var width = host.clientWidth || window.innerWidth || 360;
+    var height = host.clientHeight || window.innerHeight || 640;
+    var bandHeight = band ? band.offsetHeight : 0;
+    if (width < 40 || height < 40) return;
+
+    // El mando vive abajo: la pantalla se centra en el hueco que queda entre la franja y el
+    // mando, asi el espacio libre se reparte y no queda todo amontonado arriba.
+    var config = readPad();
+    var padSize = 125 * padScale(config);
+    var padTop = height - Math.round(config.bottom) - Math.round(padSize) - 6;
+    var top = bandHeight;
+    var bottomLimit = Math.max(top + 120, padTop);
+    var availableWidth = Math.max(80, width - 2 * 8);
+    var availableHeight = Math.max(80, bottomLimit - top - 12);
+
+    var ratio = SCREEN_RATIO[currentCore] || SCREEN_RATIO.gba;
+    var screenWidth = availableWidth;
+    var screenHeight = Math.round(screenWidth / ratio);
+    if (screenHeight > availableHeight) {
+      screenHeight = availableHeight;
+      screenWidth = Math.round(screenHeight * ratio);
+    }
+
+    display.style.width = screenWidth + 'px';
+    display.style.height = screenHeight + 'px';
+    display.style.marginTop = (6 + Math.max(0, Math.round((availableHeight - screenHeight) / 2))) + 'px';
+  }
+
+  function gameRatioFor(core) {
+    currentCore = core === 'gb' ? 'gb' : 'gba';
+    layoutScreen();
+  }
+
+  // --- Accesos de la franja superior ---------------------------------------
+
+  var gameSettingsBtn = byId('gameSettings');
+  var gamePadBtn = byId('gamePadBtn');
+
+  if (gameSettingsBtn) {
+    gameSettingsBtn.addEventListener('click', function () {
+      // El menu del motor: guardados, trucos, avance rapido, captura, ajustes del nucleo.
+      if (window.EJS_emulator && window.EJS_emulator.menu) window.EJS_emulator.menu.toggle();
+      else toast('El menú del emulador aparece cuando arranca el juego');
+    });
+  }
+
+  if (gamePadBtn) {
+    gamePadBtn.addEventListener('click', function () { openPanel(true); });
+  }
+
   // --- Arranque del juego ---------------------------------------------------
 
   /** Nombre de juego estable: el slug con su sha8, sin extension (sirve para las partidas). */
@@ -1248,6 +1313,7 @@
     window.EJS_onGameStart = function () {
       applyLiveOptions(readGameOptions());
       NahuaPad.install(readPad());
+      layoutScreen();
     };
 
     writeJson(LAST_KEY, {
@@ -1262,6 +1328,8 @@
 
     byId('home').classList.add('hidden');
     byId('game').classList.remove('hidden');
+    // La pantalla se mide cuando el contenedor ya es visible: antes de montar el motor.
+    gameRatioFor(core);
     Scene.pause();
 
     // Antes de inyectar el loader: el sondeo de AudioContext tiene que existir cuando EmulatorJS
@@ -1366,6 +1434,9 @@
     // Tamano y posicion se ven al instante (CSS); el tipo de mando es estructura y espera al
     // siguiente arranque, porque EmulatorJS construye el gamepad una sola vez.
     applyPadLayout(next);
+    // La pantalla se centra en el hueco que deja el mando: si cambia su altura o su tamano,
+    // el juego se recoloca.
+    layoutScreen();
     syncPanel();
   }
 
@@ -1500,6 +1571,7 @@
     function relayout() {
       pending = 0;
       applyPadLayout(readPad());
+      layoutScreen();
       Scene.resize();
       // EmulatorJS escucha window.resize para su canvas y su menu; ademas se le avisa por si
       // el evento llego antes que el layout (WebView en modo inmersivo).
