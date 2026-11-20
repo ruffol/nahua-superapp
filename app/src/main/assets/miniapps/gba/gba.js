@@ -1183,14 +1183,26 @@
   // A mano desde chrome://inspect: NahuaPerf.report('manual') / NahuaPerf.stop()
   window.NahuaPerf = Perf;
 
-  // --- Pantalla del juego: proporcion original y franja libre arriba ---------
+  // --- Pantalla del juego: proporcion original, franja libre y posicion propia ---
   //
   // La pantalla se queda con la proporcion del cartucho (GB/GBC 160x144, GBA 240x160): estirarla
   // a lo ancho deforma el juego. Y arranca DEBAJO de #gameBand, porque los telefonos actuales
   // tienen esquinas redondeadas y camara en el borde: ahi no se ve nada.
+  //
+  // La posicion vertical es SUYA (nahua.arcade.screen), no del mando: antes se centraba en el
+  // hueco que dejaba el gamepad y por eso acomodar los controles movia la pantalla tambien.
 
   var SCREEN_RATIO = { gb: 160 / 144, gba: 240 / 160 };
+  var SCREEN_KEY = 'nahua.arcade.screen';
+  var SCREEN_DEFAULTS = { pos: 30 };
   var currentCore = 'gba';
+
+  function readScreen() {
+    var stored = readJson(SCREEN_KEY, {});
+    return { pos: clampNumber(stored.pos, 0, 100, SCREEN_DEFAULTS.pos) };
+  }
+
+  function saveScreen(config) { writeJson(SCREEN_KEY, config); }
 
   function layoutScreen() {
     var host = byId('game');
@@ -1203,15 +1215,10 @@
     var bandHeight = band ? band.offsetHeight : 0;
     if (width < 40 || height < 40) return;
 
-    // El mando vive abajo: la pantalla se centra en el hueco que queda entre la franja y el
-    // mando, asi el espacio libre se reparte y no queda todo amontonado arriba.
-    var config = readPad();
-    var padSize = 125 * padScale(config);
-    var padTop = height - Math.round(config.bottom) - Math.round(padSize) - 6;
-    var top = bandHeight;
-    var bottomLimit = Math.max(top + 120, padTop);
+    var position = readScreen().pos;
     var availableWidth = Math.max(80, width - 2 * 8);
-    var availableHeight = Math.max(80, bottomLimit - top - 12);
+    // Todo el alto entre la franja y el borde inferior: el mando flota encima y no participa.
+    var availableHeight = Math.max(80, height - bandHeight - 12);
 
     var ratio = SCREEN_RATIO[currentCore] || SCREEN_RATIO.gba;
     var screenWidth = availableWidth;
@@ -1221,9 +1228,13 @@
       screenWidth = Math.round(screenHeight * ratio);
     }
 
+    // 0 % = pegada a la franja; 100 % = pegada al borde de abajo; 50 % = centro del hueco.
+    var slack = Math.max(0, availableHeight - screenHeight);
+    var offset = Math.round(slack * (clamp(position, 0, 100) / 100));
+
     display.style.width = screenWidth + 'px';
     display.style.height = screenHeight + 'px';
-    display.style.marginTop = (6 + Math.max(0, Math.round((availableHeight - screenHeight) / 2))) + 'px';
+    display.style.marginTop = (6 + offset) + 'px';
   }
 
   function gameRatioFor(core) {
@@ -1422,6 +1433,10 @@
     byId('ctlBottomOut').textContent = Math.round(pad.bottom) + ' px';
     byId('ctlSide').value = String(Math.round(pad.side));
     byId('ctlSideOut').textContent = Math.round(pad.side) + ' px';
+
+    var screenPos = Math.round(readScreen().pos);
+    byId('ctlScreenPos').value = String(screenPos);
+    byId('ctlScreenPosOut').textContent = screenPos + ' %';
   }
 
   function updatePad(patch) {
@@ -1434,9 +1449,6 @@
     // Tamano y posicion se ven al instante (CSS); el tipo de mando es estructura y espera al
     // siguiente arranque, porque EmulatorJS construye el gamepad una sola vez.
     applyPadLayout(next);
-    // La pantalla se centra en el hueco que deja el mando: si cambia su altura o su tamano,
-    // el juego se recoloca.
-    layoutScreen();
     syncPanel();
   }
 
@@ -1523,11 +1535,20 @@
       updatePad({ side: clampNumber(event.target.value, 0, 140, 10) });
     });
 
+    // Posicion de la pantalla: independiente del mando. Solo toca el canvas del juego.
+    byId('ctlScreenPos').addEventListener('input', function (event) {
+      saveScreen({ pos: clampNumber(event.target.value, 0, 100, SCREEN_DEFAULTS.pos) });
+      layoutScreen();
+      syncPanel();
+    });
+
     byId('ctlReset').addEventListener('click', function () {
       savePad({});
       saveGameOptions({});
+      saveScreen({});
       applyPadLayout(readPad());
       applyLiveOptions(readGameOptions());
+      layoutScreen();
       syncPanel();
       toast('Ajustes restablecidos');
     });

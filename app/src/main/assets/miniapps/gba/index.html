@@ -112,6 +112,15 @@
           <button class="seg-btn" type="button" data-filter="suave">Suave</button>
         </div>
         <p class="note">El filtro se ve al instante, también a mitad de la partida.</p>
+
+        <label class="field" for="ctlScreenPos">
+          <span class="field-label">Posición de la pantalla <b id="ctlScreenPosOut">30 %</b></span>
+          <input id="ctlScreenPos" type="range" min="0" max="100" step="5" value="30">
+        </label>
+        <p class="note">
+          Mueve solo el juego: 0 % pegado arriba, 100 % pegado abajo. Los controles se acomodan
+          aparte, en la pestaña Mando, sin mover la pantalla.
+        </p>
       </div>
 
       <div class="tab-body hidden" data-panel="pad">

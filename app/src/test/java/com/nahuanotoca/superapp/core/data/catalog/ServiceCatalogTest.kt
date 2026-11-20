@@ -300,6 +300,10 @@ class ServiceCatalogTest {
         assertTrue("No se ajusta la pantalla al hueco", gbaJs.contains("layoutScreen"))
         assertTrue("La proporcion de GB no es 160x144", gbaJs.contains("160 / 144"))
         assertTrue("La proporcion de GBA no es 240x160", gbaJs.contains("240 / 160"))
+        // La posicion vertical de la pantalla es suya: mover los controles no debe mover el juego.
+        assertTrue("No hay ajuste de posicion de pantalla", gbaJs.contains("nahua.arcade.screen"))
+        assertTrue("La pantalla sigue dependiendo del mando", gbaJs.contains("height - bandHeight - 12"))
+        assertTrue("Falta el control de posicion de pantalla", html.contains("ctlScreenPos"))
         // Vertical fijo: el panel ya no ofrece girar la pantalla.
         assertTrue("El panel no dice que la orientación es fija", html.contains("Vertical · fijo"))
         assertTrue("El panel no pide la orientación vertical", gbaJs.contains("Nahua.orientation('portrait')"))

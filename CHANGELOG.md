@@ -5,6 +5,21 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.20.3] — 2026-11-20
+
+### Añadido
+
+- **Posición de la pantalla con ajuste propio** (pestaña *Pantalla*): un deslizador de 0 a 100 %
+  coloca el juego donde quieras —0 % pegado a la franja superior, 100 % pegado al borde de abajo—
+  sin tocar los controles. Se guarda en `nahua.arcade.screen`.
+
+### Corregido
+
+- **Acomodar el mando movía la pantalla**: `layoutScreen()` centraba el canvas en el hueco que
+  dejaba el gamepad, así que cambiar su altura o su tamaño recolocaba el juego. Ahora la pantalla
+  usa todo el alto disponible entre la franja superior y el borde inferior, y su posición depende
+  solo de su propio ajuste.
+
 ## [0.20.2] — 2026-11-20
 
 ### Corregido
