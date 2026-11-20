@@ -1,6 +1,7 @@
-﻿EmulatorJS 4.2.3 (canal: stable)
+EmulatorJS 4.2.3 (canal: stable)
 Origen: https://cdn.emulatorjs.org/stable/data/
 Descargado con scripts/fetch-emulatorjs.ps1
 Licencia: GPL-3.0 (ver app/src/main/assets/licenses/EmulatorJS-GPL-3.0.txt)
-Incluye nucleo mgba (Game Boy Advance), localizaciones en-US/es-ES y el extractor 7z
-(obligatorio: los nucleos .data van empaquetados en 7z).
+Nucleos vendorizados: mgba (Game Boy Advance) y gambatte (Game Boy / Game Boy Color),
+en sus variantes normal y -legacy (equipos sin WebGL2). Localizaciones en-US/es-ES y el
+extractor 7z (obligatorio: los nucleos .data van empaquetados en 7z).

@@ -1,13 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono adaptativo de Nahua: la "N" construida con bloques (el lenguaje visual de la app es
+  pixel) y una moneda coral como punto. Todo son rectangulos alineados a una retícula de ~2 dp,
+  así se ve igual de limpio a 48 dp que a 512. Sin imágenes: un solo vector.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Sombra dura desplazada: da volumen sin degradados (look de 8 bits). -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M36,74 L36,34 L43,34 L65,60 L65,34 L72,34 L72,74 L65,74 L43,48 L43,74 Z" />
+        android:fillColor="#083F35"
+        android:pathData="M37,33 h11 v48 h-11 z
+                          M66,33 h11 v48 h-11 z
+                          M48,33 h10 v13 h-10 z
+                          M53,46 h10 v13 h-10 z
+                          M58,59 h10 v13 h-10 z
+                          M61,72 h10 v9 h-10 z
+                          M81,67 a6,6 0 1,0 0,12 a6,6 0 1,0 0,-12" />
+
+    <!-- Cuerpo de la N: escalones de 10x13 dp. -->
     <path
-        android:fillColor="#FFB59E"
-        android:pathData="M74,70 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+        android:fillColor="#FFF6E5"
+        android:pathData="M34,30 h11 v48 h-11 z
+                          M63,30 h11 v48 h-11 z
+                          M45,30 h10 v13 h-10 z
+                          M50,43 h10 v13 h-10 z
+                          M55,56 h10 v13 h-10 z
+                          M58,69 h10 v9 h-10 z" />
+
+    <!-- Moneda coral: el punto que ya tenía la marca, ahora legible a tamaño de ícono. -->
+    <path
+        android:fillColor="#E2603C"
+        android:pathData="M78,64 a6,6 0 1,0 0,12 a6,6 0 1,0 0,-12" />
+    <path
+        android:fillColor="#F58B6C"
+        android:pathData="M75,67 a2.2,2.2 0 1,0 0,4.4 a2.2,2.2 0 1,0 0,-4.4" />
 </vector>

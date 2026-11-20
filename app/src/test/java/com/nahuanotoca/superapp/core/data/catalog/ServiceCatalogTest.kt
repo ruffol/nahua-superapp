@@ -161,11 +161,12 @@ class ServiceCatalogTest {
     }
 
     /**
-     * Candado del emulador: el bundle debe estar completo (motor + nucleo + idiomas), el nucleo
-     * no puede ser una pagina de error del CDN, y ni el repo ni el APK pueden colar una ROM.
+     * Candado del emulador: el bundle debe estar completo (motor + los dos nucleos + idiomas), los
+     * nucleos no pueden ser una pagina de error del CDN, y el APK solo puede llevar la ROM de
+     * demostracion que se decidio incluir (nada de .gba sueltos, ni zip/7z con ROMs dentro).
      */
     @Test
-    fun gbaEmulatorBundleIsCompleteAndShipsNoRoms() {
+    fun gbaEmulatorBundleIsCompleteAndShipsOnlyTheDemoRom() {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
         assertTrue("Falta la mini-app gba", manifest.contains("\"gba\""))
         assertTrue("El gba no pide modo inmersivo", manifest.contains("\"display\": \"immersive\""))
@@ -179,6 +180,7 @@ class ServiceCatalogTest {
             "index.html",
             "gba.js",
             "gba.css",
+            "fonts/press-start-2p.ttf",
             "emulatorjs/loader.js",
             "emulatorjs/emulator.min.js",
             "emulatorjs/emulator.min.css",
@@ -187,31 +189,39 @@ class ServiceCatalogTest {
             "emulatorjs/cores/mgba-wasm.data",
             "emulatorjs/cores/mgba-legacy-wasm.data",
             "emulatorjs/cores/reports/mgba.json",
+            // Game Boy / Color: sin gambatte no hay .gbc ni .gb.
+            "emulatorjs/cores/gambatte-wasm.data",
+            "emulatorjs/cores/gambatte-legacy-wasm.data",
+            "emulatorjs/cores/reports/gambatte.json",
             "emulatorjs/compression/extract7z.js",
+            "games/smbdx.gbc",
         ).forEach { relative ->
             assertTrue("Falta " + relative + " en el bundle del emulador", File(root, relative).isFile)
         }
 
         // Un nucleo truncado (o una pagina de error del CDN) romperia la app en el primer arranque.
-        assertTrue(
-            "El nucleo mgba-wasm.data pesa muy poco",
-            File(root, "emulatorjs/cores/mgba-wasm.data").length() > 500_000,
-        )
-        assertTrue(
-            "El nucleo legacy pesa muy poco",
-            File(root, "emulatorjs/cores/mgba-legacy-wasm.data").length() > 500_000,
-        )
+        listOf("mgba", "mgba-legacy", "gambatte", "gambatte-legacy").forEach { core ->
+            assertTrue(
+                "El nucleo " + core + "-wasm.data pesa muy poco",
+                File(root, "emulatorjs/cores/" + core + "-wasm.data").length() > 500_000,
+            )
+        }
         // Sin el extractor 7z el nucleo no se descomprime y la pantalla se queda en negro.
         assertTrue(
             "El extractor 7z pesa muy poco",
             File(root, "emulatorjs/compression/extract7z.js").length() > 100_000,
         )
+        // La demo incluida es un cartucho GBC completo de 1 MiB, no un archivo vacio ni truncado.
+        assertEquals(1_048_576L, File(root, "games/smbdx.gbc").length())
 
-        // Candado anti-ROM: nada de .gba/.agb/.bin/.zip dentro del bundle versionado.
-        val forbidden = setOf("gba", "agb", "bin", "zip", "7z", "rar")
+        // Candado anti-ROM: el unico cartucho permitido es la demo; nada de .gba/.agb/.bin ni
+        // archivos comprimidos (que es como se cuela una ROM sin que se vea en el diff).
+        val forbidden = setOf("gba", "agb", "bin", "zip", "7z", "rar", "gbc", "gb")
         root.walkTopDown().filter { it.isFile }.forEach { file ->
+            val relative = file.relativeTo(root).invariantSeparatorsPath
+            if (relative == "games/smbdx.gbc") return@forEach
             assertTrue(
-                "El bundle incluye un archivo prohibido: " + file,
+                "El bundle incluye un archivo prohibido: " + relative,
                 file.extension.lowercase() !in forbidden,
             )
         }
@@ -263,9 +273,10 @@ class ServiceCatalogTest {
         assertTrue("El joystick no declara joystickInput", gbaJs.contains("joystickInput: true"))
         assertTrue("Se perdio la opcion de cruceta", gbaJs.contains("type: 'dpad'"))
         assertTrue("No se declara EJS_VirtualGamepadSettings", gbaJs.contains("EJS_VirtualGamepadSettings"))
-        // Tamano y posicion en vivo por CSS (sin reconstruir el emulador).
-        assertTrue("No se aplican variables CSS del gamepad", gbaJs.contains("applyControlsCss"))
-        assertTrue("No se persiste la configuracion", gbaJs.contains("nahua.gba.controls"))
+        // Tamano y posicion en vivo por CSS, recalculados al girar (no px fijos de EmulatorJS).
+        assertTrue("No se aplica el layout del gamepad", gbaJs.contains("applyPadLayout"))
+        assertTrue("El mando no se recalcula al girar", gbaJs.contains("orientationchange"))
+        assertTrue("No se persiste la configuracion", gbaJs.contains("nahua.arcade.pad"))
         assertTrue("No existe el menu de la consola", gbaJs.contains("window.NahuaConsole"))
 
         val html = File("src/main/assets/miniapps/gba/index.html").readText()

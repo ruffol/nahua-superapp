@@ -13,3 +13,6 @@
 *.apk binary
 # Nucleos de EmulatorJS ya comprimidos: se versionan byte-exact, sin normalizacion.
 *.data binary
+
+# ROM de demostracion incluida: byte-exact, sin normalizar.
+*.gbc binary

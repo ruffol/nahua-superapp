@@ -122,8 +122,8 @@ object ServiceCatalog {
         ),
         Service(
             id = "gba",
-            name = "Emulador GBA",
-            tagline = "Tus cartuchos de Game Boy Advance",
+            name = "Emulador",
+            tagline = "Game Boy, Color y Advance, con Mario incluido",
             category = ServiceCategory.ENTERTAINMENT,
             icon = Icons.Rounded.SportsEsports,
             accent = Teal,

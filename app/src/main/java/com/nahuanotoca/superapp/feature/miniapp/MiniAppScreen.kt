@@ -458,7 +458,7 @@ fun MiniAppScreen(
 
 /** Traduce el codigo estable de [RomImportException] a algo que el usuario entienda. */
 private fun romImportMessage(code: String): String = when (code) {
-    RomImportException.UNSUPPORTED -> "Ese archivo no es una ROM de GBA (.gba, .agb o .bin)"
+    RomImportException.UNSUPPORTED -> "Ese archivo no es una ROM de GBA, GBC ni GB (.gba, .agb, .bin, .gbc o .gb)"
     RomImportException.TOO_LARGE -> "La ROM supera los 64 MB"
     RomImportException.READ_FAILED -> "No se pudo leer el archivo"
     RomImportException.WRITE_FAILED -> "No se pudo guardar la ROM"

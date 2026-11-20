@@ -3,39 +3,65 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>Emulador GBA · Nahua</title>
+  <title>Nahua Arcade · Emulador</title>
   <link rel="stylesheet" href="gba.css">
 </head>
 <body>
 
-  <!-- Portada: aviso legal, seguir jugando y biblioteca de ROMs. -->
+  <!-- Portada: escenario pixel animado, juego incluido, biblioteca de ROMs y ajustes. -->
   <main id="home" class="screen">
+
     <header class="hero">
-      <div class="cart" aria-hidden="true">
-        <span></span><span></span><span></span><span></span>
+      <div class="world" aria-hidden="true">
+        <canvas id="scene"></canvas>
+        <div class="world-scrim"></div>
       </div>
-      <h1>Emulador GBA</h1>
-      <p class="tagline">Game Boy Advance en tu Nahua · 100% sin red</p>
+      <div class="hero-text">
+        <p class="kicker">Nahua Arcade</p>
+        <h1>Emulador</h1>
+        <p class="tagline">Game Boy · Color · Advance — 100 % sin red</p>
+      </div>
     </header>
 
     <section id="continueCard" class="card continue hidden">
-      <p class="card-label">Seguir jugando</p>
-      <p id="continueName" class="card-title"></p>
-      <button id="continueBtn" class="btn primary" type="button">Continuar</button>
+      <div class="continue-cover" aria-hidden="true">
+        <span class="cover-screen"></span>
+      </div>
+      <div class="continue-body">
+        <p class="card-label">Seguir jugando</p>
+        <p id="continueName" class="card-title"></p>
+        <p id="continueMeta" class="rom-meta"></p>
+      </div>
+      <button id="continueBtn" class="btn primary small" type="button">Continuar</button>
     </section>
 
     <section class="card">
-      <p class="card-label">Tus ROMs</p>
+      <div class="card-head">
+        <p class="card-label">Incluido en la app</p>
+        <span class="pill pill-included">1 juego</span>
+      </div>
+      <div id="builtinList" class="rom-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <p class="card-label">Tus ROMs</p>
+        <span id="romCount" class="pill">0</span>
+      </div>
       <div id="romList" class="rom-list">
         <p id="romEmpty" class="empty">Todavía no hay ROMs. Carga la primera.</p>
       </div>
-      <button id="pickBtn" class="btn primary" type="button">Cargar ROM (.gba)</button>
-      <button id="consoleBtn" class="btn ghost" type="button">Configurar controles</button>
+      <div class="row-actions">
+        <button id="pickBtn" class="btn primary" type="button">Cargar ROM</button>
+        <button id="consoleBtn" class="btn ghost" type="button">Ajustes</button>
+      </div>
+      <p class="fine">Acepta .gba, .gbc y .gb — el núcleo se elige solo.</p>
     </section>
 
     <p class="legal">
-      Trae cartuchos que sean tuyos: usa solo copias de juegos que poseas legalmente.
-      Nahua no incluye, distribuye ni enlaza ROMs, y el emulador funciona sin BIOS.
+      Incluye Super Mario Bros. Deluxe como juego de demostración. Para el resto, trae cartuchos
+      que sean tuyos: usa solo copias de juegos que poseas legalmente. El emulador funciona sin BIOS
+      y sin tocar la red.
     </p>
 
     <button id="exitBtn" class="btn ghost" type="button">Salir</button>
@@ -51,51 +77,126 @@
     <div id="display"></div>
   </main>
 
-  <!-- Configuración de la consola: joystick/cruceta, tamaño y posición del gamepad.
-       Se abre desde la portada o con el botón Menú de la tira nativa, en mitad del juego. -->
+  <!-- Ajustes: pantalla, mando y juego. Todo se aplica en vivo cuando el motor lo permite. -->
   <div id="consolePanel" class="overlay hidden">
     <div class="panel console-panel">
-      <p class="panel-title">Configuración de la consola</p>
-
-      <p class="field-label">Pantalla</p>
-      <div class="seg seg-3" role="group" aria-label="Orientación de la pantalla">
-        <button id="oriAuto" class="seg-btn" type="button" data-orientation="auto">Auto</button>
-        <button id="oriPortrait" class="seg-btn" type="button" data-orientation="portrait">Vertical</button>
-        <button id="oriLandscape" class="seg-btn" type="button" data-orientation="landscape">Horizontal</button>
+      <div class="panel-head">
+        <p class="panel-title">Ajustes</p>
+        <button id="ctlClose" class="panel-x" type="button" aria-label="Cerrar">✕</button>
       </div>
 
-      <p class="field-label">Mando izquierdo</p>
-      <div class="seg" role="group" aria-label="Mando izquierdo">
-        <button id="padJoystick" class="seg-btn" type="button" data-pad="joystick">Joystick</button>
-        <button id="padDpad" class="seg-btn" type="button" data-pad="dpad">Cruceta</button>
+      <div class="tabs" role="tablist">
+        <button class="tab tab-on" type="button" data-tab="screen" role="tab">Pantalla</button>
+        <button class="tab" type="button" data-tab="pad" role="tab">Mando</button>
+        <button class="tab" type="button" data-tab="game" role="tab">Juego</button>
       </div>
 
-      <label class="field" for="ctlScale">
-        <span class="field-label">Tamaño <b id="ctlScaleOut">100 %</b></span>
-        <input id="ctlScale" type="range" min="70" max="150" step="5" value="100">
-      </label>
+      <div class="tab-body" data-panel="screen">
+        <p class="field-label">Orientación</p>
+        <div class="seg seg-3" role="group" aria-label="Orientación de la pantalla">
+          <button id="oriAuto" class="seg-btn" type="button" data-orientation="auto">Auto</button>
+          <button id="oriPortrait" class="seg-btn" type="button" data-orientation="portrait">Vertical</button>
+          <button id="oriLandscape" class="seg-btn" type="button" data-orientation="landscape">Horizontal</button>
+        </div>
 
-      <label class="field" for="ctlBottom">
-        <span class="field-label">Altura <b id="ctlBottomOut">50 px</b></span>
-        <input id="ctlBottom" type="range" min="0" max="240" step="10" value="50">
-      </label>
+        <p class="field-label">Filtro de imagen</p>
+        <div class="seg seg-4" role="group" aria-label="Filtro de imagen">
+          <button class="seg-btn" type="button" data-filter="pixel">Pixel</button>
+          <button class="seg-btn" type="button" data-filter="lcd">LCD</button>
+          <button class="seg-btn" type="button" data-filter="crt">CRT</button>
+          <button class="seg-btn" type="button" data-filter="suave">Suave</button>
+        </div>
+        <p class="note">El filtro se ve al instante, también a mitad de la partida.</p>
+      </div>
 
-      <label class="field" for="ctlSide">
-        <span class="field-label">Margen lateral <b id="ctlSideOut">10 px</b></span>
-        <input id="ctlSide" type="range" min="0" max="140" step="5" value="10">
-      </label>
+      <div class="tab-body hidden" data-panel="pad">
+        <p class="field-label">Mando izquierdo</p>
+        <div class="seg seg-2" role="group" aria-label="Mando izquierdo">
+          <button id="padJoystick" class="seg-btn" type="button" data-pad="joystick">Joystick</button>
+          <button id="padDpad" class="seg-btn" type="button" data-pad="dpad">Cruceta</button>
+        </div>
 
-      <p id="ctlNote" class="console-note">
-        Pantalla, tamaño y posición se aplican al instante. Cambiar de joystick a cruceta se ve al
-        reiniciar la partida.
-      </p>
+        <p class="field-label">Mano</p>
+        <div class="seg seg-2" role="group" aria-label="Lado del mando">
+          <button class="seg-btn" type="button" data-hand="right">Diestro</button>
+          <button class="seg-btn" type="button" data-hand="left">Zurdo</button>
+        </div>
 
-      <button id="ctlRestart" class="btn ghost" type="button">Reiniciar partida con estos controles</button>
+        <label class="field" for="ctlScale">
+          <span class="field-label">Tamaño <b id="ctlScaleOut">100 %</b></span>
+          <input id="ctlScale" type="range" min="70" max="150" step="5" value="100">
+        </label>
+
+        <label class="field" for="ctlBottom">
+          <span class="field-label">Altura <b id="ctlBottomOut">50 px</b></span>
+          <input id="ctlBottom" type="range" min="0" max="240" step="10" value="50">
+        </label>
+
+        <label class="field" for="ctlSide">
+          <span class="field-label">Margen lateral <b id="ctlSideOut">10 px</b></span>
+          <input id="ctlSide" type="range" min="0" max="140" step="5" value="10">
+        </label>
+
+        <p class="field-label">Vibración</p>
+        <div class="seg seg-2" role="group" aria-label="Vibración">
+          <button class="seg-btn" type="button" data-haptic="on">Encendida</button>
+          <button class="seg-btn" type="button" data-haptic="off">Apagada</button>
+        </div>
+
+        <p class="note">
+          Tamaño y posición se recalculan al girar el teléfono: el mando siempre cabe en la
+          pantalla, en vertical y en horizontal. Cambiar joystick por cruceta se ve al reiniciar.
+        </p>
+      </div>
+
+      <div class="tab-body hidden" data-panel="game">
+        <p class="field-label">Avance rápido</p>
+        <div class="seg seg-4" role="group" aria-label="Avance rápido">
+          <button class="seg-btn" type="button" data-ff="off">Off</button>
+          <button class="seg-btn" type="button" data-ff="2">×2</button>
+          <button class="seg-btn" type="button" data-ff="3">×3</button>
+          <button class="seg-btn" type="button" data-ff="5">×5</button>
+        </div>
+
+        <p class="field-label">Rebobinar <span class="tag-restart">requiere reiniciar</span></p>
+        <div class="seg seg-2" role="group" aria-label="Rebobinar">
+          <button class="seg-btn" type="button" data-rewind="on">Activado</button>
+          <button class="seg-btn" type="button" data-rewind="off">Desactivado</button>
+        </div>
+
+        <p class="field-label">Ranura de guardado</p>
+        <div class="seg seg-5" role="group" aria-label="Ranura de guardado">
+          <button class="seg-btn" type="button" data-slot="1">1</button>
+          <button class="seg-btn" type="button" data-slot="2">2</button>
+          <button class="seg-btn" type="button" data-slot="3">3</button>
+          <button class="seg-btn" type="button" data-slot="4">4</button>
+          <button class="seg-btn" type="button" data-slot="5">5</button>
+        </div>
+
+        <p class="field-label">Guardado automático de la pila</p>
+        <div class="seg seg-3" role="group" aria-label="Guardado automático">
+          <button class="seg-btn" type="button" data-autosave="300">5 min</button>
+          <button class="seg-btn" type="button" data-autosave="600">10 min</button>
+          <button class="seg-btn" type="button" data-autosave="0">Off</button>
+        </div>
+
+        <p class="field-label">Contador de FPS</p>
+        <div class="seg seg-2" role="group" aria-label="Contador de FPS">
+          <button class="seg-btn" type="button" data-fps="on">Mostrar</button>
+          <button class="seg-btn" type="button" data-fps="off">Ocultar</button>
+        </div>
+
+        <p class="note">
+          Rebobinar necesita reiniciar la partida; lo demás se aplica al instante, también en
+          mitad del juego.
+        </p>
+      </div>
+
       <div class="console-actions">
         <button id="ctlReset" class="btn ghost" type="button">Restablecer</button>
-        <button id="ctlEjs" class="btn primary" type="button">Ajustes del emulador</button>
+        <button id="ctlEjs" class="btn primary" type="button">Ajustes avanzados</button>
       </div>
-      <button id="ctlClose" class="btn ghost" type="button">Cerrar</button>
+      <button id="ctlRestart" class="btn ghost" type="button">Reiniciar partida con estos ajustes</button>
     </div>
   </div>
 

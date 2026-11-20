@@ -57,10 +57,24 @@ class RomStoreTest {
     }
 
     @Test
+    fun romFileNameKeepsTheConsoleExtension() {
+        // El nombre del archivo es lo que elige el nucleo en la mini-app: .gbc y .gb se conservan,
+        // y los alias de GBA (.agb/.bin) se normalizan a .gba.
+        assertEquals(
+            "super-mario-bros-deluxe-usa-europe-rev-a-1fd75c2b.gbc",
+            RomStore.romFileName("Super Mario Bros. Deluxe (USA, Europe) (Rev A).gbc", "1fd75c2b798c04ac"),
+        )
+        assertEquals("tetris-a1b2c3d4.gb", RomStore.romFileName("Tetris.gb", "a1b2c3d4e5f60718"))
+        assertEquals("golden-sun-u-a1b2c3d4.gba", RomStore.romFileName("Golden Sun (U).agb", "a1b2c3d4e5f60718"))
+    }
+
+    @Test
     fun onlyGbaFamilyExtensionsAreAllowed() {
         assertTrue(RomStore.isAllowedExtension("gba"))
         assertTrue(RomStore.isAllowedExtension("agb"))
         assertTrue(RomStore.isAllowedExtension("bin"))
+        assertTrue(RomStore.isAllowedExtension("gbc"))
+        assertTrue(RomStore.isAllowedExtension("gb"))
         assertFalse(RomStore.isAllowedExtension("zip"))
         assertFalse(RomStore.isAllowedExtension("7z"))
         assertFalse(RomStore.isAllowedExtension(""))

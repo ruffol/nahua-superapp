@@ -1,34 +1,43 @@
 /*
- * Emulador GBA — hoja de estilos
- * Misma paleta oscura del marco pixel de Nahua (barro, cal y volcán) para que la mini-app se
- * sienta parte del anfitrión. Todo se dibuja con CSS: sin imágenes, sin fuentes web.
+ * Emulador (Nahua Arcade) — hoja de estilos
+ * -------------------------------------------------------------
+ * Misma paleta del marco pixel de Nahua (jade, carbon, coral) para que la mini-app se sienta
+ * parte del anfitrion. Todo se dibuja con CSS y con el canvas del escenario: sin imagenes
+ * externas y sin fuentes de red (Press Start 2P viaja en el APK).
  */
+
+@font-face {
+  font-family: "NahuaPixel";
+  src: url("fonts/press-start-2p.ttf") format("truetype");
+  font-display: block;
+}
 
 :root {
   --bg: #0A0F14;
-  --surface: #161E26;
-  --surface-alt: #1E2833;
+  --surface: #141C24;
+  --surface-alt: #1C2630;
   --ink: #E9EEF5;
-  --ink-soft: #9AA7B6;
-  --jade: #4F7A3F;
-  --jade-deep: #2F4A26;
+  --ink-soft: #93A1B0;
+  --jade: #0E7C66;
+  --jade-mid: #17A385;
   --jade-bright: #58D6B8;
-  --hero-start: #0E7C66;
-  --hero-end: #0B5A7A;
-  --coral: #C65A32;
-  --line: #2A3541;
-  --line-soft: #33404D;
-  --shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+  --coral: #E2603C;
+  --gold: #F5C542;
+  --sky-top: #1B3A5B;
+  --sky-bot: #3D7FB8;
+  --line: #29343F;
+  --line-soft: #35434F;
+  --shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+  --radius: 4px;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 /*
  * Layout a prueba del WebView de Android: ni height:100% ni unidades de viewport.
- * En el WebView (al menos en modo inmersivo con ventana redimensionada) el bloque
- * contenedor inicial mide 0, asi que 100% / 100vh / 100dvh / 100svh resuelven a 0
- * y la pantalla queda en blanco. Las pantallas usan position:fixed; inset:0, que si
- * toma el tamano real del viewport, y el scroll vive dentro de cada pantalla.
+ * En el WebView (modo inmersivo con ventana redimensionada) el bloque contenedor inicial
+ * mide 0, asi que 100% / 100vh / 100dvh resuelven a 0 y la pantalla queda en blanco.
+ * Las pantallas usan position:fixed; inset:0, que si toma el tamano real del viewport.
  */
 html, body {
   margin: 0;
@@ -45,92 +54,193 @@ html, body {
 .hidden { display: none !important; }
 
 .screen {
-  /* inset:0 sobre el viewport real: funciona aunque el ICB mida 0. */
   position: fixed;
   inset: 0;
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  padding: 0 14px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
 
-/* --- Portada -------------------------------------------------------------- */
+/* --- Portada: escenario pixel -------------------------------------------- */
 
-.hero { text-align: center; }
-
-/* Cartucho pixel dibujado con spans: cero imágenes. */
-.cart {
-  width: 66px;
-  height: 60px;
-  margin: 0 auto 10px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  gap: 2px;
-  padding: 5px;
-  background: var(--hero-start);
-  background: linear-gradient(160deg, var(--hero-start), var(--hero-end));
-  border: 3px solid var(--line-soft);
-  border-radius: 4px;
-  box-shadow: var(--shadow);
+.hero {
+  position: relative;
+  /* Sangra hasta los bordes: el escenario se ve a pantalla completa. */
+  margin: 0 -14px 2px;
+  height: 208px;
+  flex: none;
+  overflow: hidden;
+  background: var(--sky-top);
 }
 
-.cart span {
-  background: var(--surface);
-  border: 2px solid var(--line);
+.world { position: absolute; inset: 0; }
+
+#scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Pixeles duros: el canvas se dibuja a baja resolucion y se escala por enteros. */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
-.cart span:nth-child(1) { grid-column: 1 / 4; grid-row: 1; }
-.cart span:nth-child(2) { grid-column: 1; grid-row: 2 / 5; background: var(--jade-deep); }
-.cart span:nth-child(3) { grid-column: 3; grid-row: 2 / 5; background: var(--jade-deep); }
-.cart span:nth-child(4) { grid-column: 2; grid-row: 2 / 5; }
+.world-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(6, 12, 18, 0.78) 0%,
+    rgba(6, 12, 18, 0.22) 32%,
+    rgba(10, 15, 20, 0) 54%,
+    rgba(10, 15, 20, 0.18) 78%,
+    var(--bg) 100%
+  );
+  pointer-events: none;
+}
+
+.hero-text {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  /* Arriba: el cielo queda detras del letrero y el personaje corre abajo, a la vista. */
+  top: 14px;
+  pointer-events: none;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  font-family: "NahuaPixel", monospace;
+  font-size: 7px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--jade-bright);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.7);
+}
 
 h1 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 900;
+  font-family: "NahuaPixel", monospace;
+  font-size: 17px;
   letter-spacing: 1px;
   text-transform: uppercase;
+  color: #FFF6E5;
+  /* Sombra dura de 2 px: el look de letrero de 8 bits. */
+  text-shadow: 3px 3px 0 #0A3A2E, 0 0 18px rgba(0, 0, 0, 0.5);
 }
 
-.tagline { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
+.tagline {
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #CFE3F2;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* --- Tarjetas ------------------------------------------------------------ */
 
 .card {
   background: var(--surface);
-  border: 3px solid var(--line);
-  border-radius: 4px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: none;
 }
 
-.card.continue { border-color: var(--jade); }
+.card.continue {
+  border-color: var(--jade-mid);
+  flex-direction: row;
+  align-items: center;
+  gap: 11px;
+  /* Latido lento: la tarjeta que mas se usa debe pedir el toque. */
+  animation: cardPulse 3.4s ease-in-out infinite;
+}
+
+@keyframes cardPulse {
+  0%, 100% { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 0 0 rgba(23, 163, 133, 0.42); }
+  55% { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 0 7px rgba(23, 163, 133, 0); }
+}
+
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 .card-label {
   margin: 0;
-  color: var(--jade-bright);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 2px;
+  font-family: "NahuaPixel", monospace;
+  font-size: 7px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
+  color: var(--jade-bright);
 }
 
-.card-title { margin: 0; font-size: 17px; font-weight: 800; }
+.card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill {
+  font-family: "NahuaPixel", monospace;
+  font-size: 7px;
+  letter-spacing: 1px;
+  padding: 5px 7px 4px;
+  color: var(--ink-soft);
+  background: var(--surface-alt);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  flex: none;
+}
+
+.pill-included {
+  color: #04240F;
+  background: var(--gold);
+  border-color: #B08A1B;
+}
+
+/* Miniatura de consola dibujada con CSS (la portada de "seguir jugando"). */
+.continue-cover {
+  width: 44px;
+  height: 52px;
+  flex: none;
+  background: linear-gradient(160deg, #2B3A46, #16202A);
+  border: 2px solid var(--line-soft);
+  border-radius: 4px 4px 6px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-screen {
+  width: 30px;
+  height: 24px;
+  background:
+    linear-gradient(180deg, #7FC8E8 0 45%, #2C7B4E 45% 100%);
+  border: 1px solid #0B141B;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+.continue-body { flex: 1; min-width: 0; }
+
+/* --- Biblioteca ---------------------------------------------------------- */
 
 .rom-list { display: flex; flex-direction: column; gap: 8px; }
-
-.empty { margin: 0; color: var(--ink-soft); font-size: 13px; }
 
 .rom {
   background: var(--surface-alt);
   border: 2px solid var(--line-soft);
   border-radius: 3px;
-  padding: 8px 10px;
+  padding: 9px 10px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -140,24 +250,48 @@ h1 {
 
 .rom-name {
   margin: 0;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.rom-size { margin: 2px 0 0; color: var(--ink-soft); font-size: 11px; }
+.rom-meta { margin: 3px 0 0; color: var(--ink-soft); font-size: 10.5px; }
+
+/* Etiqueta de consola: un chip por familia (GBA jade, GBC coral). */
+.chip-console {
+  flex: none;
+  font-family: "NahuaPixel", monospace;
+  font-size: 6.5px;
+  letter-spacing: 1px;
+  padding: 5px 6px 4px;
+  border-radius: 3px;
+  color: #04240F;
+  background: var(--jade-bright);
+}
+
+.chip-gba { background: var(--jade-bright); color: #04240F; }
+.chip-gbc { background: #F0A03C; color: #2A1501; }
+.chip-gb  { background: #C9D4DE; color: #10181E; }
+
+.empty { margin: 0; color: var(--ink-soft); font-size: 12.5px; }
+
+.fine { margin: 0; color: var(--ink-soft); font-size: 10.5px; }
+
+.row-actions { display: flex; gap: 8px; }
+.row-actions .btn { flex: 1; }
 
 .legal {
   margin: 0;
   padding: 10px 12px;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.5;
   background: var(--surface);
   border: 2px dashed var(--line-soft);
   border-radius: 3px;
+  flex: none;
 }
 
 .hint {
@@ -175,24 +309,25 @@ h1 {
 .btn {
   font: inherit;
   font-weight: 800;
-  letter-spacing: 0.4px;
-  border: 3px solid transparent;
+  letter-spacing: 0.3px;
+  border: 2px solid transparent;
   border-radius: 3px;
-  padding: 11px 16px;
+  padding: 12px 16px;
   cursor: pointer;
   color: var(--ink);
   background: var(--surface-alt);
   box-shadow: var(--shadow);
 }
 
-.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45); }
+.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5); }
 
 .btn.primary {
-  background: var(--jade);
+  background: var(--jade-mid);
+  border-color: #0B5A4A;
   color: #04240F;
 }
 
-.btn.small { padding: 7px 10px; font-size: 12px; }
+.btn.small { padding: 8px 11px; font-size: 12px; }
 
 .btn.danger {
   background: transparent;
@@ -206,8 +341,6 @@ h1 {
 
 #game {
   padding: 0;
-  /* El juego no debe hacer scroll: el canvas y los controles de EmulatorJS se
-     acomodan solos dentro del area. */
   overflow: hidden;
   /* En horizontal la camara/notch vive en los bordes largos: sin esto, el
      engrane de ajustes de EmulatorJS queda detras del recorte. */
@@ -217,17 +350,43 @@ h1 {
 
 #display {
   width: 100%;
-  /* flex:1 sobre un padre fixed con altura definida: el canvas de EmulatorJS
-     siempre recibe un alto real, sin unidades de viewport. */
   flex: 1 1 auto;
   height: 100%;
   min-height: 0;
   background: #000;
+  position: relative;
 }
 
-/* El UI de EmulatorJS (barra inferior, menu) respeta su propio estilo; solo
-   aseguramos que su contenedor llene la pantalla sin scroll. */
 #game .ejs_parent { width: 100%; height: 100%; }
+
+/* Filtros de imagen: se aplican al canvas del emulador, no al gamepad. */
+#display canvas { image-rendering: pixelated; }
+
+#display.fx-lcd canvas {
+  filter: contrast(1.06) saturate(1.22) brightness(1.04);
+}
+
+#display.fx-crt canvas {
+  filter: contrast(1.15) saturate(1.25) brightness(0.98);
+}
+
+#display.fx-crt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.26) 0 1px,
+    rgba(0, 0, 0, 0) 1px 3px
+  );
+}
+
+#display.fx-suave canvas {
+  image-rendering: auto;
+  filter: saturate(1.05);
+}
 
 /* Joystick: EmulatorJS crea el "zone" sin dimensiones (a diferencia de la cruceta,
    que llena con .ejs_dpad_main), asi que aqui se le da el tamano del mando izquierdo
@@ -243,81 +402,96 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-/* --- Overlay de error ----------------------------------------------------- */
+/* En vertical el juego va arriba y los mandos en la franja negra de abajo; el margen
+   superior aparta la imagen de la camara frontal (el WebView no expone el recorte). */
+@media (orientation: portrait) {
+  #game { padding-top: 30px; }
+}
+
+/* --- Overlays ------------------------------------------------------------ */
 
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(4, 8, 12, 0.86);
+  background: rgba(4, 8, 12, 0.88);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 18px;
 }
 
 .panel {
-  width: min(420px, 100%);
+  width: min(430px, 100%);
   background: var(--surface);
-  border: 3px solid var(--line);
-  border-radius: 4px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   text-align: center;
 }
 
-.panel-title { margin: 0; font-size: 18px; font-weight: 900; }
+.panel-title {
+  margin: 0;
+  font-family: "NahuaPixel", monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
 
 .panel-body { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
 
-/* --- Configuración de la consola ------------------------------------------ */
+/* --- Panel de ajustes ---------------------------------------------------- */
 
-/* El overlay es fixed; el panel toma % de esa altura (nada de vh/dvh) y hace scroll
-   en horizontal, donde la pantalla es baja. */
 .console-panel {
   max-height: 92%;
   overflow-y: auto;
   text-align: left;
-  gap: 12px;
+  gap: 11px;
 }
 
-.console-panel .panel-title { text-align: center; }
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 2px solid var(--line);
+  padding-bottom: 9px;
+}
 
-.field-label {
-  display: block;
-  margin: 0;
-  color: var(--jade-bright);
-  font-size: 10px;
+.panel-x {
+  font: inherit;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  color: var(--ink-soft);
+  background: var(--surface-alt);
+  border: 2px solid var(--line-soft);
+  border-radius: 3px;
+  cursor: pointer;
 }
 
-.field-label b { color: var(--ink); font-weight: 800; }
-
-.seg {
+.tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
   background: var(--surface-alt);
   border: 2px solid var(--line);
   border-radius: 3px;
   padding: 4px;
 }
 
-/* Pantalla (Auto / Vertical / Horizontal) */
-.seg-3 { grid-template-columns: repeat(3, 1fr); }
-
-.seg-3 .seg-btn { font-size: 12px; padding: 9px 6px; }
-
-.seg-btn {
-  font: inherit;
-  font-weight: 800;
-  font-size: 13px;
-  padding: 9px 10px;
+.tab {
+  font-family: "NahuaPixel", monospace;
+  font-size: 7px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 10px 4px 9px;
   color: var(--ink-soft);
   background: transparent;
   border: 2px solid transparent;
@@ -325,13 +499,65 @@ h1 {
   cursor: pointer;
 }
 
-.seg-btn-on {
-  color: #04240F;
-  background: var(--jade);
-  border-color: var(--jade);
+.tab-on { color: #04240F; background: var(--jade-bright); border-color: var(--jade-bright); }
+
+.tab-body { display: flex; flex-direction: column; gap: 8px; }
+
+.field-label {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--jade-bright);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
 }
 
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label b { color: var(--ink); font-weight: 800; }
+
+.tag-restart {
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--coral);
+}
+
+.seg {
+  display: grid;
+  gap: 5px;
+  background: var(--surface-alt);
+  border: 2px solid var(--line);
+  border-radius: 3px;
+  padding: 4px;
+}
+
+.seg-2 { grid-template-columns: repeat(2, 1fr); }
+.seg-3 { grid-template-columns: repeat(3, 1fr); }
+.seg-4 { grid-template-columns: repeat(4, 1fr); }
+.seg-5 { grid-template-columns: repeat(5, 1fr); }
+
+.seg-btn {
+  font: inherit;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 10px 6px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.seg-3 .seg-btn, .seg-4 .seg-btn, .seg-5 .seg-btn { font-size: 11px; padding: 9px 3px; }
+
+.seg-btn-on {
+  color: #04240F;
+  background: var(--jade-mid);
+  border-color: #0B5A4A;
+}
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
 
 .field input[type="range"] {
   -webkit-appearance: none;
@@ -354,63 +580,51 @@ h1 {
   width: 26px;
   height: 26px;
   margin-top: -11px;
-  background: var(--jade);
+  background: var(--jade-bright);
   border: 3px solid #04240F;
   border-radius: 3px;
 }
 
-.console-note {
-  margin: 0;
+.note {
+  margin: 2px 0 0;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.45;
   border-top: 2px dashed var(--line-soft);
   padding-top: 8px;
 }
 
 .console-actions { display: flex; gap: 8px; }
-
 .console-actions .btn { flex: 1; }
 
-/* En horizontal la portada cabe en dos columnas; el panel de ajustes sigue siendo de una. */
+/* --- Horizontal ---------------------------------------------------------- */
+
 @media (orientation: landscape) {
-  .console-panel { max-width: 560px; }
-}
+  .console-panel { max-width: 580px; }
 
-/* Vertical: el GBA se ve a 3:2 arriba y los mandos quedan en la zona negra de abajo.
-   El margen superior aparta la imagen de la cámara frontal (el WebView no expone el
-   recorte, así que se reserva un valor fijo razonable). */
-@media (orientation: portrait) {
-  #game { padding-top: 34px; }
-  .ejs_virtualGamepad_left,
-  .ejs_virtualGamepad_right { bottom: 34px !important; }
-  .ejs_virtualGamepad_bottom { bottom: 20px !important; }
-}
-
-/* --- Horizontal ----------------------------------------------------------- */
-
-/* En landscape (la mini-app gira sola) la portada se compacta y se vuelve
-   deslizable por si sola: el boton de "Cargar ROM" nunca queda abajo del pliegue,
-   con notch o sin el. */
-@media (orientation: landscape) {
+  /* La portada se compacta: el escenario baja de alto para que la biblioteca quepa. */
   #home {
-    /* Sin max-height en unidades de viewport: #home ya ocupa el viewport y hace
-       scroll por dentro. */
-    max-width: 720px;
+    max-width: 780px;
     margin: 0 auto;
-    padding-top: 8px;
     padding-top: max(8px, env(safe-area-inset-top, 0px));
-    padding-left: 16px;
-    padding-left: max(16px, env(safe-area-inset-left, 0px));
-    padding-right: 16px;
-    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
-  .hero { text-align: left; display: flex; align-items: center; gap: 14px; }
-  .cart { width: 46px; height: 42px; margin: 0; flex: none; }
-  h1 { font-size: 18px; }
-  .tagline { font-size: 11px; }
+  .hero { height: 132px; margin-top: 8px; }
+  .hero-text { bottom: 8px; }
+  .kicker { font-size: 6px; margin-bottom: 5px; }
+  h1 { font-size: 13px; }
+  .tagline { font-size: 10px; margin-top: 5px; }
 
-  #home .card { padding: 10px; }
-  #home .legal { font-size: 10px; line-height: 1.4; padding: 6px 10px; }
+  .card { padding: 9px; gap: 8px; }
+  .legal { font-size: 9.5px; padding: 7px 9px; }
+}
+
+@media (max-height: 420px) and (orientation: landscape) {
+  .hero { height: 104px; }
+  h1 { font-size: 12px; }
+}
+
+/* Quien pide menos movimiento ve el escenario quieto (el JS deja de animar). */
+@media (prefers-reduced-motion: reduce) {
+  .card.continue { animation: none; }
 }

@@ -37,8 +37,9 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
   descarga y la instala sin volver a pasar un APK.
 - **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
   tema claro/oscuro.
-- **Emulador de Game Boy Advance**: mini-app inmersiva horizontal con EmulatorJS 4.2.3 (núcleo
-  mGBA en WebAssembly), 100 % offline, controles táctiles y partidas que sobreviven al cierre.
+- **Emulador de Game Boy, Color y Advance**: mini-app inmersiva con EmulatorJS 4.2.3 (núcleos
+  mGBA y gambatte en WebAssembly), Super Mario Bros. Deluxe incluido, 100 % offline, controles
+  táctiles que se recalculan al girar y partidas que sobreviven al cierre.
 - **156 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
@@ -50,7 +51,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 | **Nahua Ride** | mini-app | destino, tarifa, ETA y viaje | `Nahua.pay` |
 | **Pagar servicios** | mini-app | luz, agua e internet | `Nahua.pay` |
 | **Yōlcatl** | mini-app | criatura viva: IA autónoma, escenas 3D vóxel, accesorios y mosaico del alma | `localStorage` |
-| **Emulador GBA** | mini-app | tus cartuchos de Game Boy Advance, horizontal y sin red | EmulatorJS 4.2.3 (mGBA) · `Nahua.pickRom` |
+| **Emulador** | mini-app | Game Boy, Color y Advance + Mario incluido, sin red | EmulatorJS 4.2.3 (mGBA + gambatte) · `Nahua.pickRom` |
 | **Nahuanotoka** | feature nativa | mesas de estudio: resumen, ideas, correlación y PDF | HTTP + PDFBox |
 
 ---
@@ -153,20 +154,23 @@ registro versionado (`nahua.bazar.catalogo.v1`). Contrato del catálogo en
 prueba con `node scripts/test-bazar-catalogo.js`.
 
 
-## Emulador GBA
+## Emulador (Game Boy, Color y Advance)
 
-Una mini-app inmersiva para jugar tus cartuchos de Game Boy Advance dentro de Nahua, sin red y
-sin tocar una línea de NDK.
+Una mini-app inmersiva para jugar cartuchos de **Game Boy, Game Boy Color y Game Boy Advance**
+dentro de Nahua, sin red y sin tocar una línea de NDK.
 
-- **Motor**: [EmulatorJS](https://emulatorjs.org/) 4.2.3 con el núcleo **mGBA** compilado a
-  WebAssembly, vendorizado (2.47 MB, sin tocar) en `assets/miniapps/gba/emulatorjs/` con
-  `scripts/fetch-emulatorjs.ps1`. Se incluyen las variantes normal y `-legacy` (equipos sin
-  WebGL2) y las localizaciones en-US/es-ES.
-- **Tus ROMs, tu decisión**: la app no incluye ni enlaza ROMs ni BIOS. Tocas **Cargar ROM**, el
-  selector del sistema (`OpenDocument`) te deja elegir el `.gba`, y el anfitrión lo copia a
-  `filesDir/roms` validando extensión y tope de 64 MiB, con deduplicación por SHA-256 (el nombre
-  final lleva el `sha8`). La página lo recibe como URL `https` del propio origen: nunca hay
-  `file://` ni URIs de contenido en el WebView.
+- **Motor**: [EmulatorJS](https://emulatorjs.org/) 4.2.3 con dos núcleos compilados a WebAssembly,
+  vendorizados sin tocar en `assets/miniapps/gba/emulatorjs/` con `scripts/fetch-emulatorjs.ps1`:
+  **mGBA** para Advance y **gambatte** para GB/GBC. Se incluyen las variantes normal y `-legacy`
+  (equipos sin WebGL2) y las localizaciones en-US/es-ES. La extensión del archivo elige el núcleo:
+  `.gba/.agb/.bin` → mGBA, `.gbc/.gb` → gambatte.
+- **Un juego incluido, de demostración**: `games/smbdx.gbc` (Super Mario Bros. Deluxe) viaja en el
+  APK con su tarjeta «incluido» para que el emulador se pueda probar sin cargar nada. El resto de
+  ROMs son del usuario: tocas **Cargar ROM**, el selector del sistema (`OpenDocument`) te deja
+  elegir el archivo, y el anfitrión lo copia a `filesDir/roms` validando extensión y tope de
+  64 MiB, con deduplicación por SHA-256 (el nombre final lleva el `sha8` y conserva la extensión de
+  la consola). La página lo recibe como URL `https` del propio origen: nunca hay `file://` ni URIs
+  de contenido en el WebView.
 - **Offline de verdad**: cualquier subrequest a otro origen se responde con un 404 vacío en
   `shouldInterceptRequest`, así que ni siquiera el *failsafe* de EmulatorJS hacia su CDN puede
   generar tráfico.
@@ -185,9 +189,12 @@ sin tocar una línea de NDK.
   ejecuta el anfitrión (`Nahua.haptic` → `performHapticFeedback`, sin permiso `VIBRATE` y
   respetando el ajuste del sistema) con un tope de 40 ms por pulsación.
 - **Joystick y controles a tu medida**: el mando izquierdo es un **joystick** (no una cruceta) y el
-  panel *Configurar controles* ajusta **tamaño, altura y margen lateral** del gamepad en vivo,
-  además de alternar joystick/cruceta. La configuración queda guardada en el dispositivo y el
-  botón **Menú** la abre también en mitad del juego.
+  panel de **Ajustes** ajusta **tamaño, altura y margen lateral** del gamepad, además de alternar
+  joystick/cruceta y mano (diestro/zurdo). Tamaño y posición se **recalculan al girar el teléfono**
+  (`resize`, `orientationchange` y `visualViewport`, con debounce): EmulatorJS mide el gamepad en
+  px fijos, así que el layout es propio y escala según el lado corto de la pantalla. El panel
+  también trae filtros de imagen (Pixel/LCD/CRT/Suave), avance rápido ×2/×3/×5, rebobinar, ranuras
+  de guardado 1–5, guardado automático de pila y contador de FPS.
 - **Vertical u horizontal**: el mismo panel fija la **pantalla** (Auto, Vertical, Horizontal) y el
   giro se aplica al instante, sin reiniciar la partida. En vertical el juego se ve a 3:2 arriba y
   los mandos quedan abajo, al alcance de los pulgares.

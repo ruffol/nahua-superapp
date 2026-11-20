@@ -27,6 +27,10 @@ data class RomFile(
  * La copia es idempotente: el nombre final incluye un sha8 del contenido, asi reimportar la
  * misma ROM no duplica el archivo ni pierde las partidas asociadas en IndexedDB (que EmulatorJS
  * keyfica por nombre de juego).
+ *
+ * Dos familias de consola conviven en la misma carpeta y las distingue la extension del archivo:
+ * Game Boy Advance (.gba/.agb/.bin) y Game Boy / Color (.gbc/.gb). La mini-app elige el nucleo
+ * con esa misma extension, asi que el nombre final SIEMPRE conserva una extension conocida.
  */
 class RomImportException(val code: String) : Exception(code) {
 
@@ -44,9 +48,23 @@ object RomStore {
     /** Tope de tamano: la ROM de cartucho GBA mas grande ronda los 32 MB; dejamos 64 por holgura. */
     const val MAX_ROM_BYTES: Long = 64L * 1024 * 1024
     const val ROM_DIR = "roms"
+
+    /** Extension canonica de Game Boy Advance, la que se usa cuando el origen trae un alias. */
     const val EXTENSION = ".gba"
 
-    private val ALLOWED_EXTENSIONS = setOf("gba", "agb", "bin")
+    private val ALLOWED_EXTENSIONS = setOf("gba", "agb", "bin", "gbc", "gb")
+
+    /**
+     * Alias de extension: .agb y .bin son Game Boy Advance con otro nombre; .gbc y .gb son la
+     * misma consola (gambatte detecta el modo por la cabecera del cartucho) y se conservan tal
+     * cual, porque el nombre del archivo es lo que elige el nucleo en la mini-app.
+     */
+    private fun canonicalExtension(extension: String): String? = when (extension) {
+        "gba", "agb", "bin" -> "gba"
+        "gbc" -> "gbc"
+        "gb" -> "gb"
+        else -> null
+    }
 
     fun directory(context: Context): File = File(context.filesDir, ROM_DIR)
 
@@ -99,7 +117,8 @@ object RomStore {
 
     fun list(context: Context): List<RomFile> {
         val root = directory(context)
-        val files = root.listFiles { file -> file.isFile && file.name.endsWith(EXTENSION) } ?: return emptyList()
+        val files = root.listFiles { file -> file.isFile && isAllowedExtension(extensionOf(file.name)) }
+            ?: return emptyList()
         return files
             .sortedByDescending { file -> file.lastModified() }
             .map { file -> RomFile(name = file.name, displayName = displayOf(file.name), sizeBytes = file.length()) }
@@ -118,9 +137,14 @@ object RomStore {
         return file.isFile && file.delete()
     }
 
-    /** Nombre final: <slug>-<sha8>.gba. La extension se quita ANTES de sanitizar (mayusculas incluidas). */
-    fun romFileName(rawName: String, sha256Hex: String): String =
-        sanitizeName(rawName.substringBeforeLast('.')) + "-" + hashSuffix(sha256Hex) + EXTENSION
+    /**
+     * Nombre final: <slug>-<sha8>.<extension canonica>. La extension se quita ANTES de sanitizar
+     * (mayusculas incluidas) y se vuelve a poner al final, ya normalizada.
+     */
+    fun romFileName(rawName: String, sha256Hex: String): String {
+        val extension = canonicalExtension(extensionOf(rawName)) ?: "gba"
+        return sanitizeName(rawName.substringBeforeLast('.')) + "-" + hashSuffix(sha256Hex) + "." + extension
+    }
 
     /**
      * Slug de solo [a-z0-9-]. NFD + quitar marcas combinantes deja "pokemon" de "Pokemon";
@@ -149,11 +173,13 @@ object RomStore {
 
     fun isSafeName(name: String): Boolean =
         name.isNotBlank() && !name.contains('/') && !name.contains('\\') &&
-            !name.contains("..") && name.endsWith(EXTENSION)
+            !name.contains("..") && isAllowedExtension(extensionOf(name))
 
     /** Titulo legible a partir del nombre de archivo, sin hash ni extension. */
     private fun displayOf(name: String): String {
-        val stem = name.removeSuffix(EXTENSION).replace(Regex("-[0-9a-f]{8}$"), "")
+        val stem = name
+            .replace(Regex("\\.(gba|gbc|gb)$", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("-[0-9a-f]{8}$"), "")
         val spaced = stem.replace('-', ' ').trim()
         return spaced.replaceFirstChar { it.uppercase() }.ifEmpty { "ROM" }
     }

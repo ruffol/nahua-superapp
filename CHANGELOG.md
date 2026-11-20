@@ -5,6 +5,46 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-11-20
+
+### Añadido
+
+- **Game Boy Color, no solo Advance**: se vendoriza el núcleo `gambatte` (normal y `-legacy`)
+  junto a mgba, y la mini-app elige el núcleo por la extensión del archivo. `.gba/.agb/.bin` van
+  a mgba; `.gbc/.gb` a gambatte, que detecta el modo por la cabecera del cartucho. `RomStore`
+  conserva la extensión en el nombre final (era lo que faltaba para distinguir consolas) y el
+  mando de GB/GBC ya no muestra L/R, que en esa consola no existen.
+- **Super Mario Bros. Deluxe incluido en el APK** como juego de demostración (`games/smbdx.gbc`),
+  con tarjeta propia en la portada marcada «incluido». El resto de juegos siguen entrando por el
+  selector del sistema, como copias que el usuario posee.
+- **Portada nueva con escenario pixel animado**: un canvas de 176×104 px dibujado a mano
+  (cielo nocturno con estrellas, nubes en parallax, colinas, monedas que giran, bloques `?`,
+  tubería y un axolote con gorra que corre y salta) escalado por enteros para que no se vea
+  borroso. Se detiene solo al entrar al juego o al ocultar la app, y respeta
+  `prefers-reduced-motion`. Letrero en la fuente pixel del proyecto.
+- **Panel de ajustes con pestañas** (Pantalla / Mando / Juego): filtros de imagen Pixel, LCD, CRT
+  y Suave (CSS sobre el canvas, en vivo), modo zurdo, vibración, avance rápido ×2/×3/×5,
+  rebobinar, ranuras de guardado 1–5, guardado automático de la pila y contador de FPS. Lo que
+  EmulatorJS puede cambiar en caliente se aplica por `changeSettingOption`; lo que exige reinicio
+  (rebobinar) se siembra en su `localStorage` antes de construirlo.
+
+### Corregido
+
+- **El mando no se reacomodaba al girar la pantalla**: EmulatorJS escucha `resize` pero su
+  `handleResize` solo toca el menú; el gamepad quedaba con la geometría de la orientación
+  anterior porque sus contenedores miden px fijos. Ahora hay un layout propio que se recalcula en
+  `resize`, `orientationchange` y `visualViewport` (con debounce, porque en Android el evento
+  llega antes del tamaño final), escala según el lado corto de la pantalla, anula el `bottom:50px`
+  del padre y respeta el área segura de la barra de gestos.
+- **Icono**: la «N» ahora se dibuja con bloques escalonados, sombra dura y la moneda coral como
+  punto, sobre un jade más profundo; se lee bien a 48 dp y el monocolor hereda la misma silueta.
+
+### Cambiado
+
+- La mini-app se llama «Emulador» (antes «Emulador GBA») y su versión sube a 2.0.0.
+- El candado del bundle en los tests ahora exige los cuatro núcleos y solo permite la ROM de
+  demostración, además de seguir bloqueando `.gba` sueltos y archivos comprimidos.
+
 ## [0.19.0] — 2026-11-19
 
 ### Añadido
