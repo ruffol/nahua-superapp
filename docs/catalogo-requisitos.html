@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Catálogo y actividad del Bazar/Trueque — Requisitos del servidor</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+
+  :root {
+    --ink: #241a12;
+    --ink-soft: #4d4034;
+    --muted: #7c6c5a;
+    --line: #d9c9b0;
+    --paper: #fffaf1;
+    --accent: #7e2c44;
+    --green: #2f6b4f;
+    --gold: #a9741f;
+    --code-bg: #f6efdf;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 9.6pt;
+    line-height: 1.45;
+    color: var(--ink);
+    background: #fff;
+  }
+
+  h1, h2, h3 { margin: 0; line-height: 1.2; }
+  h1 { font-size: 22pt; letter-spacing: -0.4pt; }
+  h2 {
+    font-size: 13pt;
+    margin: 20px 0 8px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent);
+    page-break-after: avoid;
+  }
+  h3 { font-size: 10.5pt; margin: 13px 0 4px; page-break-after: avoid; }
+  p { margin: 0 0 7px; }
+  ul, ol { margin: 0 0 8px 16px; padding: 0; }
+  li { margin-bottom: 3px; }
+  strong { font-weight: 700; }
+  code, pre { font-family: "Cascadia Mono", Consolas, monospace; }
+
+  code {
+    background: var(--code-bg);
+    border-radius: 3px;
+    padding: 0 3px;
+    font-size: 8.6pt;
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 8pt;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    page-break-inside: avoid;
+    margin: 6px 0 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 12px;
+    font-size: 8.6pt;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 5px 6px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #f3e7d3; font-size: 8.4pt; }
+  td code { font-size: 8.2pt; }
+
+  .cover {
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    background: var(--paper);
+  }
+  .cover .kicker {
+    font-size: 8.5pt;
+    font-weight: 800;
+    letter-spacing: 1.6pt;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .cover .sub { color: var(--ink-soft); font-size: 10.5pt; margin-top: 8px; }
+  .cover .meta { margin-top: 14px; font-size: 8.6pt; color: var(--muted); }
+  .cover .meta b { color: var(--ink); }
+
+  .lead {
+    font-size: 10pt;
+    color: var(--ink-soft);
+    border-left: 3px solid var(--green);
+    padding-left: 10px;
+    margin: 10px 0 14px;
+  }
+
+  .callout {
+    background: #fdf3e0;
+    border: 1px solid #e3c78f;
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin: 8px 0 12px;
+    page-break-inside: avoid;
+  }
+  .callout b { color: var(--gold); }
+
+  .ok {
+    background: #eaf3e8;
+    border: 1px solid #b9d2aa;
+    border-radius: 5px;
+    padding: 8px 10px;
+    margin: 8px 0 12px;
+    page-break-inside: avoid;
+  }
+  .ok b { color: var(--green); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 9px 10px;
+    background: var(--paper);
+    page-break-inside: avoid;
+  }
+  .card h3 { margin-top: 0; }
+  .card p:last-child { margin-bottom: 0; }
+
+  .page-break { page-break-before: always; }
+  .small { font-size: 8.4pt; color: var(--muted); }
+  .badge {
+    display: inline-block;
+    font-size: 7.6pt;
+    font-weight: 800;
+    letter-spacing: 0.6pt;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="kicker">Bazar/Trueque · Tiendas oficiales</div>
+  <h1>Catálogo y actividad del servidor</h1>
+  <p class="sub">Requisitos técnicos para empezar a recibir catálogos de las organizaciones oficiales y
+    conservar el registro de cambios que protege a la comunidad.</p>
+  <div class="meta">
+    <b>Versión:</b> 1.0 &nbsp;·&nbsp; <b>Fecha:</b> 19 de noviembre de 2026 &nbsp;·&nbsp;
+    <b>Cliente:</b> mini-app Bazar/Trueque (Nahua) &nbsp;·&nbsp; <b>Estado:</b> listo para integrar
+  </div>
+</div>
+
+<p class="lead">La app ya funciona sin servidor con un catálogo local. Este documento define lo que el
+servidor tiene que exponer para que el catálogo llegue firmado, versionado y con historial: qué
+endpoints, qué campos, cómo se versionan los cambios, qué se guarda para auditar fraudes y cómo sabe
+el usuario si está viendo información actualizada o vieja.</p>
+
+<h2>1. Qué resuelve el servidor</h2>
+
+<div class="grid2">
+  <div class="card">
+    <h3>Catálogo con stock real</h3>
+    <p>Las organizaciones oficiales publican productos con existencias. La app debe poder comprar
+      sabiendo cuántas piezas hay y sin volver a descargar todo el catálogo cada vez.</p>
+  </div>
+  <div class="card">
+    <h3>Historial de cambios</h3>
+    <p>Cada alta, baja, cambio de precio o de stock queda registrado con fecha, valor anterior y
+      valor nuevo. Es la prueba para reclamar un cobro o reportar un engaño.</p>
+  </div>
+</div>
+
+<div class="ok" style="margin-top:12px">
+  <b>Lo que ya está implementado en la app</b>
+  <ul>
+    <li>Cliente de catálogo versionado: instala una foto completa una vez y luego aplica sólo parches.</li>
+    <li>Reconstrucción de cualquier versión anterior (incluidos productos retirados).</li>
+    <li>Pantalla de actividad: muestra «precio $620 → $580», «stock 4 → 1», altas y bajas, con fecha.</li>
+    <li>Indicador de frescura: «catálogo al día» o «catálogo sin actualizar desde hace X», con
+      confirmación extra antes de cobrar cuando está viejo.</li>
+    <li>Reportes de artículos y usuarios con motivo y nota, guardados con fecha.</li>
+  </ul>
+</div>
+
+<h2>2. Modelo de datos</h2>
+
+<h3>2.1 Organización oficial</h3>
+<pre>{
+  "id": "coop",
+  "name": "Cooperativa del Campus",
+  "short": "Cooperativa",
+  "tagline": "Útiles, tazas y termos para la semana",
+  "accent": "#2F6B4F",
+  "deep": "#1E4A36",
+  "emoji": "🏫",
+  "offer": "10 % en útiles al mostrar tu credencial",
+  "since": "2019",
+  "official": true,
+  "verified": true,
+  "pinned": ["c1"],
+  "contact": "compras@coop.example",
+  "updatedAt": 1795000000000
+}</pre>
+
+<table>
+  <tr><th>Campo</th><th>Tipo</th><th>Regla</th></tr>
+  <tr><td><code>id</code></td><td>string</td><td>Estable para siempre; no se reutiliza.</td></tr>
+  <tr><td><code>pinned</code></td><td>string[]</td><td>Productos que la tienda fija para impulsarlos. La app los muestra primero.</td></tr>
+  <tr><td><code>offer</code></td><td>string</td><td>Texto del banner (máx. 90 caracteres).</td></tr>
+  <tr><td><code>verified</code></td><td>bool</td><td>La app sólo muestra tiendas verificadas como oficiales.</td></tr>
+</table>
+
+<h3>2.2 Producto</h3>
+<pre>{
+  "id": "c1",
+  "storeId": "coop",
+  "title": "Taza de cerámica del campus",
+  "priceCents": 6500,
+  "stock": 8,
+  "emoji": "☕",
+  "tag": "Fijado",
+  "createdAt": 1793000000000,
+  "updatedAt": 1795000000000
+}</pre>
+
+<div class="callout">
+  <b>Dinero en centavos enteros.</b> Nunca decimales ni cadenas con formato. <code>6500</code> son
+  $65.00. Así se evitan errores de redondeo al comparar precios históricos.
+</div>
+
+<p><b>Stock.</b> Entero ≥ 0. <code>0</code> significa agotado, no «borrado»: el producto sigue
+visible con la etiqueta «Agotado». Un producto que la tienda retira del catálogo va en
+<code>removed</code>, no se pone en stock 0.</p>
+
+<h3>2.3 Parche (unidad de cambio)</h3>
+<pre>{
+  "version": 5,
+  "at": 1795600000000,
+  "added":   [ { "id": "c9", "storeId": "coop", "title": "Pluma", "priceCents": 1500, "stock": 40, "emoji": "🖊", "tag": "Nuevo", "createdAt": 1795600000000 } ],
+  "removed": [ "c4" ],
+  "updated": [ { "id": "c1", "priceCents": 7000, "stock": 3 } ]
+}</pre>
+
+<ul>
+  <li><code>updated</code> lleva <b>sólo</b> los campos que cambiaron, más el <code>id</code>.</li>
+  <li>Los parches son <b>inmutables</b> y <b>consecutivos</b>: la versión N+1 existe una sola vez y no se edita.</li>
+  <li>Un producto retirado no revive con el mismo <code>id</code>. Si vuelve, se publica con un id nuevo.</li>
+</ul>
+
+<h2>3. Endpoints</h2>
+
+<table>
+  <tr><th>Método</th><th>Ruta</th><th>Para qué</th></tr>
+  <tr><td>GET</td><td><code>/v1/catalog/head</code></td><td>Saber si hay cambios antes de pedir el delta.</td></tr>
+  <tr><td>GET</td><td><code>/v1/catalog?full=1</code></td><td>Foto completa. Sólo en la primera instalación o si se borró el almacenamiento.</td></tr>
+  <tr><td>GET</td><td><code>/v1/catalog/delta?since=N</code></td><td>Parches con versión mayor a N. Es la llamada normal.</td></tr>
+  <tr><td>GET</td><td><code>/v1/catalog/changes?since=N</code></td><td>Actividad legible para auditoría (opcional si el cliente la deriva de los parches).</td></tr>
+  <tr><td>GET</td><td><code>/v1/stores</code></td><td>Organizaciones oficiales verificadas.</td></tr>
+  <tr><td>POST</td><td><code>/v1/orders</code></td><td>Confirmar compra y descontar stock de forma atómica.</td></tr>
+  <tr><td>POST</td><td><code>/v1/reports</code></td><td>Reportes de artículos o usuarios.</td></tr>
+  <tr><td>GET</td><td><code>/v1/health</code></td><td>Estado del servicio y hora del servidor.</td></tr>
+</table>
+
+<h3>3.1 <code>GET /v1/catalog/head</code></h3>
+<pre>{ "version": 5, "serverTime": 1795600000000, "generatedAt": 1795599000000, "validUntil": 1795685400000 }</pre>
+
+<h3>3.2 <code>GET /v1/catalog?full=1</code></h3>
+<pre>{ "version": 1, "serverTime": 1795600000000, "stores": [ ... ], "products": [ ... ] }</pre>
+
+<h3>3.3 <code>GET /v1/catalog/delta?since=4</code></h3>
+<pre>{ "to": 5, "serverTime": 1795600000000, "patches": [ { "version": 5, "at": 1795600000000, "added": [], "removed": [], "updated": [] } ] }</pre>
+<p class="small">Sin cambios: <code>{ "to": 4, "patches": [] }</code>. La app lo interpreta como «estás al día» y no descarga nada más.</p>
+
+<h3>3.4 <code>POST /v1/orders</code></h3>
+<pre>{
+  "orderId": "ord_01J...",          // idempotencia: repetir la llamada no cobra dos veces
+  "storeId": "coop",
+  "productId": "c1",
+  "quantity": 1,
+  "unitPriceCents": 6500,
+  "catalogVersion": 5,              // versión con la que el usuario vio el precio
+  "buyer": { "userId": "u_123", "phone": "3121234567" }
+}</pre>
+<pre>{
+  "status": "ok",
+  "orderId": "ord_01J...",
+  "chargedCents": 6500,
+  "stockLeft": 7,
+  "receiptUrl": "https://.../recibos/ord_01J.pdf"
+}</pre>
+
+<div class="callout">
+  <b>Precio y stock se validan en el servidor.</b> Si <code>unitPriceCents</code> ya no coincide con
+  el precio vigente, responder <code>409 price_changed</code> con el precio nuevo; la app muestra el
+  cambio y pide confirmación. Si no hay stock, <code>409 out_of_stock</code>.
+</div>
+
+<h2 class="page-break">4. Versionado: reglas duras</h2>
+
+<ol>
+  <li><b>Versión monótona.</b> Cada parche sube exactamente 1. Sin huecos y sin repetir.</li>
+  <li><b>Parche inmutable.</b> Corregir un error es un parche nuevo, nunca editar el anterior.</li>
+  <li><b>Ids estables.</b> Un producto conserva su <code>id</code> en todo su ciclo de vida. Al retirarse
+    se va en <code>removed</code>.</li>
+  <li><b>Sin reutilización.</b> Un id retirado no se vuelve a usar, ni siquiera para el mismo producto.</li>
+  <li><b>Delta idempotente.</b> <code>since=N</code> siempre devuelve lo mismo para N. Se puede reintentar.</li>
+  <li><b>Photo + patches.</b> La foto completa corresponde a una versión concreta y los parches
+    empiezan en la siguiente.</li>
+</ol>
+
+<h2>5. Registro de actividad (auditoría)</h2>
+
+<p>El objetivo es poder responder: <b>¿quién cambió qué, cuándo, de cuánto a cuánto y por qué?</b>
+Sirve para reclamar un cobro, detectar cambios de precio justo antes de una compra y frenar
+publicaciones engañosas.</p>
+
+<table>
+  <tr><th>Se guarda</th><th>Detalle</th></tr>
+  <tr><td>Alta</td><td>Id, tienda, título, precio inicial, stock inicial, fecha, usuario que publicó.</td></tr>
+  <tr><td>Cambio de precio</td><td>Precio anterior, precio nuevo, fecha, usuario y motivo declarado.</td></tr>
+  <tr><td>Cambio de stock</td><td>Stock anterior, stock nuevo, fecha y origen (venta, ajuste, devolución).</td></tr>
+  <tr><td>Baja</td><td>Quién la pidió, fecha y motivo (descontinuado, error, sanción).</td></tr>
+  <tr><td>Venta</td><td>Orden, comprador, precio cobrado, versión del catálogo usada.</td></tr>
+  <tr><td>Reporte</td><td>Objetivo, motivo, nota, fecha, estado de revisión.</td></tr>
+</table>
+
+<div class="grid2">
+  <div class="card">
+    <h3>Retención</h3>
+    <p>Mínimo <b>24 meses</b> para precios y stock; <b>36 meses</b> para bajas y reportes. La app
+      conserva localmente lo que ya descargó, pero el servidor es la fuente de verdad.</p>
+  </div>
+  <div class="card">
+    <h3>Integridad</h3>
+    <p>Cada evento lleva un <code>hash</code> que encadena con el anterior (como un libro contable).
+      Si alguien altera un registro viejo, la cadena deja de cuadrar y se detecta.</p>
+  </div>
+</div>
+
+<h3>5.1 Evento de actividad</h3>
+<pre>{
+  "id": "evt_01J...",
+  "at": 1795600000000,
+  "storeId": "coop",
+  "productId": "c1",
+  "productTitle": "Taza de cerámica del campus",
+  "type": "price",                 // added | price | stock | removed | restored
+  "fromCents": 6500,
+  "toCents": 7000,
+  "actor": "coop-admin",
+  "reason": "Ajuste de temporada",
+  "catalogVersion": 5,
+  "prevHash": "9f2c...",
+  "hash": "b71e..."
+}</pre>
+
+<h3>5.2 <code>GET /v1/catalog/changes?since=N</code></h3>
+<pre>{ "to": 5, "events": [ { ... }, { ... } ] }</pre>
+<p class="small">Si no se implementa, la app puede derivar la actividad comparando los parches que ya
+tiene; se pierde el motivo y el actor, no el cambio de precio.</p>
+
+<h2>6. Frescura: ¿el catálogo está actualizado?</h2>
+
+<p>La app compara la versión local con <code>/head</code> y la hora de la última sincronización. Con
+eso decide qué mostrar:</p>
+
+<table>
+  <tr><th>Estado</th><th>Regla</th><th>Qué ve el usuario</th></tr>
+  <tr><td><b>Al día</b></td><td>Versión local = versión del servidor y última sincronización &lt; 24 h</td><td>«Catálogo al día · hace 5 min». Compra directa.</td></tr>
+  <tr><td><b>Con cambios</b></td><td>El servidor tiene una versión mayor</td><td>«Hay cambios sin aplicar (v4 → v5)». Invita a actualizar.</td></tr>
+  <tr><td><b>Sin actualizar</b></td><td>Última sincronización &gt; 24 h</td><td>«Catálogo sin actualizar desde hace 3 días». Aviso de que puede faltar stock o haber cambiado el precio.</td></tr>
+  <tr><td><b>Actualizando</b></td><td>Descarga en curso</td><td>Indicador de progreso; no bloquea la navegación.</td></tr>
+</table>
+
+<h3>6.1 Reglas de compra según frescura</h3>
+<ul>
+  <li><b>Al día:</b> se cobra y se valida stock contra el servidor en el mismo paso.</li>
+  <li><b>Con cambios o sin actualizar:</b> la app pide una segunda confirmación («el artículo puede
+    estar agotado») antes de abrir el pago.</li>
+  <li><b>Sin conexión:</b> se puede navegar y ver la última versión en memoria, pero la compra se
+    bloquea hasta confirmar con el servidor.</li>
+</ul>
+
+<div class="callout">
+  <b>Respuesta obligatoria en <code>/head</code>:</b> incluir <code>serverTime</code> y
+  <code>validUntil</code>. La app usa <code>serverTime</code> para no depender del reloj del teléfono
+  y <code>validUntil</code> para marcar el catálogo como viejo aunque no haya cambios de versión.
+</div>
+
+<h2>7. Reportes y antifraude</h2>
+
+<p>La app ya permite reportar un artículo o un usuario con seis motivos: artículo prohibido, precio
+engañoso, falta de stock, actitud irrespetuosa, spam y otro. El servidor debe recibirlos, acusar
+recibo y permitir consultar su estado.</p>
+
+<h3>7.1 <code>POST /v1/reports</code></h3>
+<pre>{
+  "reportId": "rep_01J...",
+  "targetType": "listing",          // listing | user | store
+  "targetId": "L_9f3a",
+  "targetTitle": "Bicicleta rodada 26",
+  "reason": "precio",
+  "reasonLabel": "Precio engañoso o distinto al acordado",
+  "note": "Me quiso cambiar el precio al llegar.",
+  "reporter": { "userId": "u_123", "phone": "3121234567" },
+  "createdAt": 1795600000000,
+  "catalogVersion": null,
+  "evidence": []                    // opcional: URLs de capturas o comprobantes
+}</pre>
+<pre>{ "status": "ok", "reportId": "rep_01J...", "state": "received", "slaHours": 72 }</pre>
+
+<h3>7.2 Reglas antifraude mínimas</h3>
+<ul>
+  <li><b>Un reporte por persona y objetivo cada 24 h</b>; repetir el intento devuelve el reporte existente.</li>
+  <li><b>Estados:</b> <code>received → reviewing → resolved</code> o <code>dismissed</code>, con nota interna.</li>
+  <li><b>Alertas automáticas</b> cuando un precio sube más del 40 % en menos de 1 h o cuando un
+    producto se retira justo después de una compra.</li>
+  <li><b>Prohibiciones:</b> el servidor puede marcar productos y tiendas con <code>blocked</code> y
+    razón; la app los oculta y conserva el historial.</li>
+</ul>
+
+<h2>8. Seguridad y operación</h2>
+
+<table>
+  <tr><th>Tema</th><th>Requisito</th></tr>
+  <tr><td>Transporte</td><td>HTTPS obligatorio, TLS 1.2+. Sin excepciones para staging.</td></tr>
+  <tr><td>Autenticación</td><td>Token por organización (Bearer) para publicar cambios. La app lee el catálogo con un token público de sólo lectura.</td></tr>
+  <tr><td>Integridad</td><td>Firma HMAC-SHA256 del cuerpo con un secreto compartido; la app rechaza el catálogo si no cuadra.</td></tr>
+  <tr><td>Idempotencia</td><td><code>Idempotency-Key</code> en <code>/orders</code> y <code>/reports</code>.</td></tr>
+  <tr><td>Límites</td><td>60 req/min por token de lectura; 10 req/min para escritura. <code>429</code> con <code>Retry-After</code>.</td></tr>
+  <tr><td>Caché</td><td><code>ETag</code> + <code>If-None-Match</code> en <code>/head</code> y <code>/catalog</code>.</td></tr>
+  <tr><td>Errores</td><td>Código estable en el cuerpo (<code>price_changed</code>, <code>out_of_stock</code>, <code>stale_version</code>) además del HTTP.</td></tr>
+  <tr><td>Respaldos</td><td>Copia diaria del catálogo y del registro de actividad, con prueba de restauración mensual.</td></tr>
+</table>
+
+<h2 class="page-break">9. Lo que necesito de tu lado para arrancar</h2>
+
+<ol>
+  <li><b>URL base</b> del servidor en staging y producción (por ejemplo <code>https://api.mitienda.mx</code>).</li>
+  <li><b>Token de lectura</b> para la app y <b>tokens de escritura</b> por organización.</li>
+  <li><b>Secreto HMAC</b> (o llave pública, si prefieres firma asimétrica) para validar el catálogo.</li>
+  <li><b>Catálogo inicial</b> en el formato de la sección 2, con al menos una tienda y 5 productos de prueba con stock.</li>
+  <li><b>Un parche de ejemplo</b> (alta + baja + cambio de precio + cambio de stock) para probar el delta de punta a punta.</li>
+  <li><b>Imágenes o emojis</b> de los productos: hoy la app usa emoji; si habrá fotos, acordar tamaño y formato (WebP 600×600, menos de 120 KB).</li>
+  <li><b>Contacto técnico</b> para incidencias y una persona responsable de aprobar reportes.</li>
+  <li><b>Política de retención</b> confirmada (24/36 meses) y zona horaria de los timestamps (UTC en milisegundos).</li>
+  <li><b>Ambiente de pruebas</b> con datos ficticios; no usar precios reales en staging.</li>
+</ol>
+
+<h2>10. Pruebas de aceptación</h2>
+
+<table>
+  <tr><th>#</th><th>Prueba</th><th>Resultado esperado</th></tr>
+  <tr><td>1</td><td>Instalar desde cero</td><td>Una sola descarga completa; el catálogo aparece con stock y precios.</td></tr>
+  <tr><td>2</td><td>Publicar un parche</td><td>La app detecta la versión nueva y descarga sólo altas, bajas y campos cambiados.</td></tr>
+  <tr><td>3</td><td>Consultar una versión vieja</td><td>Se reconstruye con los productos retirados y sus precios de entonces.</td></tr>
+  <tr><td>4</td><td>Cambiar un precio</td><td>La actividad muestra «precio anterior → nuevo» con fecha.</td></tr>
+  <tr><td>5</td><td>Dejar el catálogo 25 h sin sincronizar</td><td>La app avisa que está sin actualizar y pide confirmación antes de cobrar.</td></tr>
+  <tr><td>6</td><td>Comprar con precio cambiado</td><td>El servidor responde <code>409 price_changed</code>; la app muestra el precio nuevo y no cobra el viejo.</td></tr>
+  <tr><td>7</td><td>Comprar sin stock</td><td><code>409 out_of_stock</code>; el producto queda «Agotado».</td></tr>
+  <tr><td>8</td><td>Enviar un reporte</td><td>Se guarda con fecha, motivo y nota; la app acusa recibo.</td></tr>
+  <tr><td>9</td><td>Alterar un parche guardado</td><td>La firma o el hash encadenado no cuadran y la app rechaza el catálogo.</td></tr>
+</table>
+
+<div class="ok">
+  <b>Resumen en una línea:</b> exponer <code>/head</code>, <code>/catalog?full=1</code> y
+  <code>/catalog/delta?since=N</code> con parches inmutables que incluyan stock y precio, guardar los
+  eventos de actividad con actor y fecha, y responder con la hora del servidor para que la app pueda
+  decir con honestidad si el catálogo está actualizado o no.
+</div>
+
+</body>
+</html>

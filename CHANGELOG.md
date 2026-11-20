@@ -5,6 +5,30 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-11-19
+
+### Añadido
+
+- **Catálogo real desde el servidor**: la app pide la foto (`/v1/catalog?full=1`) una sola vez y
+  después sólo los parches (`/v1/catalog/delta?since=N`) a `https://tienda.tlalchichi.xyz`, que corre
+  en el teléfono del dueño. `CatalogApi.kt` hace el HTTP en un hilo propio y entrega el JSON por el
+  puente (`Nahua.catalogHead/Full/Delta/Order/Report`); la WebView sigue sin acceso a la red.
+- **Estado honesto del catálogo**: el chip distingue *al día*, *con cambios*, *sin actualizar desde
+  hace X* y *sin conexión · catálogo guardado*, con la vigencia (`validUntil`) que declara `/head`.
+  Los productos se marcan «Agotado» y la compra pide confirmación cuando el catálogo no está al día.
+- **Órdenes y reportes al servidor**: al pagar se confirma la compra en `/v1/orders` con la versión
+  del catálogo que vio el usuario; si responde `price_changed` u `out_of_stock` se avisa y se vuelve
+  a pedir el catálogo. Los reportes se envían a `/v1/reports` y siguen guardándose en el teléfono.
+- **Modo demostración explícito**: sin puente o sin red, el bazar usa la foto del bundle y lo dice
+  en la portada («sin servidor · catálogo de demostración»).
+
+### Cambiado
+
+- Las tiendas y los banners salen del catálogo, no de una lista fija: una tienda nueva aparece sola.
+- `docs/CATALOGO_API.md` documenta el servidor en producción, el puente y la actividad; se retira
+  `docs/MERCADO_API.md`. SDK 1.6.0.
+- `scripts/test-bazar-catalogo.js` prueba además la foto real del servidor (`scripts/fixtures/`).
+
 ## [0.18.0] — 2026-11-19
 
 ### Añadido

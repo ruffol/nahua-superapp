@@ -142,44 +142,104 @@
       return photo;
     }
 
-    /** Instalación inicial: la única descarga completa. */
-    function install() {
-      var base = source.base();
+    /** Instalación inicial con una foto ya obtenida (servidor o demo). */
+    function installFrom(snapshot, options) {
+      var settings = options || {};
+      var products = (snapshot.products || []).length;
       state = {
-        base: clone(base),
+        base: clone(snapshot),
         patches: [],
-        head: base.version,
+        head: snapshot.version,
         installedAt: Date.now(),
+        syncedAt: Date.now(),
+        checkedAt: Date.now(),
+        validUntil: settings.validUntil || null,
+        origin: settings.origin || 'remote',
         log: [{
           kind: 'full',
-          version: base.version,
+          version: snapshot.version,
           at: Date.now(),
-          added: (base.products || []).length,
+          added: products,
           removed: 0,
           updated: 0,
-          items: (base.products || []).length
+          items: products
         }]
       };
       write(state);
       return {
         kind: 'full',
         from: 0,
-        to: base.version,
-        added: (base.products || []).length,
+        to: snapshot.version,
+        added: products,
         removed: 0,
         updated: 0,
-        items: (base.products || []).length,
-        completeCatalogue: true
+        items: products,
+        completeCatalogue: true,
+        origin: state.origin
       };
     }
 
-    /** Descarga SOLO lo que cambió desde la versión en memoria. */
+    /** Instalación de respaldo: la foto que viene dentro del bundle (modo demostración). */
+    function install() {
+      return installFrom(source.base(), { origin: 'demo' });
+    }
+
+    /**
+     * Aplica lo que devolvió el servidor (`{ to, patches: [...] }`) sin volver a pedir la foto.
+     * Es la operación normal: sólo altas, bajas, precios y stock.
+     */
+    function applyRemote(payload, options) {
+      if (!state) return null;
+      var settings = options || {};
+      var from = state.head;
+      var list = (payload && payload.patches) ? payload.patches : [];
+      var applied = 0;
+
+      list.forEach(function (patch) {
+        if (patch.version > state.head) {
+          state.patches.push(clone(patch));
+          state.head = patch.version;
+          applied += 1;
+        }
+      });
+
+      var merged = mergePatches(list.filter(function (patch) { return patch.version > from; }));
+      state.checkedAt = Date.now();
+      if (applied) state.syncedAt = state.checkedAt;
+      if (settings.validUntil) state.validUntil = settings.validUntil;
+      state.origin = state.origin || 'remote';
+      write(state);
+
+      return {
+        kind: applied ? 'delta' : 'current',
+        from: from,
+        to: state.head,
+        added: merged.added.length,
+        removed: merged.removed.length,
+        updated: merged.updated.length,
+        items: merged.added.length + merged.removed.length + merged.updated.length,
+        completeCatalogue: false,
+        origin: state.origin
+      };
+    }
+
+    /** El servidor dijo que no hay nada nuevo: queda registrada la consulta y su vigencia. */
+    function markChecked(validUntil) {
+      if (!state) return;
+      state.checkedAt = Date.now();
+      if (validUntil) state.validUntil = validUntil;
+      write(state);
+    }
+
+    /** Descarga SOLO lo que cambió desde la versión en memoria (modo demostración). */
     function sync() {
       if (!state) return install();
 
       var from = state.head;
       var remoteHead = typeof source.head === 'function' ? source.head() : null;
       if (remoteHead != null && remoteHead === from) {
+        state.checkedAt = Date.now();
+        write(state);
         return {
           kind: 'current', from: from, to: from,
           added: 0, removed: 0, updated: 0, items: 0, completeCatalogue: false
@@ -188,6 +248,8 @@
 
       var payload = source.delta(from);
       if (!payload || !payload.patches || !payload.patches.length) {
+        state.checkedAt = Date.now();
+        write(state);
         return {
           kind: 'current', from: from, to: payload && payload.to != null ? payload.to : from,
           added: 0, removed: 0, updated: 0, items: 0, completeCatalogue: false
@@ -211,6 +273,8 @@
         updated: merged.updated.length,
         items: merged.added.length + merged.removed.length + merged.updated.length
       });
+      state.syncedAt = Date.now();
+      state.checkedAt = state.syncedAt;
       write(state);
 
       return {
@@ -263,6 +327,75 @@
       };
     }
 
+    /** Cuándo se aplicó el último cambio del catálogo. */
+    function syncedAt() {
+      return state ? (state.syncedAt || state.installedAt || null) : null;
+    }
+
+    /** De dónde salió el catálogo: 'remote' (servidor) o 'demo' (bundle). */
+    function origin() {
+      return state ? (state.origin || 'demo') : null;
+    }
+
+    /** Vigencia declarada por el servidor (epoch ms) o null. */
+    function validUntil() {
+      return state ? (state.validUntil || null) : null;
+    }
+
+    /** Cuándo se consultó al servidor por última vez (aunque no hubiera cambios). */
+    function checkedAt() {
+      return state ? (state.checkedAt || state.syncedAt || state.installedAt || null) : null;
+    }
+
+    /**
+     * Actividad del catálogo: qué cambió en cada versión, con el valor anterior y el nuevo.
+     * Se calcula comparando las fotos reconstruidas (no depende de que el servidor mande un
+     * campo extra), así sirve también para auditar parches ya guardados.
+     */
+    function audit() {
+      if (!state) return [];
+      var entries = [];
+      var previous = clone(state.base);
+      previous.version = state.base.version;
+
+      state.patches.forEach(function (patch) {
+        var next = applyDelta(previous, patch);
+        var before = {};
+        var after = {};
+        (previous.products || []).forEach(function (product) { before[product.id] = product; });
+        (next.products || []).forEach(function (product) { after[product.id] = product; });
+
+        var changes = [];
+        Object.keys(after).forEach(function (id) {
+          var now = after[id];
+          var then = before[id];
+          if (!then) {
+            changes.push({ type: 'added', productId: id, title: now.title, to: now.priceCents });
+            return;
+          }
+          if (now.priceCents !== then.priceCents) {
+            changes.push({ type: 'price', productId: id, title: now.title, from: then.priceCents, to: now.priceCents });
+          }
+          if (now.stock !== then.stock) {
+            changes.push({ type: 'stock', productId: id, title: now.title, from: then.stock, to: now.stock });
+          }
+          if (now.title !== then.title) {
+            changes.push({ type: 'title', productId: id, title: now.title, from: then.title, to: now.title });
+          }
+        });
+        Object.keys(before).forEach(function (id) {
+          if (!after[id]) {
+            changes.push({ type: 'removed', productId: id, title: before[id].title, from: before[id].priceCents });
+          }
+        });
+
+        entries.push({ version: patch.version, at: patch.at || null, changes: changes });
+        previous = next;
+      });
+
+      return entries.reverse();
+    }
+
     function reset() {
       try { storage.removeItem(key); } catch (error) { /* sin storage */ }
       state = null;
@@ -274,9 +407,17 @@
       total: total,
       snapshot: snapshot,
       install: install,
+      installFrom: installFrom,
+      applyRemote: applyRemote,
+      markChecked: markChecked,
       sync: sync,
       history: history,
       pending: pending,
+      syncedAt: syncedAt,
+      checkedAt: checkedAt,
+      origin: origin,
+      validUntil: validUntil,
+      audit: audit,
       reset: reset
     };
   }

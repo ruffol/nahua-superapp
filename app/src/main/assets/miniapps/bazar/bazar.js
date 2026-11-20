@@ -1,69 +1,71 @@
 /*
- * Bazar/Trueque comunitario — lógica de la mini app
+ * Bazar/Trueque + Mercado oficial
  * ---------------------------------------------------------------------------------------------
- * Regla del trueque (v3): el chat NO se abre con una propuesta unilateral. Cada quien marca
- * «me interesa» en los objetos del otro, en privado. Sólo cuando el interés es mutuo —yo marqué
- * algo suyo y la otra persona marcó algo mío— el sistema abre un match y avisa a los dos con
- * nombres y objetos. Así nadie truequea por compromiso ni por presión social: si la otra persona
- * nunca marcó nada tuyo, jamás se enteró de que te interesaba.
+ * Un solo lugar para la comunidad estudiantil:
  *
- * El interés recibido se muestra como conteo anónimo («2 personas marcaron interés en tus
- * objetos»), sin nombres, hasta que hay match. El contacto es nombre + teléfono (se revela al
- * hacer match), nunca un @usuario.
+ *  - Arriba, los banners de las ORGANIZACIONES OFICIALES (tiendas que siempre tienen stock y
+ *    merecen un lugar permanente). Tocar un banner entra a la tienda, con sus productos fijados
+ *    primero y los últimos agregados después, stock a la vista y compra con la cartera.
+ *  - Debajo, el bazar de la comunidad: publicas lo que ya no usas, pones TÚ el precio y decides si
+ *    aceptas trueque.
  *
- * La valoración sigue siendo la misma: la calcula el anfitrión (BarterValuator.kt) por el puente
- * Nahua.valuate; valuateLocal() es el espejo para cuando la página corre fuera de la app.
+ * Trueque: marcar «Me interesa» es privado. Sólo cuando el interés es mutuo se abre el chat y se
+ * comparte el contacto (nombre + teléfono). Nada de valoraciones automáticas: el único valor es el
+ * que pone quien publica.
+ *
+ * Catálogo oficial: versionado. La foto completa se descarga una vez y después sólo viajan altas,
+ * bajas, precios y stock. El bazar muestra si el catálogo está actualizado o no, y guarda la
+ * actividad (qué cambió, cuándo y de cuánto a cuánto) para poder auditar fraudes o engaños.
+ *
+ * Reportes: cualquier artículo o usuario se puede reportar por artículos prohibidos, precios
+ * engañosos, falta de stock, actitudes irrespetuosas, spam u otro motivo.
  */
 (function () {
   'use strict';
 
-  // ---------------------------------------------------------------------------------------------
-  // Catálogo de valoración (espejo de BarterValuator.kt — mismo orden de factores y constantes)
-  // ---------------------------------------------------------------------------------------------
+  var DAY = 24 * 60 * 60 * 1000;
+  var NOW = Date.now();
+
+  var STORE_KEY = 'nahua.bazar.v4';
+  var LEGACY_KEYS = ['nahua.bazar.v3', 'nahua.bazar.v2', 'nahua.bazar.v1'];
+  var PURCHASES_KEY = 'nahua.bazar.compras.v1';
+  var CATALOG_KEY = 'nahua.bazar.catalogo.v1';
+  var STALE_MS = DAY;
+  var SERVER_BASE = 'https://tienda.tlalchichi.xyz';
 
   var CATEGORIES = [
-    { id: 'PHONES', label: 'Celulares', emoji: '📱', resale: 0.58, yearlyLoss: 0.34, floor: 0.28, demand: 1.04 },
-    { id: 'COMPUTERS', label: 'Computadoras', emoji: '💻', resale: 0.60, yearlyLoss: 0.32, floor: 0.30, demand: 1.02 },
-    { id: 'ELECTRONICS', label: 'Electrónica', emoji: '🎧', resale: 0.62, yearlyLoss: 0.30, floor: 0.30, demand: 1.00 },
-    { id: 'APPLIANCES', label: 'Línea blanca', emoji: '🧺', resale: 0.55, yearlyLoss: 0.22, floor: 0.32, demand: 1.02 },
-    { id: 'FURNITURE', label: 'Muebles', emoji: '🪑', resale: 0.50, yearlyLoss: 0.12, floor: 0.34, demand: 1.06 },
-    { id: 'TOOLS', label: 'Herramientas', emoji: '🔧', resale: 0.60, yearlyLoss: 0.10, floor: 0.40, demand: 1.08 },
-    { id: 'BIKES', label: 'Bicis', emoji: '🚲', resale: 0.55, yearlyLoss: 0.12, floor: 0.34, demand: 1.06 },
-    { id: 'SPORTS', label: 'Deportes', emoji: '⚽', resale: 0.50, yearlyLoss: 0.12, floor: 0.32, demand: 1.00 },
-    { id: 'CLOTHING', label: 'Ropa', emoji: '👕', resale: 0.40, yearlyLoss: 0.20, floor: 0.25, demand: 0.96 },
-    { id: 'BOOKS', label: 'Libros', emoji: '📚', resale: 0.36, yearlyLoss: 0.08, floor: 0.28, demand: 0.98 },
-    { id: 'TOYS', label: 'Juguetes', emoji: '🧸', resale: 0.45, yearlyLoss: 0.14, floor: 0.28, demand: 0.98 },
-    { id: 'TEXTILES', label: 'Textiles y bordados', emoji: '🧶', resale: 0.55, yearlyLoss: 0.04, floor: 0.40, demand: 1.06 },
-    { id: 'CRAFTS', label: 'Artesanías', emoji: '🏺', resale: 0.60, yearlyLoss: 0.03, floor: 0.42, demand: 1.08 },
-    { id: 'FOOD', label: 'Comida y conservas', emoji: '🫙', resale: 0.70, yearlyLoss: 0.08, floor: 0.30, demand: 1.05 },
-    { id: 'PLANTS', label: 'Plantas y semillas', emoji: '🌱', resale: 0.55, yearlyLoss: 0.10, floor: 0.30, demand: 1.02 },
-    { id: 'ART', label: 'Arte y pintura', emoji: '🎨', resale: 0.60, yearlyLoss: 0.02, floor: 0.40, demand: 1.05 },
-    { id: 'SCHOOL', label: 'Escolar', emoji: '📓', resale: 0.35, yearlyLoss: 0.10, floor: 0.25, demand: 1.00 },
-    { id: 'MUSIC', label: 'Instrumentos', emoji: '🎸', resale: 0.58, yearlyLoss: 0.09, floor: 0.34, demand: 1.02 },
-    { id: 'COLLECTIBLES', label: 'Coleccionables', emoji: '🪙', resale: 0.78, yearlyLoss: 0.03, floor: 0.45, demand: 1.10 },
-    { id: 'OTHER', label: 'Otro', emoji: '📦', resale: 0.50, yearlyLoss: 0.16, floor: 0.30, demand: 1.00 }
+    { id: 'PHONES', label: 'Celulares', emoji: '📱' },
+    { id: 'COMPUTERS', label: 'Computadoras', emoji: '💻' },
+    { id: 'ELECTRONICS', label: 'Electrónica', emoji: '🎧' },
+    { id: 'APPLIANCES', label: 'Línea blanca', emoji: '🧺' },
+    { id: 'FURNITURE', label: 'Muebles', emoji: '🪑' },
+    { id: 'TOOLS', label: 'Herramientas', emoji: '🔧' },
+    { id: 'BIKES', label: 'Bicis', emoji: '🚲' },
+    { id: 'SPORTS', label: 'Deportes', emoji: '⚽' },
+    { id: 'CLOTHING', label: 'Ropa', emoji: '👕' },
+    { id: 'BOOKS', label: 'Libros', emoji: '📚' },
+    { id: 'TOYS', label: 'Juguetes', emoji: '🧸' },
+    { id: 'TEXTILES', label: 'Textiles y bordados', emoji: '🧶' },
+    { id: 'CRAFTS', label: 'Artesanías', emoji: '🏺' },
+    { id: 'FOOD', label: 'Comida y conservas', emoji: '🫙' },
+    { id: 'PLANTS', label: 'Plantas y semillas', emoji: '🌱' },
+    { id: 'ART', label: 'Arte y pintura', emoji: '🎨' },
+    { id: 'SCHOOL', label: 'Escolar', emoji: '📓' },
+    { id: 'MUSIC', label: 'Instrumentos', emoji: '🎸' },
+    { id: 'COLLECTIBLES', label: 'Coleccionables', emoji: '🪙' },
+    { id: 'OTHER', label: 'Otro', emoji: '📦' }
   ];
 
   var CONDITIONS = [
-    { id: 'NEW', label: 'Nuevo, sin abrir', short: 'Nuevo', multiplier: 1.28 },
-    { id: 'LIKE_NEW', label: 'Como nuevo', short: 'Como nuevo', multiplier: 1.14 },
-    { id: 'GOOD', label: 'Buen estado', short: 'Buen estado', multiplier: 1.00 },
-    { id: 'WORN', label: 'Usado, con marcas', short: 'Usado', multiplier: 0.78 },
-    { id: 'FOR_PARTS', label: 'Para refacción', short: 'Refacción', multiplier: 0.45 }
+    { id: 'NEW', label: 'Nuevo, sin abrir', short: 'Nuevo' },
+    { id: 'LIKE_NEW', label: 'Como nuevo', short: 'Como nuevo' },
+    { id: 'GOOD', label: 'Buen estado', short: 'Buen estado' },
+    { id: 'WORN', label: 'Usado, con marcas', short: 'Usado' },
+    { id: 'FOR_PARTS', label: 'Para refacción', short: 'Refacción' }
   ];
 
-  var STEP_CENTS = 500;
-  var MIN_ESTIMATE_CENTS = 2000;
-  var MAX_RETAINED = 0.92;
-  var RANGE_MARGIN = 0.12;
-  var BARTER_ACCEPT_RATIO = 0.85;
-  var FAIR_BAND = 0.12;
-  var MIN_TOP_UP_CENTS = 2000;
-  var TOP_UP_STEP_CENTS = 5000;
-
-  var STORE_KEY = 'nahua.bazar.v3';
-  var LEGACY_KEYS = ['nahua.bazar.v2', 'nahua.bazar.v1'];
   var EMOJIS = ['📦', '🧶', '🏺', '🫙', '🌱', '🎨', '📓', '🚲', '📱', '💻', '🔧', '🪑', '🎸', '🎧', '☕', '🧺', '🪙', '🎒', '🍳', '🚴'];
+
   var MEETING_POINTS = [
     'Explanada de la facultad',
     'Cafetería del campus',
@@ -71,7 +73,199 @@
     'Jardín principal del centro',
     'Portal del mercado'
   ];
+
+  var REPORT_REASONS = [
+    { id: 'prohibido', label: 'Artículo prohibido' },
+    { id: 'precio', label: 'Precio engañoso o distinto al acordado' },
+    { id: 'stock', label: 'No tiene el artículo o no hay stock' },
+    { id: 'actitud', label: 'Actitud irrespetuosa o amenazas' },
+    { id: 'spam', label: 'Spam o publicación repetida' },
+    { id: 'otro', label: 'Otro motivo' }
+  ];
+
   var AVATAR_COLORS = ['#7E2C44', '#4F7A52', '#3B5BA5', '#B4452F', '#7A4E12', '#4E7C86'];
+
+  // ---------------------------------------------------------------------------------------------
+  // Catálogo oficial: organizaciones con stock permanente
+  // ---------------------------------------------------------------------------------------------
+
+  var STORES = [
+    {
+      id: 'coop',
+      name: 'Cooperativa del Campus',
+      short: 'Cooperativa',
+      tagline: 'Útiles, tazas y termos para la semana',
+      accent: '#2F6B4F',
+      deep: '#1E4A36',
+      emoji: '🏫',
+      offer: '10 % en útiles al mostrar tu credencial',
+      since: '2019',
+      official: true,
+      pinned: ['c1']
+    },
+    {
+      id: 'telar',
+      name: 'Telar de Suchitlán',
+      short: 'Telar',
+      tagline: 'Textiles y bordados de nuestras comunidades',
+      accent: '#7E2C44',
+      deep: '#5A1D30',
+      emoji: '🧶',
+      offer: 'Rebozos con envío gratis al campus',
+      since: '2021',
+      official: true,
+      pinned: ['t1']
+    },
+    {
+      id: 'cafe',
+      name: 'Café de Altura',
+      short: 'Café',
+      tagline: 'Café de Comala y conservas de temporada',
+      accent: '#8A5A22',
+      deep: '#5F3C12',
+      emoji: '☕',
+      offer: '2 × 1 en café molido los viernes',
+      since: '2022',
+      official: true,
+      pinned: ['k1']
+    },
+    {
+      id: 'taller',
+      name: 'Taller Barro y Palma',
+      short: 'Taller',
+      tagline: 'Barro, palma y piezas hechas a mano',
+      accent: '#3B5BA5',
+      deep: '#233A6E',
+      emoji: '🏺',
+      offer: 'Juego de tazas con 15 % de descuento',
+      since: '2020',
+      official: true,
+      pinned: ['a1']
+    }
+  ];
+
+  function official(id, storeId, title, priceCents, stock, emoji, tag, daysAgo) {
+    return {
+      id: id,
+      storeId: storeId,
+      title: title,
+      priceCents: priceCents,
+      stock: stock,
+      emoji: emoji,
+      tag: tag,
+      createdAt: NOW - daysAgo * DAY
+    };
+  }
+
+  // Foto completa: la única descarga entera.
+  var BASE = {
+    version: 1,
+    stores: STORES,
+    products: [
+      official('c1', 'coop', 'Taza de cerámica del campus', 6500, 8, '☕', 'Fijado', 30),
+      official('c2', 'coop', 'Termo de acero 1 L', 24000, 5, '🧴', 'Más vendido', 29),
+      official('c3', 'coop', 'Cuaderno cosido 100 hojas', 4500, 20, '📓', 'Nuevo', 28),
+      official('c4', 'coop', 'Mochila ligera para laptop', 38000, 4, '🎒', '', 27),
+      official('c5', 'coop', 'Calculadora científica', 22000, 6, '🖩', '', 26),
+      official('c6', 'coop', 'Gorra bordada del campus', 15000, 3, '🧢', '', 25),
+      official('t1', 'telar', 'Rebozo de telar de cintura', 95000, 2, '🧶', 'Fijado', 24),
+      official('t2', 'telar', 'Blusa bordada talla M', 62000, 5, '👚', 'Hecho a mano', 23),
+      official('t3', 'telar', 'Morral de hilo tejido', 28000, 7, '👝', '', 22),
+      official('t4', 'telar', 'Juego de servilletas bordadas', 21000, 9, '🧵', '', 21),
+      official('t5', 'telar', 'Chal de lana de borrego', 54000, 3, '🧣', '', 20),
+      official('k1', 'cafe', 'Café en grano de Comala 1 kg', 12000, 15, '☕', 'Fijado', 19),
+      official('k2', 'cafe', 'Conserva de tamarindo 500 g', 8500, 10, '🫙', 'De temporada', 18),
+      official('k3', 'cafe', 'Miel de abeja 1 L', 16000, 6, '🍯', '', 17),
+      official('k4', 'cafe', 'Pan de elote (charola)', 7000, 0, '🌽', 'Horneado hoy', 16),
+      official('k5', 'cafe', 'Chocolate de metate 400 g', 11000, 8, '🍫', '', 15),
+      official('a1', 'taller', 'Olla de barro grande', 34000, 4, '🏺', 'Fijado', 14),
+      official('a2', 'taller', 'Juego de 4 tazas de barro', 26000, 6, '🍵', 'Hecho a mano', 13),
+      official('a3', 'taller', 'Canasta de palma tejida', 18000, 5, '🧺', '', 12),
+      official('a4', 'taller', 'Molcajete de piedra volcánica', 29000, 3, '🥑', '', 11),
+      official('a5', 'taller', 'Figuras de barro pintadas', 9500, 12, '🎨', '', 10),
+      official('a6', 'taller', 'Plato decorado con flores', 14000, 7, '🍽️', '', 9)
+    ]
+  };
+
+  // Parches: sólo lo que cambió. `updated` lleva los campos nuevos y el cliente conserva el resto.
+  var PATCHES = [
+    {
+      version: 2,
+      at: NOW - 6 * DAY,
+      added: [
+        official('c7', 'coop', 'Sudadera del campus', 42000, 10, '🧥', 'Nuevo', 8),
+        official('k6', 'cafe', 'Café molido 500 g', 9000, 14, '☕', 'Nuevo', 7)
+      ],
+      removed: ['c5'],
+      updated: [{ id: 'k1', priceCents: 13000, stock: 12 }]
+    },
+    {
+      version: 3,
+      at: NOW - 3 * DAY,
+      added: [
+        official('t6', 'telar', 'Cinturón tejido en telar', 19000, 8, '🪢', 'Nuevo', 5),
+        official('a7', 'taller', 'Jarra de barro esmaltada', 24000, 5, '🫖', 'Nuevo', 4)
+      ],
+      removed: ['k4'],
+      updated: [{ id: 't2', stock: 2 }]
+    },
+    {
+      version: 4,
+      at: NOW - 1 * DAY,
+      added: [
+        official('c8', 'coop', 'Agenda 2027', 12000, 25, '🗓️', 'Nuevo', 2),
+        official('a8', 'taller', 'Maceta de barro para suculenta', 8000, 18, '🪴', 'Nuevo', 1)
+      ],
+      removed: ['c6'],
+      updated: [{ id: 't2', priceCents: 58000 }, { id: 'a1', stock: 1 }, { id: 'c4', stock: 0 }]
+    }
+  ];
+
+  /**
+   * Adaptador del "servidor". En producción se cambia por fetch a los endpoints de
+   * docs/MERCADO_API.md sin tocar la UI ni el almacenamiento.
+   */
+  var SOURCE = {
+    base: function () { return JSON.parse(JSON.stringify(BASE)); },
+    head: function () { return PATCHES.length ? PATCHES[PATCHES.length - 1].version : BASE.version; },
+    delta: function (since) {
+      var from = Number(since) || 0;
+      var list = PATCHES.filter(function (patch) { return patch.version > from; });
+      var to = list.length ? list[list.length - 1].version : from;
+      return { to: to, patches: JSON.parse(JSON.stringify(list)) };
+    }
+  };
+
+  var catalogo = window.MercadoCatalogo.create({
+    storage: window.localStorage,
+    source: SOURCE,
+    key: CATALOG_KEY
+  });
+
+  if (!catalogo.installed()) {
+    // Respaldo offline: la foto del bundle. Si el servidor responde, se reemplaza al arrancar.
+    catalogo.install();
+  }
+
+  /** El puente nativo hace el HTTP: la WebView tiene bloqueado todo tráfico externo. */
+  function serverAvailable() {
+    return !!(window.NahuaNative && window.Nahua && typeof Nahua.catalogHead === 'function');
+  }
+
+  function loadPurchases() {
+    try {
+      var raw = window.localStorage.getItem(PURCHASES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  var purchases = loadPurchases();
+
+  function savePurchases() {
+    try { window.localStorage.setItem(PURCHASES_KEY, JSON.stringify(purchases)); } catch (error) { /* sin storage */ }
+  }
 
   // ---------------------------------------------------------------------------------------------
   // Utilidades
@@ -116,11 +310,6 @@
     return Math.round((Number(cents) || 0) / 100);
   }
 
-  function roundTo(value, step) {
-    if (!step) return Math.round(value);
-    return Math.round(value / step) * step;
-  }
-
   function initials(name) {
     var parts = String(name || '?').trim().split(/\s+/);
     var first = parts[0] ? parts[0].charAt(0) : '?';
@@ -136,6 +325,7 @@
   }
 
   function ago(timestamp) {
+    if (!timestamp) return 'sin registro';
     var diff = Date.now() - (Number(timestamp) || 0);
     var minute = 60000;
     if (diff < minute) return 'ahora';
@@ -145,18 +335,6 @@
     if (days === 1) return 'ayer';
     if (days < 30) return 'hace ' + days + ' d';
     return 'hace ' + Math.round(days / 30) + ' meses';
-  }
-
-  function ageLabel(months) {
-    var m = Math.max(0, Math.round(Number(months) || 0));
-    if (m === 0) return 'sin uso';
-    if (m < 12) return m === 1 ? '1 mes de uso' : m + ' meses de uso';
-    var years = Math.floor(m / 12);
-    var rest = m % 12;
-    var text = years === 1 ? '1 año de uso' : years + ' años de uso';
-    if (rest === 1) text += ' y 1 mes';
-    else if (rest > 1) text += ' y ' + rest + ' meses';
-    return text;
   }
 
   /** México: 10 dígitos. Se aceptan +52 / 52 al frente y se descartan espacios y guiones. */
@@ -174,182 +352,173 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Valoración (espejo en JS; el anfitrión manda cuando está disponible)
+  // Catálogo: estado, stock y actividad
   // ---------------------------------------------------------------------------------------------
 
-  function inputOf(item) {
-    return {
-      referenceCents: Math.round(Number(item.referenceCents) || 0),
-      category: item.category || 'OTHER',
-      condition: item.condition || 'GOOD',
-      ageMonths: Math.round(Number(item.ageMonths) || 0),
-      complete: item.complete !== false,
-      hasReceipt: !!item.hasReceipt
-    };
+  /** Tiendas reales del catálogo; si aún no hay catálogo del servidor, las del bundle. */
+  function storeList() {
+    var photo = catalogo.snapshot();
+    var list = photo && photo.stores ? photo.stores : null;
+    return list && list.length ? list : STORES;
   }
 
-  function percentOf(factor) {
-    return Math.round((factor - 1) * 100);
+  function storeById(id) {
+    var list = storeList();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return list[0];
   }
 
-  function valuateLocal(input) {
-    var reference = Math.round(Number(input.referenceCents) || 0);
-    if (reference <= 0) {
-      return {
-        status: 'ok', hasValue: false, referenceCents: 0, estimatedCents: 0,
-        lowCents: 0, highCents: 0, barterMinCents: 0,
-        confidence: 'baja', confidenceLabel: 'baja', factors: []
-      };
-    }
-
-    var category = categoryById(input.category);
-    var condition = conditionById(input.condition);
-    var months = Math.max(0, Math.min(360, Math.round(Number(input.ageMonths) || 0)));
-    var years = months / 12;
-    var ageFactor = Math.max(category.floor, 1 - category.yearlyLoss * years);
-    var completeFactor = input.complete === false ? 0.92 : 1;
-    var receiptFactor = input.hasReceipt ? 1.04 : 1;
-    var marketFactor = category.resale * category.demand;
-
-    var raw = reference * marketFactor * condition.multiplier * ageFactor * completeFactor * receiptFactor;
-    var cap = reference * MAX_RETAINED;
-    var estimated = Math.max(MIN_ESTIMATE_CENTS, roundTo(Math.min(raw, cap), STEP_CENTS));
-    var low = Math.min(estimated, roundTo(estimated * (1 - RANGE_MARGIN), STEP_CENTS));
-    var high = Math.max(estimated, roundTo(estimated * (1 + RANGE_MARGIN), STEP_CENTS));
-    var barterMin = roundTo(estimated * BARTER_ACCEPT_RATIO, STEP_CENTS);
-
-    var factors = [];
-    factors.push({
-      label: 'Reventa de ' + category.label.toLowerCase(),
-      percent: percentOf(marketFactor),
-      tone: marketFactor < 1 ? 'negative' : 'positive'
-    });
-    if (condition.id !== 'GOOD') {
-      factors.push({
-        label: 'Estado: ' + condition.label.toLowerCase(),
-        percent: percentOf(condition.multiplier),
-        tone: condition.multiplier < 1 ? 'negative' : 'positive'
-      });
-    }
-    if (months > 0) {
-      factors.push({ label: 'Uso: ' + ageLabel(months).replace(' de uso', ''), percent: percentOf(ageFactor), tone: 'negative' });
-    }
-    if (input.complete === false) {
-      factors.push({ label: 'Sin caja ni todos los accesorios', percent: -8, tone: 'negative' });
-    }
-    if (input.hasReceipt) {
-      factors.push({ label: 'Con factura o garantía', percent: 4, tone: 'positive' });
-    }
-    if (raw > cap) {
-      factors.push({ label: 'Tope de reventa (92 % del precio nuevo)', percent: percentOf(cap / raw), tone: 'neutral' });
-    }
-
-    var confidence = 'alta';
-    if (category.id === 'OTHER' || reference < 10000) confidence = 'baja';
-    else if (category.yearlyLoss >= 0.28 || condition.id === 'FOR_PARTS') confidence = 'media';
-
-    return {
-      status: 'ok', hasValue: true, referenceCents: reference,
-      estimatedCents: estimated, lowCents: low, highCents: high, barterMinCents: barterMin,
-      confidence: confidence, confidenceLabel: confidence, factors: factors
-    };
+  function catalogSnapshot(version) {
+    return catalogo.snapshot(version);
   }
 
-  function compareLocal(mine, theirs) {
-    var mineCents = mine.estimatedCents;
-    var theirsCents = theirs.estimatedCents;
-    if (mineCents <= 0 || theirsCents <= 0) {
-      return {
-        status: 'ok', mineCents: mineCents, theirsCents: theirsCents, deltaCents: 0,
-        ratioPercent: 0, verdict: 'justo', verdictLabel: 'Parejo', cashTopUpCents: 0,
-        message: 'Falta valorar uno de los dos objetos: sin número no hay trato.'
-      };
-    }
-    var delta = theirsCents - mineCents;
-    var ratio = theirsCents / mineCents;
-    var ratioPercent = Math.round((ratio - 1) * 100);
-
-    if (ratio >= 1 + FAIR_BAND) {
-      return {
-        status: 'ok', mineCents: mineCents, theirsCents: theirsCents, deltaCents: delta,
-        ratioPercent: ratioPercent, verdict: 'favorable', verdictLabel: 'A tu favor', cashTopUpCents: 0,
-        message: 'Recibes ' + money(delta) + ' más de valor' +
-          (Math.abs(ratioPercent) <= 200 ? ' (' + ratioPercent + ' %)' : '') + '. Te conviene truequear.'
-      };
-    }
-    if (ratio <= 1 - FAIR_BAND) {
-      var topUp = Math.max(MIN_TOP_UP_CENTS, roundTo(mineCents - theirsCents, TOP_UP_STEP_CENTS));
-      return {
-        status: 'ok', mineCents: mineCents, theirsCents: theirsCents, deltaCents: delta,
-        ratioPercent: ratioPercent, verdict: 'desfavorable', verdictLabel: 'Pide compensación', cashTopUpCents: topUp,
-        message: 'Te ofrecen ' + money(mineCents - theirsCents) + ' menos de lo que das. Pide ' +
-          money(topUp) + ' en efectivo o un objeto extra.'
-      };
-    }
-    return {
-      status: 'ok', mineCents: mineCents, theirsCents: theirsCents, deltaCents: delta,
-      ratioPercent: ratioPercent, verdict: 'justo', verdictLabel: 'Parejo', cashTopUpCents: 0,
-      message: 'Valores parecidos (' + ratioPercent + ' %): pueden cerrar el trato sin efectivo.'
-    };
+  function catalogProducts(version) {
+    var photo = catalogSnapshot(version);
+    return photo ? photo.products : [];
   }
 
-  var valuationCache = {};
-
-  function signatureOf(item) {
-    var input = inputOf(item);
-    return [input.referenceCents, input.category, input.condition, input.ageMonths,
-      input.complete ? 1 : 0, input.hasReceipt ? 1 : 0].join('|');
+  function officialProduct(id) {
+    var list = catalogProducts();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
   }
 
-  function appraise(item) {
-    var signature = signatureOf(item);
-    if (valuationCache[signature]) return valuationCache[signature];
-    var input = inputOf(item);
-    var result = null;
-    try {
-      if (window.Nahua && typeof Nahua.valuate === 'function') result = Nahua.valuate(input);
-    } catch (error) {
-      result = null;
-    }
-    if (!result || result.status !== 'ok') result = valuateLocal(input);
-    valuationCache[signature] = result;
-    return result;
-  }
-
-  function balanceOf(mineItem, theirsItem) {
-    var payload = { mine: inputOf(mineItem), theirs: inputOf(theirsItem) };
-    var result = null;
-    try {
-      if (window.Nahua && typeof Nahua.compare === 'function') result = Nahua.compare(payload.mine, payload.theirs);
-    } catch (error) {
-      result = null;
-    }
-    if (!result || result.status !== 'ok') {
-      result = compareLocal(valuateLocal(payload.mine), valuateLocal(payload.theirs));
-    }
-    return result;
-  }
-
-  function announce(title, body) {
-    try {
-      if (window.Nahua && typeof Nahua.announce === 'function') {
-        var pending = Nahua.announce({ title: title, body: body });
-        if (pending && pending.catch) {
-          pending.catch(function () { flash(title); });
-        }
-        return;
+  function productsForStore(storeId, version) {
+    var store = storeById(storeId);
+    var list = catalogProducts(version).filter(function (product) { return product.storeId === storeId; });
+    return list.sort(function (a, b) {
+      var pinnedA = store.pinned.indexOf(a.id);
+      var pinnedB = store.pinned.indexOf(b.id);
+      if (pinnedA >= 0 || pinnedB >= 0) {
+        if (pinnedA < 0) return 1;
+        if (pinnedB < 0) return -1;
+        return pinnedA - pinnedB;
       }
-    } catch (error) {
-      // Sin anfitrión (navegador) no hay bandeja nativa: el aviso se queda en el flujo de trueques.
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+  }
+
+  function latestOfficial(limit) {
+    return catalogProducts().slice().sort(function (a, b) {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    }).slice(0, limit);
+  }
+
+  /** Stock del servidor menos lo que ya compraste en este dispositivo. */
+  function localStock(product) {
+    var bought = Number(purchases[product.id] || 0);
+    return Math.max(0, Number(product.stock || 0) - bought);
+  }
+
+  function catalogStatus() {
+    var origin = catalogo.origin() || 'demo';
+    var head = catalogo.head();
+    var syncedAt = catalogo.syncedAt() || Date.now();
+    var validUntil = catalogo.validUntil();
+    var ageMs = Date.now() - syncedAt;
+    var remote = origin === 'remote' ? (ui.remoteHead || head) : head;
+    var pending = origin === 'remote' && remote > head;
+    var expired = validUntil ? Date.now() > validUntil : false;
+    var stale = origin !== 'remote' || pending || expired || ageMs > STALE_MS;
+
+    var label;
+    if (origin !== 'remote') {
+      label = 'Sin servidor · catálogo de demostración';
+    } else if (ui.server === 'offline') {
+      label = 'Sin conexión · catálogo guardado ' + ago(syncedAt);
+    } else if (pending) {
+      label = 'Hay cambios sin aplicar (v' + head + ' → v' + remote + ')';
+    } else if (expired || ageMs > STALE_MS) {
+      label = 'Catálogo sin actualizar desde ' + ago(syncedAt);
+    } else {
+      label = 'Catálogo al día · ' + ago(syncedAt);
     }
+
+    return {
+      head: head,
+      remote: remote,
+      pending: pending,
+      syncedAt: syncedAt,
+      ageMs: ageMs,
+      stale: stale,
+      origin: origin,
+      validUntil: validUntil,
+      label: label
+    };
+  }
+
+  /**
+   * Trae el catálogo del servidor por el puente nativo. Primera vez: foto completa. Después:
+   * sólo el delta. Si ya se tenía el catálogo de demostración, lo reemplaza por el real.
+   */
+  function pullCatalog() {
+    if (!serverAvailable()) {
+      ui.server = 'offline';
+      return Promise.resolve(null);
+    }
+    ui.server = 'loading';
+
+    return Nahua.catalogHead().then(function (remoteHead) {
+      ui.remoteHead = Number(remoteHead.version) || 0;
+
+      if (catalogo.origin() !== 'remote') {
+        return Nahua.catalogFull().then(function (full) {
+          var result = catalogo.installFrom(
+            { version: full.version, stores: full.stores, products: full.products },
+            { origin: 'remote', validUntil: full.validUntil || remoteHead.validUntil }
+          );
+          ui.server = 'online';
+          return result;
+        });
+      }
+
+      if (ui.remoteHead > catalogo.head()) {
+        return Nahua.catalogDelta(catalogo.head()).then(function (delta) {
+          var result = catalogo.applyRemote(delta, { validUntil: remoteHead.validUntil });
+          ui.server = 'online';
+          return result;
+        });
+      }
+
+      catalogo.markChecked(remoteHead.validUntil);
+      ui.server = 'online';
+      return {
+        kind: 'current', from: catalogo.head(), to: ui.remoteHead,
+        added: 0, removed: 0, updated: 0, items: 0, completeCatalogue: false, origin: 'remote'
+      };
+    }).catch(function (error) {
+      ui.server = 'offline';
+      return null;
+    });
+  }
+
+  function freshnessChip(extraClass) {
+    var status = catalogStatus();
+    return '<button class="freshness ' + (status.stale ? 'stale' : 'ok') + ' ' + (extraClass || '') +
+      '" data-act="catalogo">' +
+      '<span class="dot-fresh"></span>' +
+      '<span class="fresh-text">' + esc(status.label) + '</span>' +
+      '<span class="fresh-cta">' + (status.pending ? 'Actualizar' : (status.origin !== 'remote' ? 'Conectar' : 'Ver catálogo')) + ' →</span>' +
+    '</button>';
+  }
+
+  function auditLabel(change) {
+    if (change.type === 'added') return 'Nuevo producto · ' + money(change.to);
+    if (change.type === 'removed') return 'Retirado (estaba a ' + money(change.from) + ')';
+    if (change.type === 'price') return 'Precio ' + money(change.from) + ' → ' + money(change.to);
+    if (change.type === 'stock') {
+      if (change.to === 0) return 'Sin stock (antes ' + change.from + ')';
+      return 'Stock ' + change.from + ' → ' + change.to;
+    }
+    if (change.type === 'title') return 'Nombre: “' + change.from + '” → “' + change.to + '”';
+    return change.type;
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Datos semilla: comunidad estudiantil (600 alumnos de distintos municipios)
+  // Comunidad: datos
   // ---------------------------------------------------------------------------------------------
 
-  function seedListing(list, owner, title, emoji, category, condition, ageMonths, newPrice, askPrice, barter, desc, complete, receipt) {
-    var hours = 1000 * 60 * 60;
+  function seedListing(list, owner, title, emoji, category, condition, askPrice, barter, desc) {
     return {
       id: list.id,
       ownerId: owner,
@@ -358,20 +527,15 @@
       emoji: emoji,
       category: category,
       condition: condition,
-      ageMonths: ageMonths,
-      referenceCents: Math.round(newPrice * 100),
       askingCents: Math.round(askPrice * 100),
       barter: !!barter,
-      complete: complete !== false,
-      hasReceipt: !!receipt,
       status: 'DISPONIBLE',
-      createdAt: Date.now() - (list.hoursAgo || 4) * hours
+      createdAt: NOW - (list.daysAgo || 1) * DAY
     };
   }
 
   function seed() {
-    var now = Date.now();
-    var minute = 1000 * 60;
+    var minute = 60000;
 
     var users = {
       me: { id: 'me', name: 'Ana Nahua', phone: '3121234567', town: 'Colima', program: 'Ing. en Sistemas', semester: '5º semestre', rating: 4.9, trades: 7, since: '2023' },
@@ -385,80 +549,67 @@
     };
 
     var listings = [
-      // Lo mío: 5 publicaciones, 3 abiertas a trueque.
-      seedListing({ id: 'M1', hoursAgo: 6 }, 'me', 'Mochila de senderismo 40 L', '🎒', 'SPORTS', 'LIKE_NEW', 8, 1900, 1100, true,
-        'La compré para una práctica de campo y la usé dos veces. Impermeable, con cubre mochila.', true, true),
-      seedListing({ id: 'M2', hoursAgo: 14 }, 'me', 'Cafetera de prensa francesa', '☕', 'APPLIANCES', 'GOOD', 30, 900, 450, true,
-        'De vidrio grueso, 600 ml. Limpia y sin fisuras.', true, false),
-      seedListing({ id: 'M3', hoursAgo: 22 }, 'me', 'Bocina Bluetooth pequeña', '🔊', 'ELECTRONICS', 'GOOD', 20, 800, 400, true,
-        'Compacta, ideal para el cuarto. Incluye cable de carga.', true, false),
-      seedListing({ id: 'M4', hoursAgo: 52 }, 'me', 'Juego de llaves mecánicas', '🔧', 'TOOLS', 'GOOD', 30, 1500, 700, false,
-        'Doce piezas del 8 al 19 mm, en su estuche. Sin uso desde que me mudé.', true, false),
-      seedListing({ id: 'M5', hoursAgo: 60 }, 'me', 'Apuntes y guías de Cálculo II', '📓', 'SCHOOL', 'GOOD', 12, 450, 180, false,
-        'Carpeta con ejercicios resueltos y exámenes de tres semestres. Sirve para la carrera.', true, false),
+      seedListing({ id: 'M1', daysAgo: 2 }, 'me', 'Mochila de senderismo 40 L', '🎒', 'SPORTS', 'LIKE_NEW', 1100, true,
+        'La compré para una práctica de campo y la usé dos veces. Impermeable, con cubre mochila.'),
+      seedListing({ id: 'M2', daysAgo: 3 }, 'me', 'Cafetera de prensa francesa', '☕', 'APPLIANCES', 'GOOD', 450, true,
+        'De vidrio grueso, 600 ml. Limpia y sin fisuras.'),
+      seedListing({ id: 'M3', daysAgo: 4 }, 'me', 'Bocina Bluetooth pequeña', '🔊', 'ELECTRONICS', 'GOOD', 400, true,
+        'Compacta, ideal para el cuarto. Incluye cable de carga.'),
+      seedListing({ id: 'M4', daysAgo: 6 }, 'me', 'Juego de llaves mecánicas', '🔧', 'TOOLS', 'GOOD', 700, false,
+        'Doce piezas del 8 al 19 mm, en su estuche. Sin uso desde que me mudé.'),
+      seedListing({ id: 'M5', daysAgo: 8 }, 'me', 'Apuntes y guías de Cálculo II', '📓', 'SCHOOL', 'GOOD', 180, false,
+        'Carpeta con ejercicios resueltos y exámenes de tres semestres.'),
 
-      // Beto — Villa de Álvarez
-      seedListing({ id: 'B1', hoursAgo: 3 }, 'beto', 'Bicicleta rodada 26', '🚲', 'BIKES', 'GOOD', 36, 6500, 2900, true,
-        'Bici de montaña con 21 velocidades. Le cambié los frenos hace un mes; detalles de pintura en el cuadro.', true, false),
-      seedListing({ id: 'B2', hoursAgo: 30 }, 'beto', 'Patineta de trucos', '🛹', 'SPORTS', 'WORN', 24, 1600, 550, false,
-        'Ruedas nuevas, tabla raspada por el uso. Sirve para moverse al campus.', false, false),
+      seedListing({ id: 'B1', daysAgo: 1 }, 'beto', 'Bicicleta rodada 26', '🚲', 'BIKES', 'GOOD', 2900, true,
+        'Bici de montaña con 21 velocidades. Le cambié los frenos hace un mes; detalles de pintura en el cuadro.'),
+      seedListing({ id: 'B2', daysAgo: 5 }, 'beto', 'Patineta de trucos', '🛹', 'SPORTS', 'WORN', 550, false,
+        'Ruedas nuevas, tabla raspada por el uso. Sirve para moverse al campus.'),
 
-      // Mari — Comala
-      seedListing({ id: 'M6', hoursAgo: 8 }, 'mari', 'Blusa bordada de Suchitlán', '🧶', 'TEXTILES', 'LIKE_NEW', 4, 1200, 850, true,
-        'Bordada a mano por mi tía en Suchitlán. Talla M, la usé una vez para una presentación.', true, false),
-      seedListing({ id: 'M7', hoursAgo: 11 }, 'mari', 'Conserva de tamarindo (6 frascos)', '🫙', 'FOOD', 'NEW', 0, 750, 500, true,
-        'Hecha en casa en Comala este mes. Sin conservadores, lista para acompañar el pan.', true, false),
+      seedListing({ id: 'M6', daysAgo: 1 }, 'mari', 'Blusa bordada de Suchitlán', '🧶', 'TEXTILES', 'LIKE_NEW', 850, true,
+        'Bordada a mano por mi tía en Suchitlán. Talla M, la usé una vez para una presentación.'),
+      seedListing({ id: 'M7', daysAgo: 2 }, 'mari', 'Conserva de tamarindo (6 frascos)', '🫙', 'FOOD', 'NEW', 500, true,
+        'Hecha en casa en Comala este mes. Sin conservadores.'),
 
-      // Chuy — Suchitlán
-      seedListing({ id: 'C1', hoursAgo: 5 }, 'chuy', 'Juego de ollas de barro de Suchitlán', '🏺', 'CRAFTS', 'NEW', 0, 1400, 900, true,
-        'Cinco piezas hechas en el taller de la familia. Nuevas, listas para cocinar.', true, false),
-      seedListing({ id: 'C2', hoursAgo: 26 }, 'chuy', 'Rebozo de telar de cintura', '🧶', 'TEXTILES', 'GOOD', 18, 2200, 1400, false,
-        'Tejido en telar de cintura, tintes naturales. Tiene un hilo jalado en la orilla.', true, false),
+      seedListing({ id: 'C1', daysAgo: 1 }, 'chuy', 'Juego de ollas de barro de Suchitlán', '🏺', 'CRAFTS', 'NEW', 900, true,
+        'Cinco piezas hechas en el taller de la familia. Nuevas, listas para cocinar.'),
+      seedListing({ id: 'C2', daysAgo: 4 }, 'chuy', 'Rebozo de telar de cintura', '🧶', 'TEXTILES', 'GOOD', 1400, false,
+        'Tejido en telar de cintura, tintes naturales. Tiene un hilo jalado en la orilla.'),
 
-      // Tere — Manzanillo
-      seedListing({ id: 'T1', hoursAgo: 20 }, 'tere', 'Laptop Lenovo ThinkPad', '💻', 'COMPUTERS', 'GOOD', 48, 14000, 6500, false,
-        'i5, 8 GB de RAM, SSD de 256 GB. Batería al 70 %, cargador original incluido.', true, false),
-      seedListing({ id: 'T2', hoursAgo: 34 }, 'tere', 'Maleta de viaje 24"', '🧳', 'OTHER', 'GOOD', 24, 1800, 800, true,
-        'Con ruedas y candado. La cambié por una más chica para viajar a Manzanillo.', true, false),
+      seedListing({ id: 'T1', daysAgo: 3 }, 'tere', 'Laptop Lenovo ThinkPad', '💻', 'COMPUTERS', 'GOOD', 6500, false,
+        'i5, 8 GB de RAM, SSD de 256 GB. Batería al 70 %, cargador original incluido.'),
+      seedListing({ id: 'T2', daysAgo: 6 }, 'tere', 'Maleta de viaje 24"', '🧳', 'OTHER', 'GOOD', 800, true,
+        'Con ruedas y candado. La cambié por una más chica para viajar a Manzanillo.'),
 
-      // Fer — Colima
-      seedListing({ id: 'F1', hoursAgo: 18 }, 'fer', 'Guitarra acústica Yamaha', '🎸', 'MUSIC', 'GOOD', 60, 3200, 1400, true,
-        'Cuerdas nuevas, estuche de tela. Tiene marcas de uso en la caja, nada que afecte el sonido.', true, false),
-      seedListing({ id: 'F2', hoursAgo: 40 }, 'fer', 'Cuadro de acuarela del Volcán', '🎨', 'ART', 'NEW', 0, 900, 650, false,
-        'Pintado por mí, 30 × 40 cm con marco de madera. Firmado al reverso.', true, false),
+      seedListing({ id: 'F1', daysAgo: 2 }, 'fer', 'Guitarra acústica Yamaha', '🎸', 'MUSIC', 'GOOD', 1400, true,
+        'Cuerdas nuevas, estuche de tela. Tiene marcas de uso en la caja, nada que afecte el sonido.'),
+      seedListing({ id: 'F2', daysAgo: 5 }, 'fer', 'Cuadro de acuarela del Volcán', '🎨', 'ART', 'NEW', 650, false,
+        'Pintado por mí, 30 × 40 cm con marco de madera. Firmado al reverso.'),
 
-      // Jorge — Ixtlahuacán
-      seedListing({ id: 'J1', hoursAgo: 9 }, 'jorge', 'Semillas de maíz criollo (1 kg)', '🌱', 'PLANTS', 'NEW', 0, 600, 380, true,
-        'De la milpa de mi abuelo en Ixtlahuacán. Para siembra en maceta o huerto escolar.', true, false),
-      seedListing({ id: 'J2', hoursAgo: 44 }, 'jorge', 'Caja de herramientas 40 piezas', '🧰', 'TOOLS', 'WORN', 48, 1200, 500, true,
-        'Dados, desarmadores y pinzas. La caja tiene marcas de taller, todo funciona.', false, false),
+      seedListing({ id: 'J1', daysAgo: 2 }, 'jorge', 'Semillas de maíz criollo (1 kg)', '🌱', 'PLANTS', 'NEW', 380, true,
+        'De la milpa de mi abuelo en Ixtlahuacán. Para siembra en maceta o huerto escolar.'),
+      seedListing({ id: 'J2', daysAgo: 6 }, 'jorge', 'Caja de herramientas 40 piezas', '🧰', 'TOOLS', 'WORN', 500, true,
+        'Dados, desarmadores y pinzas. La caja tiene marcas de taller, todo funciona.'),
 
-      // Lucía — Cuauhtémoc
-      seedListing({ id: 'L1', hoursAgo: 12 }, 'lucia', 'Calculadora científica CASIO', '🖩', 'SCHOOL', 'LIKE_NEW', 10, 850, 500, true,
-        'Con funda y manual. La compré para Estadística y ya uso la del celular.', true, true),
-      seedListing({ id: 'L2', hoursAgo: 28 }, 'lucia', 'Café de Comala en grano (1 kg)', '☕', 'FOOD', 'NEW', 0, 700, 520, true,
-        'Tostado medio, molido a pedido. Lo traje del rancho de mi familia.', true, false),
-      seedListing({ id: 'L3', hoursAgo: 46 }, 'lucia', 'Plantas de orégano en maceta', '🌱', 'PLANTS', 'NEW', 0, 350, 220, false,
-        'Tres macetas listas para la ventana de la casa. Con tierra preparada.', true, false)
+      seedListing({ id: 'L1', daysAgo: 2 }, 'lucia', 'Calculadora científica CASIO', '🖩', 'SCHOOL', 'LIKE_NEW', 500, true,
+        'Con funda y manual. La compré para Estadística y ya uso la del celular.'),
+      seedListing({ id: 'L2', daysAgo: 4 }, 'lucia', 'Café de Comala en grano (1 kg)', '☕', 'FOOD', 'NEW', 520, true,
+        'Tostado medio, molido a pedido. Lo traje del rancho de mi familia.'),
+      seedListing({ id: 'L3', daysAgo: 7 }, 'lucia', 'Plantas de orégano en maceta', '🌱', 'PLANTS', 'NEW', 220, false,
+        'Tres macetas listas para la ventana de la casa. Con tierra preparada.')
     ];
 
-    // Marcas de interés: privadas. Sólo los pares mutuos abren chat.
     var interest = function (id, listingId, fromUserId, minutesAgo) {
-      return { id: id, listingId: listingId, fromUserId: fromUserId, createdAt: now - minutesAgo * minute };
+      return { id: id, listingId: listingId, fromUserId: fromUserId, createdAt: NOW - minutesAgo * minute };
     };
     var interests = [
-      // Beto ↔ Ana: ya hay match
       interest('i1', 'M1', 'beto', 900),
       interest('i2', 'M2', 'beto', 880),
       interest('i3', 'B1', 'me', 860),
-      // Mari ↔ Ana: ya hay match
       interest('i4', 'M3', 'mari', 430),
       interest('i5', 'M6', 'me', 420),
       interest('i6', 'M7', 'me', 400),
-      // Fer ↔ Ana: trato ya cerrado
       interest('i7', 'M3', 'fer', 3300),
       interest('i8', 'F1', 'me', 3280),
-      // Interés de una sola vía: no hay chat, Ana sólo ve el conteo anónimo
       interest('i9', 'M2', 'lucia', 210),
       interest('i10', 'M1', 'chuy', 150),
       interest('i11', 'M3', 'jorge', 70)
@@ -466,36 +617,44 @@
 
     var matches = [
       {
-        id: 'x1', userA: 'me', userB: 'beto', status: 'CHAT', createdAt: now - 860 * minute,
-        meeting: null, cashCents: 0, lastReadByMe: now - 30 * minute,
+        id: 'x1', userA: 'me', userB: 'beto', status: 'CHAT', createdAt: NOW - 860 * minute,
+        meeting: null, cashCents: 0, lastReadByMe: NOW - 30 * minute,
         messages: [
-          { id: 'g1', fromUserId: 'system', kind: 'system', at: now - 860 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
-          { id: 'g2', fromUserId: 'beto', kind: 'text', at: now - 820 * minute, text: 'Hola Ana. Vi que te interesa la bici y a mí tu mochila y la cafetera. ¿La bici te sirve para el campus o para ruta?' },
-          { id: 'g3', fromUserId: 'me', kind: 'text', at: now - 700 * minute, text: 'Para el campus, pero de repente me voy al Volcán. ¿Los frenos aguantan?' },
-          { id: 'g4', fromUserId: 'beto', kind: 'text', at: now - 26 * minute, text: 'Sí, los cambié hace un mes. Si quieres te la presto una tarde antes de cerrar el trato.' }
+          { id: 'g1', fromUserId: 'system', kind: 'system', at: NOW - 860 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
+          { id: 'g2', fromUserId: 'beto', kind: 'text', at: NOW - 820 * minute, text: 'Hola Ana. Vi que te interesa la bici y a mí tu mochila y la cafetera. ¿La bici te sirve para el campus o para ruta?' },
+          { id: 'g3', fromUserId: 'me', kind: 'text', at: NOW - 700 * minute, text: 'Para el campus, pero de repente me voy al Volcán. ¿Los frenos aguantan?' },
+          { id: 'g4', fromUserId: 'beto', kind: 'text', at: NOW - 26 * minute, text: 'Sí, los cambié hace un mes. Si quieres te la presto una tarde antes de cerrar el trato.' }
         ]
       },
       {
-        id: 'x2', userA: 'me', userB: 'mari', status: 'CHAT', createdAt: now - 420 * minute,
+        id: 'x2', userA: 'me', userB: 'mari', status: 'CHAT', createdAt: NOW - 420 * minute,
         meeting: null, cashCents: 0, lastReadByMe: 0,
         messages: [
-          { id: 'g5', fromUserId: 'system', kind: 'system', at: now - 420 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
-          { id: 'g6', fromUserId: 'mari', kind: 'text', at: now - 380 * minute, text: 'Hola. Me interesa la bocina para los ensayos de Nutrición. La blusa es talla M y la conserva la hice esta semana.' }
+          { id: 'g5', fromUserId: 'system', kind: 'system', at: NOW - 420 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
+          { id: 'g6', fromUserId: 'mari', kind: 'text', at: NOW - 380 * minute, text: 'Hola. Me interesa la bocina para los ensayos de Nutrición. La blusa es talla M y la conserva la hice esta semana.' }
         ]
       },
       {
-        id: 'x3', userA: 'me', userB: 'fer', status: 'CERRADO', createdAt: now - 3280 * minute,
-        meeting: 'Explanada de la facultad', cashCents: 0, lastReadByMe: now - 3000 * minute,
+        id: 'x3', userA: 'me', userB: 'fer', status: 'CERRADO', createdAt: NOW - 3280 * minute,
+        meeting: 'Explanada de la facultad', cashCents: 0, lastReadByMe: NOW - 3000 * minute,
         messages: [
-          { id: 'g7', fromUserId: 'system', kind: 'system', at: now - 3280 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
-          { id: 'g8', fromUserId: 'fer', kind: 'text', at: now - 3200 * minute, text: 'Te cambio la guitarra por la bocina, si te late. Ya la probé, suena bien.' },
-          { id: 'g9', fromUserId: 'me', kind: 'text', at: now - 3100 * minute, text: 'Va. Nos vemos en la explanada el jueves.' },
-          { id: 'g10', fromUserId: 'system', kind: 'system', at: now - 3000 * minute, text: 'Trueque marcado como intercambiado en Explanada de la facultad.' }
+          { id: 'g7', fromUserId: 'system', kind: 'system', at: NOW - 3280 * minute, text: 'Match de trueque: ambos marcaron interés. Ya pueden hablar sin compromiso.' },
+          { id: 'g8', fromUserId: 'fer', kind: 'text', at: NOW - 3200 * minute, text: 'Te cambio la guitarra por la bocina, si te late. Ya la probé, suena bien.' },
+          { id: 'g9', fromUserId: 'me', kind: 'text', at: NOW - 3100 * minute, text: 'Va. Nos vemos en la explanada el jueves.' },
+          { id: 'g10', fromUserId: 'system', kind: 'system', at: NOW - 3000 * minute, text: 'Trueque marcado como intercambiado en Explanada de la facultad.' }
         ]
       }
     ];
 
-    return { version: 3, me: 'me', users: users, listings: listings, interests: interests, matches: matches };
+    return {
+      version: 4,
+      me: 'me',
+      users: users,
+      listings: listings,
+      interests: interests,
+      matches: matches,
+      reports: []
+    };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -507,13 +666,13 @@
       var raw = window.localStorage.getItem(STORE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (parsed && parsed.version === 3 && parsed.users && parsed.listings &&
-            parsed.interests && parsed.matches) {
+        if (parsed && parsed.version === 4 && parsed.users && parsed.listings &&
+            parsed.interests && parsed.matches && parsed.reports) {
           return parsed;
         }
       }
     } catch (error) {
-      // datos corruptos: se vuelve a sembrar el bazar
+      // datos corruptos: se vuelve a sembrar
     }
     for (var i = 0; i < LEGACY_KEYS.length; i++) {
       try { window.localStorage.removeItem(LEGACY_KEYS[i]); } catch (error) { /* sin storage */ }
@@ -522,11 +681,7 @@
   }
 
   function save() {
-    try {
-      window.localStorage.setItem(STORE_KEY, JSON.stringify(data));
-    } catch (error) {
-      // sin espacio: la sesión sigue funcionando en memoria
-    }
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (error) { /* sin espacio */ }
   }
 
   var data = load();
@@ -542,10 +697,14 @@
     chatDraft: '',
     editingProfile: false,
     confirmRetire: null,
+    confirmBuy: null,
+    report: null,
+    syncResult: null,
+    server: serverAvailable() ? 'idle' : 'offline',
+    remoteHead: 0,
     form: freshForm()
   };
 
-  // Pila de navegación: "Ver perfil" desde un match regresa al match, no al inicio.
   var history = [];
 
   function freshForm() {
@@ -555,11 +714,7 @@
       emoji: '📦',
       category: 'CRAFTS',
       condition: 'GOOD',
-      ageMonths: 0,
-      reference: '',
       asking: '',
-      complete: true,
-      hasReceipt: false,
       barter: false
     };
   }
@@ -568,13 +723,8 @@
     return { id: id, name: 'Compañero', phone: '', town: 'Colima', program: 'Alumnado', semester: '', rating: 5, trades: 0, since: '2025' };
   }
 
-  function me() {
-    return data.users[data.me] || fallbackUser(data.me);
-  }
-
-  function user(id) {
-    return data.users[id] || fallbackUser(id);
-  }
+  function me() { return data.users[data.me] || fallbackUser(data.me); }
+  function user(id) { return data.users[id] || fallbackUser(id); }
 
   function listing(id) {
     for (var i = 0; i < data.listings.length; i++) if (data.listings[i].id === id) return data.listings[i];
@@ -587,7 +737,7 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Reglas del match: interés privado, chat sólo con reciprocidad
+  // Reglas del match
   // ---------------------------------------------------------------------------------------------
 
   function interestMark(listingId, userId) {
@@ -602,26 +752,20 @@
     return !!interestMark(listingId, data.me);
   }
 
-  /** Objetos míos (abiertos a trueque) que esta persona marcó: lo que quiere de mí. */
   function wantedFromMe(otherId) {
     var items = [];
     data.interests.forEach(function (mark) {
       var item = listing(mark.listingId);
-      if (mark.fromUserId === otherId && item && item.ownerId === data.me && item.barter) {
-        items.push(item);
-      }
+      if (mark.fromUserId === otherId && item && item.ownerId === data.me && item.barter) items.push(item);
     });
     return uniq(items);
   }
 
-  /** Objetos suyos que yo marqué: lo que quiero de él/ella. */
   function wantedByMe(otherId) {
     var items = [];
     data.interests.forEach(function (mark) {
       var item = listing(mark.listingId);
-      if (mark.fromUserId === data.me && item && item.ownerId === otherId && item.barter) {
-        items.push(item);
-      }
+      if (mark.fromUserId === data.me && item && item.ownerId === otherId && item.barter) items.push(item);
     });
     return uniq(items);
   }
@@ -653,7 +797,6 @@
     return out;
   }
 
-  /** Crea los matches que el interés mutuo ya permite. Avisa a Avisos sólo en ese momento. */
   function reconcileMatches() {
     var created = [];
     Object.keys(data.users).forEach(function (otherId) {
@@ -699,29 +842,19 @@
     return created;
   }
 
-  function myBarterables() {
-    return data.listings.filter(function (item) {
-      return item.ownerId === data.me && item.barter && item.status === 'DISPONIBLE';
-    });
-  }
-
   function lastMessageAt(matchItem) {
     var last = 0;
     matchItem.messages.forEach(function (message) { if (message.at > last) last = message.at; });
     return last;
   }
 
-  function hasTheirMessage(matchItem) {
-    return matchItem.messages.some(function (message) {
-      return message.kind === 'text' && message.fromUserId !== data.me;
-    });
-  }
-
   function pendingCount() {
     return data.matches.filter(function (item) {
       if (item.status !== 'CHAT') return false;
-      if (!hasTheirMessage(item)) return false;
-      return (item.lastReadByMe || 0) < lastMessageAt(item);
+      var theirs = item.messages.some(function (message) {
+        return message.kind === 'text' && message.fromUserId !== data.me;
+      });
+      return theirs && (item.lastReadByMe || 0) < lastMessageAt(item);
     }).length;
   }
 
@@ -732,7 +865,6 @@
     });
   }
 
-  /** Lo que otros marcaron de mis objetos: sepan cuántos, nunca quiénes (hasta el match). */
   function receivedInterestStats() {
     var people = {};
     var items = {};
@@ -743,8 +875,11 @@
       items[item.id] = true;
     });
     var ids = Object.keys(people);
-    var hidden = ids.filter(function (id) { return !matchWith(id); }).length;
-    return { people: ids.length, items: Object.keys(items).length, hidden: hidden };
+    return {
+      people: ids.length,
+      items: Object.keys(items).length,
+      hidden: ids.filter(function (id) { return !matchWith(id); }).length
+    };
   }
 
   function statusLabel(status) {
@@ -763,15 +898,17 @@
     return String(status || '').toLowerCase();
   }
 
-  function activeListingsFor(ownerId) {
-    return data.listings.filter(function (item) {
-      return item.ownerId === ownerId && item.status !== 'OCULTO';
-    });
+  function announce(title, body) {
+    try {
+      if (window.Nahua && typeof Nahua.announce === 'function') {
+        var pending = Nahua.announce({ title: title, body: body });
+        if (pending && pending.catch) pending.catch(function () { flash(title); });
+        return;
+      }
+    } catch (error) {
+      // Sin anfitrión el aviso queda en el flujo local.
+    }
   }
-
-  // ---------------------------------------------------------------------------------------------
-  // Avisos flotantes
-  // ---------------------------------------------------------------------------------------------
 
   function flash(text) {
     var host = document.getElementById('flash');
@@ -787,7 +924,7 @@
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Vistas
+  // Piezas compartidas
   // ---------------------------------------------------------------------------------------------
 
   function avatar(userId, size) {
@@ -803,6 +940,72 @@
   function stat(value, label) {
     return '<div class="stat"><strong>' + value + '</strong><span>' + esc(label) + '</span></div>';
   }
+
+  function storeBanner(store, options) {
+    var settings = options || {};
+    var list = productsForStore(store.id).slice(0, 3);
+    var emojis = list.map(function (product) { return '<span class="glyph">' + product.emoji + '</span>'; }).join('');
+    var count = productsForStore(store.id).length;
+
+    return '<button class="store-banner" data-act="' + (settings.act || 'store') + '" data-id="' + store.id +
+      '" style="--accent:' + store.accent + ';--deep:' + store.deep + '">' +
+      '<div class="banner-copy">' +
+        '<span class="banner-kicker">Tienda oficial · desde ' + esc(store.since) + '</span>' +
+        '<strong class="banner-name">' + esc(store.name) + '</strong>' +
+        '<span class="banner-offer">' + esc(store.offer) + '</span>' +
+        '<span class="banner-cta">Ver tienda · ' + count + ' productos →</span>' +
+      '</div>' +
+      '<div class="banner-art">' + emojis + '</div>' +
+      '<span class="banner-stamp">' + store.emoji + '</span>' +
+    '</button>';
+  }
+
+  function productCard(product, options) {
+    var settings = options || {};
+    var store = storeById(product.storeId);
+    var stock = localStock(product);
+    var soldOut = stock <= 0;
+    var bought = !!purchases[product.id];
+    var status = catalogStatus();
+    var tag = product.tag ? '<span class="badge">' + esc(product.tag) + '</span>' : '';
+
+    return '<article class="product-card' + (soldOut ? ' sold-out' : '') + '">' +
+      '<div class="product-art" style="background:' + store.accent + '22;border-color:' + store.accent + '55">' +
+        '<span class="product-emoji">' + product.emoji + '</span>' +
+        (soldOut ? '<span class="stock-flag">Agotado</span>' : '') +
+      '</div>' +
+      '<div class="product-body">' +
+        '<div class="product-head"><h3>' + esc(product.title) + '</h3>' + tag + '</div>' +
+        '<div class="product-store">' + esc(store.short) + ' · ' +
+          (soldOut ? 'sin stock' : stock + (stock === 1 ? ' disponible' : ' disponibles')) +
+        '</div>' +
+        '<div class="product-foot"><span class="price">' + money(product.priceCents) + '</span>' +
+          (settings.readOnly
+            ? '<span class="badge badge-ghost">Vista histórica</span>'
+            : (soldOut
+              ? '<button class="btn sm" disabled>Agotado</button>'
+              : '<button class="btn sm primary" data-act="buy-official" data-id="' + product.id + '">Comprar</button>')) +
+        '</div>' +
+        (status.stale && !settings.readOnly
+          ? '<div class="stock-warn">Catálogo ' + esc(status.label.toLowerCase()) + ' · puede faltar stock</div>'
+          : '') +
+      '</div>' +
+    '</article>';
+  }
+
+  function productRow(product) {
+    var store = storeById(product.storeId);
+    return '<div class="product-row">' +
+      '<span class="row-emoji">' + product.emoji + '</span>' +
+      '<div class="row-body"><b>' + esc(product.title) + '</b><small>' + esc(store.short) + ' · ' +
+        (product.stock > 0 ? product.stock + ' en stock' : 'agotado') + '</small></div>' +
+      '<span class="row-price">' + money(product.priceCents) + '</span>' +
+    '</div>';
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Vistas: bazar
+  // ---------------------------------------------------------------------------------------------
 
   function filteredListings() {
     var query = ui.query.trim().toLowerCase();
@@ -824,7 +1027,7 @@
     if (ui.filter === 'barter') return 'Objetos en trueque';
     if (ui.filter === 'venta') return 'Sólo venta';
     if (ui.filter === 'mine') return 'Mis publicaciones';
-    return 'Lo nuevo del bazar';
+    return 'Lo nuevo de la comunidad';
   }
 
   function filterChips() {
@@ -847,15 +1050,13 @@
   }
 
   function card(item) {
-    var value = appraise(item);
     var owner = user(item.ownerId);
     var mine = item.ownerId === data.me;
     var canInterest = item.barter && !mine && item.status === 'DISPONIBLE';
     var matched = canInterest && isMutual(owner.id);
     var statusBadge = '';
     if (item.status === 'RESERVADO') statusBadge = '<span class="badge badge-done">Apartado</span>';
-    if (item.status === 'TRUEQUEADO') statusBadge = '<span class="badge badge-done">Truequeado</span>';
-    if (item.status === 'VENDIDO') statusBadge = '<span class="badge badge-done">Vendido</span>';
+    if (item.reportedByMe) statusBadge += '<span class="badge badge-report">Reportado</span>';
 
     return '<article class="item-card" data-act="open" data-id="' + item.id + '">' +
       '<div class="thumb">' + item.emoji + (item.barter ? '<span class="flag">Trueque</span>' : '') + '</div>' +
@@ -863,10 +1064,7 @@
         '<h3>' + esc(item.title) + '</h3>' +
         '<div class="item-meta">' + esc(conditionById(item.condition).short) + ' · ' + esc(owner.name) +
           ' · ' + esc(owner.town) + '</div>' +
-        '<div class="item-values">' +
-          '<div class="ask">' + money(item.askingCents) + '<small>pide</small></div>' +
-          '<div class="est">' + money(value.estimatedCents) + '<small>valor estimado</small></div>' +
-        '</div>' +
+        '<div class="item-values"><div class="ask">' + money(item.askingCents) + '<small>precio</small></div></div>' +
         '<div class="item-actions">' +
           (mine ? '<span class="badge badge-mine">Tu publicación</span>' : '') +
           (item.barter ? '<span class="badge badge-barter">Acepta trueque</span>' : '<span class="badge badge-sale">Sólo venta</span>') +
@@ -889,49 +1087,16 @@
   }
 
   function feedView() {
-    var barterCount = data.listings.filter(function (item) {
-      return item.barter && item.status === 'DISPONIBLE';
-    }).length;
-    var matches = data.matches.filter(function (item) {
-      return item.status === 'CHAT' || item.status === 'ACORDADO';
-    }).length;
-
-    return '<section class="hero">' +
-      '<p class="kicker">Comunidad estudiantil · Colima</p>' +
-      '<h1>Compra, vende y <em>truequea</em> con quienes sí quieren</h1>' +
-      '<p class="lede">Publica lo que ya no usas y marca lo que sí te interesa. El chat se abre ' +
-        'sólo cuando el interés es de ida y vuelta: sin compromisos ni presión.</p>' +
-      '<div class="hero-stats">' +
-        stat(data.listings.filter(function (item) { return item.status === 'DISPONIBLE'; }).length, 'objetos') +
-        stat(barterCount, 'en trueque') +
-        stat(matches, matches === 1 ? 'match' : 'matches') +
-      '</div>' +
-    '</section>' +
-    '<div class="search"><span>⌕</span><input id="q" type="search" placeholder="Busca objeto, comunidad o persona" value="' + esc(ui.query) + '"></div>' +
-    filterChips() +
-    '<div class="section-head"><h2 id="listTitle">' + esc(listTitle()) + '</h2><span id="listCount"></span></div>' +
-    '<div class="cards" id="cards">' + cardsHtml() + '</div>' +
-    '<p class="footer-note">El valor es una estimación: precio nuevo, estado, uso y accesorios.</p>';
-  }
-
-  function valuationPanel(value, options) {
-    var settings = options || {};
-    var factors = value.factors && value.factors.length
-      ? '<ul class="factors">' + value.factors.map(function (factor) {
-          return '<li class="' + factor.tone + '"><span>' + esc(factor.label) + '</span><b>' +
-            (factor.percent > 0 ? '+' : '') + factor.percent + ' %</b></li>';
-        }).join('') + '</ul>'
-      : '<div class="hint-line" style="background:var(--card-alt);border-color:var(--line-soft)">Ingresa el precio de referencia para ver el desglose.</div>';
-
-    return '<div class="panel">' +
-      '<div class="panel-head"><h3>' + (settings.title || 'Valoración del objeto') + '</h3>' +
-        '<span class="conf">confianza ' + esc(value.confidenceLabel) + '</span></div>' +
-      '<div class="value-big tabular">' + money(value.estimatedCents) + '</div>' +
-      '<div class="value-range">rango estimado ' + money(value.lowCents) + ' – ' + money(value.highCents) + '</div>' +
-      factors +
-      (value.hasValue ? '<div class="hint-line">⇄ Mínimo recomendado para trueque: <b class="tabular">' +
-        money(value.barterMinCents) + '</b></div>' : '') +
-    '</div>';
+    // Sin bloque de texto: la portada son los banners de las tiendas oficiales.
+    return '<div class="banner-rail">' + storeList().map(function (store) {
+        return storeBanner(store);
+      }).join('') + '</div>' +
+      freshnessChip('block-chip') +
+      '<div class="search"><span>⌕</span><input id="q" type="search" placeholder="Busca objeto, comunidad o persona" value="' + esc(ui.query) + '"></div>' +
+      filterChips() +
+      '<div class="section-head"><h2 id="listTitle">' + esc(listTitle()) + '</h2><span id="listCount"></span></div>' +
+      '<div class="cards" id="cards">' + cardsHtml() + '</div>' +
+      '<p class="footer-note">El precio lo pone quien publica. El bazar no valora objetos.</p>';
   }
 
   function contactRow(userId) {
@@ -962,10 +1127,32 @@
     '</button>';
   }
 
+  function reportPanel(targetType, targetId) {
+    var report = ui.report;
+    if (!report || report.type !== targetType || report.id !== targetId) return '';
+
+    var reasons = REPORT_REASONS.map(function (reason) {
+      return '<button class="option' + (report.reason === reason.id ? ' active' : '') +
+        '" data-act="report-reason" data-id="' + reason.id + '">' + esc(reason.label) + '</button>';
+    }).join('');
+
+    return '<div class="panel report-panel">' +
+      '<div class="panel-head"><h3>Reportar</h3><span class="conf">confidencial</span></div>' +
+      '<p class="report-lede">Cuéntanos qué pasó. El reporte se guarda con fecha y se manda a revisión.</p>' +
+      '<div class="option-grid">' + reasons + '</div>' +
+      '<div class="field"><label>Detalle (opcional)</label>' +
+        '<textarea id="reportNote" maxlength="240" placeholder="Qué pasó, cuándo y qué esperabas">' +
+          esc(report.note || '') + '</textarea></div>' +
+      '<div class="btn-row">' +
+        '<button class="btn danger" data-act="report-send">Enviar reporte</button>' +
+        '<button class="btn" data-act="report-cancel">Cancelar</button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function itemView(id) {
     var item = listing(id);
     if (!item) return notFound('Ese objeto ya no está en el bazar.');
-    var value = appraise(item);
     var owner = user(item.ownerId);
     var mine = item.ownerId === data.me;
     var available = item.status === 'DISPONIBLE';
@@ -984,6 +1171,7 @@
       }
       actions += '<button class="btn primary block" data-act="buy" data-id="' + item.id + '">Comprar con cartera · ' +
         money(item.askingCents) + '</button>';
+      actions += '<button class="btn danger block" data-act="report-open" data-id="' + item.id + '">⚠ Reportar artículo</button>';
     } else if (mine) {
       actions += '<button class="badge badge-mine" style="align-self:flex-start">Tu publicación</button>';
       if (item.barter) {
@@ -1013,7 +1201,7 @@
     var mutualBlock = mutual ? '<div class="panel" style="margin-top:14px;background:var(--green-soft);border-color:#B9D2AA">' +
       '<div class="panel-head"><h3>Match de trueque</h3></div>' +
       '<p class="match-lede">Tú y ' + esc(owner.name.split(' ')[0]) + ' se interesan mutuamente. ' +
-        'Pueden hablar y cerrar el trato con la valoración a la vista.</p>' +
+        'Pueden hablar y cerrar el trato cuando quieran.</p>' +
       '<button class="btn green block" data-act="open-match" data-id="' + owner.id + '">Abrir chat de trueque</button>' +
       '</div>' : '';
 
@@ -1023,10 +1211,10 @@
       '</div>' +
       '<h1 class="detail-title">' + esc(item.title) + '</h1>' +
       '<div class="detail-meta">' + esc(categoryById(item.category).label) + ' · ' +
-        esc(conditionById(item.condition).label) + ' · ' + esc(ageLabel(item.ageMonths)) + '</div>' +
+        esc(conditionById(item.condition).label) + '</div>' +
       '<div class="price-row">' +
-        '<div class="price-main tabular">' + money(item.askingCents) + '<small>precio</small></div>' +
-        '<span class="badge badge-barter">≈ ' + money(value.estimatedCents) + ' de valor</span>' +
+        '<div class="price-main tabular">' + money(item.askingCents) + '<small>precio que pide</small></div>' +
+        '<span class="badge badge-sale">Precio del dueño</span>' +
       '</div>' +
       (item.description ? '<p class="desc">' + esc(item.description) + '</p>' : '') +
       (item.barter
@@ -1035,7 +1223,7 @@
         : '<div class="note">Este objeto no acepta trueque, pero puedes comprarlo con tu cartera Nahua.</div>') +
       mutualBlock +
       '<div class="actions-block">' + actions + '</div>' +
-      '<div style="margin-top:14px">' + valuationPanel(value) + '</div>' +
+      reportPanel('listing', item.id) +
       '<div style="margin-top:12px">' + ownerRow(item.ownerId) + '</div>';
   }
 
@@ -1078,7 +1266,7 @@
         return '<article class="item-card" data-act="open" data-id="' + item.id + '">' +
           '<div class="thumb">' + item.emoji + '<span class="flag">Trueque</span></div>' +
           '<div class="item-body"><h3>' + esc(item.title) + '</h3>' +
-            '<div class="item-meta">≈ ' + money(appraise(item).estimatedCents) + ' de valor · ' +
+            '<div class="item-meta">' + money(item.askingCents) + ' · ' +
               (people === 0 ? 'sin interés todavía' : people + (people === 1 ? ' interesado' : ' interesados')) +
             '</div></div></article>';
       }).join('') : '<div class="empty"><p>Publica algo con trueque para empezar.</p></div>') + '</div>';
@@ -1132,8 +1320,8 @@
         '<div class="t">Te interesa <b>' + esc(item.title) + '</b> de ' + esc(owner.name) + '</div>' +
       '</div>' +
       '<div class="swap-row">' +
-        '<div class="swap-item"><span class="lbl">Objeto</span><span class="e">' + item.emoji + '</span>' +
-          '<b>' + esc(categoryById(item.category).label) + '</b><small>≈ ' + money(appraise(item).estimatedCents) + '</small></div>' +
+        '<div class="swap-item"><span class="lbl">Precio</span><span class="e">' + item.emoji + '</span>' +
+          '<b>' + money(item.askingCents) + '</b><small>' + esc(categoryById(item.category).label) + '</small></div>' +
         '<div class="swap-arrow">' + (mutual ? '⇄' : '…') + '</div>' +
         '<div class="swap-item"><span class="lbl">Estado</span><span class="e">' + (mutual ? '✓' : '⏳') + '</span>' +
           '<b>' + (mutual ? 'Match: ya hay chat' : 'Esperando reciprocidad') + '</b>' +
@@ -1142,14 +1330,6 @@
       '<div class="offer-foot"><span class="pill ' + (mutual ? 'aceptado' : 'pendiente') + '">' +
         (mutual ? 'Chat abierto' : 'Interés privado') + '</span></div>' +
     '</article>';
-  }
-
-  function verdictPanel(balance) {
-    var icon = balance.verdict === 'favorable' ? '✓' : (balance.verdict === 'desfavorable' ? '!' : '⇄');
-    return '<div class="verdict ' + balance.verdict + '">' +
-      '<span class="vd-icon">' + icon + '</span>' +
-      '<div><strong>' + esc(balance.verdictLabel) + '</strong><p>' + esc(balance.message) + '</p></div>' +
-    '</div>';
   }
 
   function selectedPair(matchItem) {
@@ -1169,12 +1349,9 @@
     var other = user(otherOf(item));
     var pair = selectedPair(item);
     var open = item.status === 'CHAT';
-    var balance = pair.give && pair.get ? balanceOf(pair.give, pair.get) : null;
 
     var chat = item.messages.map(function (message) {
-      if (message.kind === 'system') {
-        return '<div class="chat-sys">' + esc(message.text) + '</div>';
-      }
+      if (message.kind === 'system') return '<div class="chat-sys">' + esc(message.text) + '</div>';
       var mine = message.fromUserId === data.me;
       return '<div class="bubble ' + (mine ? 'me' : 'them') + '">' + esc(message.text) +
         '<span class="at">' + esc(ago(message.at)) + '</span></div>';
@@ -1192,8 +1369,7 @@
         esc(statusLabel(item.status)) + '</span>' +
         '<span style="font-size:10px;color:var(--muted)">' + esc(ago(item.createdAt)) + '</span></div>' +
       '<h1 class="detail-title">Match con ' + esc(other.name) + '</h1>' +
-      '<p class="detail-meta">' + esc(other.town) + ' · ' + esc(other.program) + ' · ' +
-        esc(other.semester) + '</p>' +
+      '<p class="detail-meta">' + esc(other.town) + ' · ' + esc(other.program) + ' · ' + esc(other.semester) + '</p>' +
       contactRow(other.id) +
       '<div class="section-head"><h2>Interés mutuo</h2><span>' + pair.mine.length + ' ⇄ ' + pair.theirs.length + '</span></div>' +
       (open
@@ -1202,25 +1378,22 @@
         : '<div class="deal-grid">' +
             '<div class="deal-box"><span class="l">Das</span><span class="e">' + (pair.give ? pair.give.emoji : '📦') + '</span>' +
               '<span class="n">' + esc(pair.give ? pair.give.title : '—') + '</span>' +
-              '<span class="v tabular">' + money(pair.give ? appraise(pair.give).estimatedCents : 0) + '</span></div>' +
+              '<span class="v tabular">' + money(pair.give ? pair.give.askingCents : 0) + '</span></div>' +
             '<div class="deal-vs">⇄</div>' +
             '<div class="deal-box"><span class="l">Recibes</span><span class="e">' + (pair.get ? pair.get.emoji : '📦') + '</span>' +
               '<span class="n">' + esc(pair.get ? pair.get.title : '—') + '</span>' +
-              '<span class="v tabular">' + money(pair.get ? appraise(pair.get).estimatedCents : 0) + '</span></div>' +
+              '<span class="v tabular">' + money(pair.get ? pair.get.askingCents : 0) + '</span></div>' +
           '</div>') +
-      (balance ? verdictPanel(balance) : '') +
       (pair.give && pair.get
         ? '<div class="value-pair">' +
-            '<div><span>Das · valor</span><b>' + money(appraise(pair.give).estimatedCents) + '</b>' +
-              '<small>mínimo trueque ' + money(appraise(pair.give).barterMinCents) + '</small></div>' +
-            '<div><span>Recibes · valor</span><b>' + money(appraise(pair.get).estimatedCents) + '</b>' +
-              '<small>mínimo trueque ' + money(appraise(pair.get).barterMinCents) + '</small></div>' +
+            '<div><span>Das · tu precio</span><b>' + money(pair.give.askingCents) + '</b><small>' + esc(pair.give.title) + '</small></div>' +
+            '<div><span>Recibes · su precio</span><b>' + money(pair.get.askingCents) + '</b><small>' + esc(pair.get.title) + '</small></div>' +
           '</div>'
         : '') +
       (item.cashCents > 0 ? '<div class="panel" style="margin-top:10px;background:var(--gold-soft);border-color:#E6C58A">' +
-        '<div class="panel-head"><h3>Compensación en efectivo</h3></div>' +
+        '<div class="panel-head"><h3>Efectivo acordado</h3></div>' +
         '<div class="value-big tabular">' + money(item.cashCents) + '</div>' +
-        '<div class="value-range">Acordada en el chat para emparejar el valor.</div></div>' : '') +
+        '<div class="value-range">Se suma al intercambio.</div></div>' : '') +
       '<div class="section-head"><h2>Chat del trueque</h2><span>' + item.messages.length + '</span></div>' +
       '<div class="chat" id="chatLog">' + chat + '</div>' +
       (open
@@ -1237,13 +1410,13 @@
           return '<option' + (item.meeting === point ? ' selected' : '') + '>' + esc(point) + '</option>';
         }).join('') + '</select>' +
         '<div class="help">Lugar público y con gente del campus.</div></div>' +
-        '<div class="field"><label>Compensación (opcional)</label>' +
+        '<div class="field"><label>Efectivo de un lado (opcional)</label>' +
           '<input id="cashInput" type="number" inputmode="numeric" placeholder="Ej. 250" value="' + esc(ui.cash) + '">' +
-          '<div class="help">Si la diferencia de valor lo pide' +
-            (balance && balance.cashTopUpCents > 0 ? ', el sistema sugiere ' + money(balance.cashTopUpCents) : '') +
-          '. Pesos, sin centavos.</div></div>' +
+          '<div class="help">Sólo si ustedes lo acuerdan. Pesos, sin centavos.</div></div>' +
         '<button class="btn green block" data-act="agree" data-id="' + item.id + '">✓ Acordar trueque</button>' +
-        '<button class="btn danger block" data-act="archive" data-id="' + item.id + '">Retirar mi interés</button>';
+        '<button class="btn danger block" data-act="archive" data-id="' + item.id + '">Retirar mi interés</button>' +
+        '<button class="btn danger block" data-act="report-user" data-id="' + other.id + '">⚠ Reportar a ' +
+          esc(other.name.split(' ')[0]) + '</button>';
     } else if (item.status === 'ACORDADO') {
       body += '<div class="panel" style="background:var(--green-soft);border-color:#B9D2AA">' +
         '<div class="panel-head"><h3>Trato acordado</h3></div>' +
@@ -1266,14 +1439,16 @@
         '<button class="btn primary block" data-act="tab" data-id="feed">Ver el bazar</button>';
     }
 
-    body += '</div>';
+    body += '</div>' + reportPanel('user', other.id);
     return body;
   }
 
   function profileView(id) {
     var profile = user(id);
     var mine = id === data.me;
-    var items = activeListingsFor(id);
+    var items = data.listings.filter(function (item) {
+      return item.ownerId === id && item.status !== 'OCULTO';
+    });
     var barterables = items.filter(function (item) {
       return item.barter && item.status === 'DISPONIBLE';
     });
@@ -1299,16 +1474,17 @@
           '</div>' +
         '</div>'
       : contactRow(id) +
-        (mine ? '<button class="btn block" style="margin-top:8px" data-act="edit-profile">Editar nombre y teléfono</button>' : '');
+        (mine
+          ? '<button class="btn block" style="margin-top:8px" data-act="edit-profile">Editar nombre y teléfono</button>'
+          : '<button class="btn danger block" style="margin-top:8px" data-act="report-user" data-id="' + profile.id + '">⚠ Reportar usuario</button>');
 
     var cards = items.length
       ? items.map(function (item) {
-          var value = appraise(item);
           var canInterest = !mine && item.barter && item.status === 'DISPONIBLE';
           return '<article class="item-card" data-act="open" data-id="' + item.id + '">' +
             '<div class="thumb">' + item.emoji + (item.barter ? '<span class="flag">Trueque</span>' : '') + '</div>' +
             '<div class="item-body"><h3>' + esc(item.title) + '</h3>' +
-              '<div class="item-meta">' + esc(conditionById(item.condition).short) + ' · ≈ ' + money(value.estimatedCents) + ' de valor</div>' +
+              '<div class="item-meta">' + esc(conditionById(item.condition).short) + ' · ' + money(item.askingCents) + '</div>' +
               '<div class="item-actions">' +
                 (item.barter ? '<span class="badge badge-barter">Acepta trueque</span>' : '<span class="badge badge-sale">Sólo venta</span>') +
                 (canInterest ? interestButton(item) : '') +
@@ -1327,16 +1503,16 @@
       '</div>' +
       '<div style="margin-top:12px">' + contact + '</div>' +
       (mine
-        ? '<div class="note">Así te ven los demás. Tu teléfono no aparece en el bazar: sólo en un chat con match.</div>'
+        ? '<div class="note">Así te ven los demás. Tu teléfono no aparece en el bazar: sólo en un chat con match. ' +
+          'Reportes enviados: ' + data.reports.length + '.</div>'
         : '') +
+      reportPanel('user', id) +
       '<div class="section-head"><h2>' + (mine ? 'Mi bazar' : 'Su bazar') + '</h2><span>' + barterables.length + ' en trueque</span></div>' +
       '<div class="cards">' + cards + '</div>';
   }
 
   function publishView() {
     var form = ui.form;
-    var value = appraise({ referenceCents: pesosToCents(form.reference), category: form.category,
-      condition: form.condition, ageMonths: form.ageMonths, complete: form.complete, hasReceipt: form.hasReceipt });
 
     var emojis = EMOJIS.map(function (emoji) {
       return '<button class="emoji-option' + (form.emoji === emoji ? ' active' : '') + '" data-act="set-emoji" data-id="' +
@@ -1355,7 +1531,7 @@
 
     return '<p class="kicker">Publicar</p>' +
       '<h1 style="font-size:21px;margin-top:4px">Pon tu objeto en el bazar</h1>' +
-      '<p class="lede">Lo valoramos para que sepas cuánto vale. El trueque con match se activa cuando tú quieras.</p>' +
+      '<p class="lede">Tú pones el precio. El bazar no valora objetos ni sugiere precios.</p>' +
 
       '<div class="field"><label>Título</label>' +
         '<input id="fTitle" type="text" maxlength="60" placeholder="Ej. Blusa bordada de Suchitlán" value="' + esc(form.title) + '"></div>' +
@@ -1369,44 +1545,16 @@
 
       '<div class="field"><label>Estado</label><div class="option-grid">' + conditions + '</div></div>' +
 
-      '<div class="grid-2">' +
-        '<div class="field"><label>Meses de uso</label>' +
-          '<input id="fAge" type="number" inputmode="numeric" min="0" max="360" value="' + esc(form.ageMonths) + '"></div>' +
-        '<div class="field"><label>Precio nuevo / referencia</label>' +
-          '<input id="fRef" type="number" inputmode="numeric" placeholder="Ej. 1200" value="' + esc(form.reference) + '"></div>' +
-      '</div>' +
-
-      '<div class="switch-row">' +
-        '<div class="txt"><strong>¿Conservas caja y accesorios?</strong><span>Suma valor si está completo</span></div>' +
-        '<button class="switch' + (form.complete ? ' on' : '') + '" data-act="toggle-complete" aria-label="Caja y accesorios"></button>' +
-      '</div>' +
-
-      '<div class="switch-row">' +
-        '<div class="txt"><strong>¿Tienes factura o garantía?</strong><span>Da confianza y suma valor</span></div>' +
-        '<button class="switch' + (form.hasReceipt ? ' on' : '') + '" data-act="toggle-receipt" aria-label="Factura"></button>' +
-      '</div>' +
-
-      '<div id="valuation" style="margin-top:12px">' + valuationPanel(value, { title: 'Valoración en vivo' }) + '</div>' +
-
-      '<div class="field"><label>Precio al que lo vendes</label>' +
+      '<div class="field"><label>Precio en pesos</label>' +
         '<input id="fAsk" type="number" inputmode="numeric" placeholder="Ej. 700" value="' + esc(form.asking) + '">' +
-        '<div class="help" id="askHelp">Si lo dejas vacío tomamos el valor estimado: <b>' + money(value.estimatedCents) + '</b>' +
-          ' <button class="btn sm" style="padding:2px 7px;font-size:10px;margin-left:6px" data-act="use-estimate">Usar valor</button></div>' +
-        '<div id="priceHint"></div>' +
-      '</div>' +
+        '<div class="help">El precio lo decides tú. Nadie más lo calcula.</div></div>' +
 
       '<div class="switch-row" style="margin-top:14px">' +
         '<div class="txt"><strong>Acepto trueque con match</strong>' +
-          '<span>' + (value.hasValue
-            ? 'Se abre chat sólo cuando haya interés de las dos partes'
-            : 'Primero valora el objeto para poder activar el trueque') + '</span></div>' +
-        '<button class="switch' + (form.barter ? ' on' : '') + (value.hasValue ? '' : ' disabled') +
-          '" data-act="toggle-barter" aria-label="Acepto trueque"' + (value.hasValue ? '' : ' disabled') + '></button>' +
+          '<span>Se abre chat sólo cuando haya interés de las dos partes</span></div>' +
+        '<button class="switch' + (form.barter ? ' on' : '') +
+          '" data-act="toggle-barter" aria-label="Acepto trueque"></button>' +
       '</div>' +
-      (value.hasValue && form.barter
-        ? '<div class="hint-line">Aceptarás trueques desde <b class="tabular">' + money(value.barterMinCents) +
-          '</b> de valor. Tú decides a quién decir que sí: marcar interés no compromete nada.</div>'
-        : '') +
 
       '<div class="actions-block">' +
         '<button class="btn primary block" data-act="publish">Publicar en el bazar</button>' +
@@ -1416,28 +1564,170 @@
 
   function howView() {
     return backButton('Bazar', 'feed') +
-      '<p class="kicker">Cómo funciona el trueque</p>' +
-      '<h1 style="font-size:21px;margin-top:4px">Interés privado, chat sólo con match</h1>' +
+      '<p class="kicker">Cómo funciona</p>' +
+      '<h1 style="font-size:21px;margin-top:4px">Tiendas con stock y trueque con match</h1>' +
       '<div class="panel" style="margin-top:12px">' +
         '<ol class="steps">' +
-          '<li><b>Publica</b> lo que ya no usas y marca si acepta trueque. Lo demás se vende normal.</li>' +
-          '<li><b>Marca «Me interesa»</b> en lo que sí quieres. Nadie recibe aviso: tu interés es privado.</li>' +
-          '<li><b>Match</b>: cuando la otra persona también marca algo tuyo, el sistema abre el chat y avisa a los dos con nombres y objetos.</li>' +
-          '<li><b>Valoración a la vista</b>: el chat muestra cuánto valen los dos objetos y si conviene compensar con efectivo.</li>' +
-          '<li><b>Cierra el trato</b> cuando tú quieras: acuerden punto de encuentro y marquen el intercambio.</li>' +
+          '<li><b>Tiendas oficiales</b>: arriba del bazar. Siempre tienen stock y catálogo propio; el banner abre la tienda.</li>' +
+          '<li><b>Catálogo</b>: verás si está actualizado. Si tiene días sin sincronizar, puede haber cambios de precio o falta de stock.</li>' +
+          '<li><b>Publica</b> lo que ya no usas y pon tú el precio. El bazar no valora objetos.</li>' +
+          '<li><b>Marca «Me interesa»</b> en lo que quieras. Nadie recibe aviso: es privado.</li>' +
+          '<li><b>Match</b>: cuando la otra persona también marca algo tuyo, se abre el chat y se comparte el contacto.</li>' +
+          '<li><b>Cierra el trato</b> cuando quieras: punto de encuentro y marcar el intercambio.</li>' +
         '</ol>' +
       '</div>' +
-      '<div class="note" style="margin-top:12px">Si nadie marcó algo tuyo, no hay chat ni aviso: así nadie truequea por ' +
-        'compromiso o por presión social. El contacto (nombre y teléfono) también aparece sólo con match.</div>' +
       '<div class="panel" style="margin-top:12px">' +
-        '<div class="panel-head"><h3>Ejemplo</h3></div>' +
-        '<p style="font-size:12px;color:var(--ink-soft);margin-top:6px">Marcas una blusa bordada y una conserva. ' +
-          'La dueña, a su vez, marcó tu bocina. Eso es match: se abre el chat con «le interesan 2 de tus objetos y tú 2 de los suyos». ' +
-          'Si ella no hubiera marcado nada tuyo, nunca se enteraría de tu interés.</p>' +
+        '<div class="panel-head"><h3>Reportes</h3></div>' +
+        '<p style="font-size:12px;color:var(--ink-soft);margin-top:6px">Cualquier artículo o usuario se puede reportar por ' +
+        'artículos prohibidos, precio engañoso, falta de stock, actitudes irrespetuosas, spam u otro motivo. ' +
+        'El reporte se guarda con fecha y se manda a revisión.</p>' +
       '</div>' +
       '<div class="actions-block">' +
         '<button class="btn primary block" data-act="tab" data-id="publish">Publicar mi primer objeto</button>' +
       '</div>';
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Vistas: tiendas oficiales y catálogo
+  // ---------------------------------------------------------------------------------------------
+
+  function storesView() {
+    var status = catalogStatus();
+    var body = storeList().map(function (store) {
+      var list = productsForStore(store.id);
+      var available = list.filter(function (product) { return localStock(product) > 0; }).length;
+      return '<button class="store-card" data-act="store" data-id="' + store.id + '">' +
+        '<span class="store-mark" style="background:' + store.accent + '">' + store.emoji + '</span>' +
+        '<span class="store-copy">' +
+          '<b>' + esc(store.name) + '</b>' +
+          '<small>' + esc(store.tagline) + '</small>' +
+          '<em>' + available + ' con stock · ' + esc(store.offer) + '</em>' +
+        '</span>' +
+        '<span class="go">›</span>' +
+      '</button>';
+    }).join('');
+
+    return '<p class="kicker">Organizaciones oficiales</p>' +
+      '<h1 class="title-md">Tiendas del campus</h1>' +
+      '<p class="lede">Venden aquí todo el año. La tienda fija sus productos destacados y el catálogo se ' +
+        'sincroniza solo; tú siempre ves si la información está al día.</p>' +
+      freshnessChip('block-chip') +
+      '<div class="cards">' + body + '</div>' +
+      '<div class="panel">' +
+        '<div class="panel-head"><h3>Catálogo y actividad</h3><span class="conf">v' + status.head + '</span></div>' +
+        '<p class="report-lede">Revisa cuándo cambió un precio, qué se agregó o se retiró, y si tu catálogo ' +
+          'está actualizado.</p>' +
+        '<button class="btn primary block" data-act="catalogo">Ver catálogo y actividad</button>' +
+      '</div>';
+  }
+
+  function storeView(id) {
+    var store = storeById(id);
+    var list = productsForStore(id);
+    var pinned = list.filter(function (product) { return store.pinned.indexOf(product.id) >= 0; });
+    var rest = list.filter(function (product) { return store.pinned.indexOf(product.id) < 0; });
+    var status = catalogStatus();
+
+    var pinnedBlock = pinned.length
+      ? '<div class="section-head"><h2>Fijados por la tienda</h2><span>Para impulsar la venta</span></div>' +
+        '<div class="product-list">' + pinned.map(function (product) { return productCard(product); }).join('') + '</div>'
+      : '';
+
+    return backButton('Tiendas', 'stores') +
+      storeBanner(store, { act: 'nothing' }) +
+      '<p class="store-lede">' + esc(store.tagline) + '. Desde ' + esc(store.since) + '.</p>' +
+      freshnessChip('block-chip') +
+      (status.stale
+        ? '<div class="note">Este catálogo no está actualizado: el stock y los precios pueden haber cambiado. ' +
+          'Actualízalo antes de comprar si algo te urge.</div>'
+        : '') +
+      pinnedBlock +
+      '<div class="section-head"><h2>Últimos agregados</h2><span>' + rest.length + '</span></div>' +
+      '<div class="product-list">' + (rest.length
+        ? rest.map(function (product) { return productCard(product); }).join('')
+        : '<div class="empty"><p>Esta tienda no tiene más productos por ahora.</p></div>') + '</div>';
+  }
+
+  function catalogoView() {
+    var status = catalogStatus();
+    var entries = catalogo.history();
+    var activity = catalogo.audit();
+
+    var versions = entries.slice().reverse().map(function (entry) {
+      return '<button class="version-row" data-act="version" data-id="' + entry.version + '">' +
+        '<span class="v-tag">v' + entry.version + '</span>' +
+        '<span class="v-copy">' +
+          '<b>' + (entry.kind === 'full' ? 'Catálogo completo' : 'Actualización') + '</b>' +
+          '<small>+' + entry.added + ' altas · −' + entry.removed + ' bajas · ' + entry.updated + ' cambios</small>' +
+        '</span>' +
+        '<span class="go">ver ›</span>' +
+      '</button>';
+    }).join('');
+
+    var auditList = activity.map(function (entry) {
+      var when = entry.at ? ago(entry.at) : 'sin fecha';
+      var changes = entry.changes.length
+        ? entry.changes.map(function (change) {
+            return '<li class="audit-' + change.type + '"><b>' + esc(change.title) + '</b><span>' +
+              esc(auditLabel(change)) + '</span></li>';
+          }).join('')
+        : '<li class="audit-empty"><span>Sin cambios de producto</span></li>';
+      return '<div class="audit-block">' +
+        '<div class="audit-head"><span class="v-tag">v' + entry.version + '</span>' +
+          '<span class="audit-when">' + esc(when) + '</span></div>' +
+        '<ul class="audit-list">' + changes + '</ul>' +
+      '</div>';
+    }).join('');
+
+    return backButton('Tiendas', 'stores') +
+      '<p class="kicker">Catálogo oficial</p>' +
+      '<h1 class="title-md">Catálogo y actividad</h1>' +
+      '<div class="panel ' + (status.stale ? 'panel-stale' : '') + '">' +
+        '<div class="panel-head"><h3>Estado</h3><span class="conf">v' + status.head + '</span></div>' +
+        '<div class="value-big">' + esc(status.label) + '</div>' +
+        '<div class="value-range">Última sincronización: ' + esc(ago(status.syncedAt)) +
+          ' · servidor: v' + status.remote + '</div>' +
+        (status.stale
+          ? '<div class="hint-line stale-line">Mientras no se actualice, un artículo puede estar agotado o ' +
+            'haber cambiado de precio. Confirma antes de comprar.</div>'
+          : '<div class="hint-line">El catálogo está al día: stock y precios corresponden a la última versión.</div>') +
+        '<button class="btn primary block" data-act="sync">' +
+          (status.pending ? 'Actualizar catálogo (sólo cambios)' : 'Revisar si hay cambios') + '</button>' +
+        (ui.syncResult ? '<div class="sync-result"><b>' +
+          (ui.syncResult.kind === 'delta' ? 'Actualizado v' + ui.syncResult.from + ' → v' + ui.syncResult.to :
+            (ui.syncResult.kind === 'current' ? 'Sin cambios' : 'Catálogo instalado')) + '</b>' +
+          '<span>+' + ui.syncResult.added + ' altas · −' + ui.syncResult.removed + ' bajas · ' +
+            ui.syncResult.updated + ' cambios</span>' +
+          '<span class="sync-note">' + ui.syncResult.items + ' fichas descargadas' +
+            (ui.syncResult.completeCatalogue ? ' (catálogo completo)' : ' (sólo lo que cambió)') + '.</span></div>' : '') +
+      '</div>' +
+
+      '<div class="section-head"><h2>Actividad del catálogo</h2><span>' + activity.length + '</span></div>' +
+      '<div class="audit">' + (auditList || '<div class="empty"><p>Sin actividad registrada.</p></div>') + '</div>' +
+      '<div class="note">Estos registros se guardan en el teléfono: qué producto cambió, de qué precio a cuál, ' +
+        'qué se retiró y cuándo. Sirven para reclamar un cobro o reportar un engaño.</div>' +
+
+      '<div class="section-head"><h2>Versiones guardadas</h2><span>' + entries.length + '</span></div>' +
+      '<div class="cards">' + versions + '</div>' +
+      '<p class="footer-note">El catálogo se descarga completo una sola vez; después sólo llegan los cambios.</p>';
+  }
+
+  function versionView(version) {
+    var number = Number(version);
+    var photo = catalogSnapshot(number);
+    if (!photo) return notFound('Esa versión no existe en memoria.');
+    var list = photo.products.slice().sort(function (a, b) {
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    return backButton('Catálogo', 'catalogo') +
+      '<p class="kicker">Vista histórica</p>' +
+      '<h1 class="title-md">Catálogo v' + number + '</h1>' +
+      '<p class="lede">Así estaba el catálogo cuando se publicó esta versión. El actual es v' +
+        catalogo.head() + '.</p>' +
+      '<div class="section-head"><h2>Productos</h2><span>' + list.length + '</span></div>' +
+      '<div class="cards">' + list.map(productRow).join('') + '</div>' +
+      '<p class="footer-note">Solo lectura. Para comprar vuelve a la tienda.</p>';
   }
 
   function notFound(message) {
@@ -1450,16 +1740,14 @@
   // Pintar
   // ---------------------------------------------------------------------------------------------
 
-  var lastRouteKey = '';
-
-  function routeKey(route) {
-    return route.name + ':' + (route.id || '');
-  }
-
   function render() {
     var route = ui.route;
     var html;
     if (route.name === 'feed') html = feedView();
+    else if (route.name === 'stores') html = storesView();
+    else if (route.name === 'store') html = storeView(route.id);
+    else if (route.name === 'catalogo') html = catalogoView();
+    else if (route.name === 'version') html = versionView(route.id);
     else if (route.name === 'item') html = itemView(route.id);
     else if (route.name === 'trades') html = tradesView();
     else if (route.name === 'match') html = matchView(route.id);
@@ -1471,7 +1759,7 @@
     var main = document.getElementById('main');
     main.innerHTML = html;
 
-    var key = routeKey(route);
+    var key = route.name + ':' + (route.id || '');
     if (key !== lastRouteKey) {
       lastRouteKey = key;
       window.scrollTo(0, 0);
@@ -1482,11 +1770,15 @@
     if (route.name === 'publish') wirePublish();
     if (route.name === 'match') wireChat();
     if (route.name === 'profile') wireProfile();
+    if (ui.report) wireReport();
   }
+
+  var lastRouteKey = '';
 
   function updateTabs() {
     var tabOf = {
       feed: 'feed', item: 'feed', how: 'feed',
+      stores: 'stores', store: 'stores', catalogo: 'stores', version: 'stores',
       trades: 'trades', match: 'trades',
       publish: 'publish',
       profile: 'me'
@@ -1495,8 +1787,7 @@
 
     var buttons = document.querySelectorAll('.tabbar button');
     for (var i = 0; i < buttons.length; i++) {
-      var id = buttons[i].getAttribute('data-id');
-      buttons[i].className = id === rootTab ? 'active' : '';
+      buttons[i].className = buttons[i].getAttribute('data-id') === rootTab ? 'active' : '';
     }
 
     var badge = document.getElementById('tradesBadge');
@@ -1534,80 +1825,13 @@
     });
   }
 
-  // ---------------------------------------------------------------------------------------------
-  // Formulario de publicación: sólo se repinta la valoración al escribir
-  // ---------------------------------------------------------------------------------------------
-
   function wirePublish() {
     var title = document.getElementById('fTitle');
     var desc = document.getElementById('fDesc');
-    var age = document.getElementById('fAge');
-    var reference = document.getElementById('fRef');
     var asking = document.getElementById('fAsk');
-
     if (title) title.addEventListener('input', function () { ui.form.title = title.value; });
     if (desc) desc.addEventListener('input', function () { ui.form.description = desc.value; });
-    if (age) age.addEventListener('input', function () { ui.form.ageMonths = Math.max(0, Number(age.value) || 0); refreshValuation(); });
-    if (reference) reference.addEventListener('input', function () { ui.form.reference = reference.value; refreshValuation(); });
-    if (asking) asking.addEventListener('input', function () { ui.form.asking = asking.value; refreshPriceHint(); });
-  }
-
-  function formValue() {
-    var form = ui.form;
-    return {
-      referenceCents: pesosToCents(form.reference),
-      category: form.category,
-      condition: form.condition,
-      ageMonths: form.ageMonths,
-      complete: form.complete,
-      hasReceipt: form.hasReceipt
-    };
-  }
-
-  function refreshValuation() {
-    var value = appraise(formValue());
-    var host = document.getElementById('valuation');
-    if (host) host.innerHTML = valuationPanel(value, { title: 'Valoración en vivo' });
-
-    var toggle = document.querySelector('[data-act="toggle-barter"]');
-    if (toggle) {
-      toggle.className = 'switch' + (ui.form.barter ? ' on' : '') + (value.hasValue ? '' : ' disabled');
-      if (value.hasValue) toggle.removeAttribute('disabled');
-      else toggle.setAttribute('disabled', 'disabled');
-    }
-
-    var hint = document.querySelector('[data-act="toggle-barter"]');
-    if (hint && hint.parentNode) {
-      var subtitle = hint.parentNode.querySelector('.txt span');
-      if (subtitle) {
-        subtitle.textContent = value.hasValue
-          ? 'Se abre chat sólo cuando haya interés de las dos partes'
-          : 'Primero valora el objeto para poder activar el trueque';
-      }
-    }
-
-    var help = document.getElementById('askHelp');
-    if (help) {
-      help.innerHTML = 'Si lo dejas vacío tomamos el valor estimado: <b>' + money(value.estimatedCents) + '</b> ' +
-        '<button class="btn sm" style="padding:2px 7px;font-size:10px;margin-left:6px" data-act="use-estimate">Usar valor</button>';
-    }
-
-    refreshPriceHint();
-  }
-
-  function refreshPriceHint() {
-    var host = document.getElementById('priceHint');
-    if (!host) return;
-    var value = appraise(formValue());
-    var ask = pesosToCents(ui.form.asking) || value.estimatedCents;
-    if (!value.hasValue) { host.innerHTML = ''; return; }
-    if (ask > value.highCents * 1.15) {
-      host.innerHTML = '<div class="tag-hint">Está por arriba del valor estimado: puede espantar compradores y trueques.</div>';
-    } else if (ask < value.lowCents * 0.7) {
-      host.innerHTML = '<div class="tag-hint">Está muy por debajo del valor: podrías pedir más o abrirlo a trueque.</div>';
-    } else {
-      host.innerHTML = '';
-    }
+    if (asking) asking.addEventListener('input', function () { ui.form.asking = asking.value; });
   }
 
   function wireChat() {
@@ -1629,14 +1853,20 @@
     if (town) town.addEventListener('input', function () { ui.profileTown = town.value; });
   }
 
+  function wireReport() {
+    var note = document.getElementById('reportNote');
+    if (note) note.addEventListener('input', function () { if (ui.report) ui.report.note = note.value; });
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Acciones
   // ---------------------------------------------------------------------------------------------
 
   function navigate(route) {
     if (ui.route) history.push(ui.route);
-    ui.confirmRetire = null;
     ui.route = route;
+    ui.report = null;
+    ui.confirmRetire = null;
     render();
   }
 
@@ -1653,16 +1883,21 @@
 
   function goTab(tab) {
     history.length = 0;
-    if (tab === 'feed') { ui.route = { name: 'feed' }; render(); }
-    else if (tab === 'trades') { ui.route = { name: 'trades' }; render(); }
-    else if (tab === 'publish') { ui.route = { name: 'publish' }; render(); }
-    else if (tab === 'me') { ui.editingProfile = false; ui.route = { name: 'profile', id: data.me }; render(); }
+    ui.report = null;
+    if (tab === 'feed') ui.route = { name: 'feed' };
+    else if (tab === 'stores') ui.route = { name: 'stores' };
+    else if (tab === 'trades') ui.route = { name: 'trades' };
+    else if (tab === 'publish') ui.route = { name: 'publish' };
+    else if (tab === 'me') { ui.editingProfile = false; ui.route = { name: 'profile', id: data.me }; }
+    render();
   }
 
-  /**
-   * Marca o retira el interés. Retirar antes del match es silencioso para la otra persona.
-   * Si el interés se vuelve mutuo, reconcileMatches() abre el chat y avisa en Avisos.
-   */
+  function myBarterables() {
+    return data.listings.filter(function (item) {
+      return item.ownerId === data.me && item.barter && item.status === 'DISPONIBLE';
+    });
+  }
+
   function toggleInterest(listingId) {
     var item = listing(listingId);
     if (!item) { flash('Ese objeto ya no está disponible'); return; }
@@ -1692,8 +1927,7 @@
     save();
     var created = reconcileMatches();
     if (created.length) {
-      var entry = created[0];
-      flash('¡Match con ' + entry.other.name + '! Ya pueden hablar');
+      flash('¡Match con ' + created[0].other.name + '! Ya pueden hablar');
       try { if (window.Nahua && Nahua.haptic) Nahua.haptic('confirm'); } catch (error) { /* sin host */ }
     } else {
       flash('Te interesa. Es privado: sólo se avisa si hay match.');
@@ -1755,8 +1989,9 @@
       fromUserId: 'system',
       kind: 'system',
       at: Date.now(),
-      text: 'Trato acordado: ' + pair.give.title + ' ⇄ ' + pair.get.title + ' en ' + meeting +
-        (item.cashCents > 0 ? ', con ' + money(item.cashCents) + ' de compensación' : '') + '.'
+      text: 'Trato acordado: ' + pair.give.title + ' (' + money(pair.give.askingCents) + ') ⇄ ' +
+        pair.get.title + ' (' + money(pair.get.askingCents) + ') en ' + meeting +
+        (item.cashCents > 0 ? ', con ' + money(item.cashCents) + ' en efectivo' : '') + '.'
     });
     save();
     announce('Trato acordado con ' + user(otherOf(item)).name,
@@ -1800,7 +2035,6 @@
     if (pair.give && pair.give.status === 'RESERVADO') pair.give.status = 'DISPONIBLE';
     if (pair.get && pair.get.status === 'RESERVADO') pair.get.status = 'DISPONIBLE';
 
-    // Retirar mi interés cierra el match pero deja el historial del chat intacto.
     var otherId = otherOf(item);
     data.interests = data.interests.filter(function (mark) {
       if (mark.fromUserId !== data.me) return true;
@@ -1823,9 +2057,7 @@
     var profile = user(userId);
     var phone = formatPhone(profile.phone);
     if (!phone) { flash('Ese perfil no tiene teléfono'); return; }
-    try {
-      if (window.Nahua && Nahua.copy) Nahua.copy(phone);
-    } catch (error) { /* sin portapapeles del host */ }
+    try { if (window.Nahua && Nahua.copy) Nahua.copy(phone); } catch (error) { /* sin portapapeles */ }
     flash('Teléfono copiado: ' + phone);
   }
 
@@ -1852,7 +2084,98 @@
     render();
   }
 
-  function buyListing(id) {
+  function openReport(type, id) {
+    ui.report = { type: type, id: id, reason: null, note: '' };
+    render();
+  }
+
+  function sendReport() {
+    var report = ui.report;
+    if (!report) return;
+    if (!report.reason) { flash('Elige el motivo del reporte'); return; }
+
+    var reason = REPORT_REASONS.filter(function (entry) { return entry.id === report.reason; })[0];
+    var targetTitle = '';
+    if (report.type === 'listing') {
+      var item = listing(report.id);
+      if (!item) { flash('Ese artículo ya no existe'); return; }
+      targetTitle = item.title;
+      item.reportedByMe = true;
+    } else {
+      targetTitle = user(report.id).name;
+    }
+
+    var entry = {
+      id: 'rep_' + Date.now().toString(36),
+      targetType: report.type,
+      targetId: report.id,
+      targetTitle: targetTitle,
+      reason: report.reason,
+      reasonLabel: reason ? reason.label : report.reason,
+      note: (report.note || '').trim().slice(0, 240),
+      at: Date.now(),
+      byUserId: data.me
+    };
+    data.reports.push(entry);
+    save();
+
+    // El reporte también va al servidor (dedupe de 24 h allá); si falla, queda el registro local.
+    if (serverAvailable() && typeof Nahua.catalogReport === 'function') {
+      Nahua.catalogReport({
+        reportId: entry.id,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+        targetTitle: entry.targetTitle,
+        reason: entry.reason,
+        reasonLabel: entry.reasonLabel,
+        note: entry.note,
+        reporter: { userId: me().id, phone: me().phone },
+        createdAt: entry.at
+      }).catch(function () { /* sin red: el reporte ya está guardado en el teléfono */ });
+    }
+
+    announce('Reporte registrado: ' + targetTitle,
+      (reason ? reason.label : 'Reporte') + '. Queda guardado con fecha y se manda a revisión.');
+    flash('Reporte enviado. Gracias por cuidar el bazar');
+    ui.report = null;
+    render();
+  }
+
+  /**
+   * Registra la compra en el servidor: allá se valida el precio y se descuenta el stock de forma
+   * atómica. La cartera es local, así que el pago ya ocurrió; si el servidor lo rechaza se avisa y
+   * se vuelve a pedir el catálogo para no seguir mostrando stock que ya no existe.
+   */
+  function registerOrder(product) {
+    if (!serverAvailable() || catalogo.origin() !== 'remote') return;
+    if (typeof Nahua.catalogOrder !== 'function') return;
+
+    var person = me();
+    Nahua.catalogOrder({
+      orderId: 'ord_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      storeId: product.storeId,
+      productId: product.id,
+      quantity: 1,
+      unitPriceCents: product.priceCents,
+      catalogVersion: catalogo.head(),
+      buyer: { userId: person.id, phone: person.phone }
+    }).then(function (response) {
+      if (response && response.status === 'ok') {
+        flash('Servidor: compra confirmada · quedan ' + response.stockLeft);
+        render();
+      }
+    }).catch(function (error) {
+      var code = (error && (error.code || error.message)) || '';
+      flash(code === 'out_of_stock'
+        ? 'El servidor dice que ya no hay stock: se actualiza el catálogo'
+        : (code === 'price_changed'
+          ? 'El servidor cambió el precio: se actualiza el catálogo'
+          : 'El servidor no confirmó la compra'));
+      pullCatalog().then(render);
+    });
+  }
+
+  function buyCommunity(id) {
     var item = listing(id);
     if (!item) return;
     if (!window.Nahua || typeof Nahua.pay !== 'function') {
@@ -1879,15 +2202,54 @@
     });
   }
 
+  function buyOfficial(id) {
+    var product = officialProduct(id);
+    if (!product) { flash('Ese producto ya no está en el catálogo'); return; }
+    var stock = localStock(product);
+    if (stock <= 0) { flash('Ese producto está agotado'); return; }
+
+    var status = catalogStatus();
+    if (status.stale && ui.confirmBuy !== id) {
+      ui.confirmBuy = id;
+      flash('Catálogo sin actualizar: revisa antes de pagar. Toca otra vez para confirmar');
+      render();
+      return;
+    }
+
+    if (!window.Nahua || typeof Nahua.pay !== 'function') {
+      flash('La compra necesita la app Nahua');
+      return;
+    }
+
+    var store = storeById(product.storeId);
+    ui.confirmBuy = null;
+    Nahua.pay({
+      amount: product.priceCents / 100,
+      concept: product.title,
+      merchant: store.name
+    }).then(function () {
+      purchases[product.id] = Number(purchases[product.id] || 0) + 1;
+      savePurchases();
+      flash('Pagaste ' + money(product.priceCents) + ' a ' + store.short + ' · stock ' + localStock(product));
+      render();
+      registerOrder(product);
+    }).catch(function (error) {
+      var messages = {
+        insufficient_funds: 'Saldo insuficiente. Recarga tu cartera.',
+        cancelled: 'Pago cancelado.',
+        invalid_amount: 'Monto inválido.'
+      };
+      flash((error && messages[error.error]) || 'No pudimos completar el pago.');
+    });
+  }
+
   function publishListing() {
     var form = ui.form;
     var title = (form.title || '').trim();
     if (title.length < 4) { flash('Ponle un nombre de al menos 4 letras a tu objeto'); return; }
+    var asking = pesosToCents(form.asking);
+    if (asking <= 0) { flash('Escribe el precio que pides por tu objeto'); return; }
 
-    var value = appraise(formValue());
-    if (!value.hasValue) { flash('Necesitamos el precio nuevo o de referencia para valorar el objeto'); return; }
-
-    var asking = pesosToCents(form.asking) || value.estimatedCents;
     var item = {
       id: 'L_' + Date.now().toString(36),
       ownerId: data.me,
@@ -1896,12 +2258,8 @@
       emoji: form.emoji,
       category: form.category,
       condition: form.condition,
-      ageMonths: Math.max(0, Math.round(form.ageMonths || 0)),
-      referenceCents: pesosToCents(form.reference),
       askingCents: asking,
-      barter: !!form.barter && value.hasValue,
-      complete: !!form.complete,
-      hasReceipt: !!form.hasReceipt,
+      barter: !!form.barter,
       status: 'DISPONIBLE',
       createdAt: Date.now()
     };
@@ -1927,19 +2285,48 @@
     render();
   }
 
-  // ---------------------------------------------------------------------------------------------
-  // Eventos
-  // ---------------------------------------------------------------------------------------------
+  function runSync() {
+    if (!serverAvailable()) {
+      var local = catalogo.sync();
+      ui.syncResult = local;
+      flash(local.kind === 'delta'
+        ? 'Sin servidor: catálogo de demostración v' + local.from + ' → v' + local.to
+        : 'Sin servidor: ya tienes el catálogo de demostración');
+      render();
+      return;
+    }
+
+    flash('Consultando ' + SERVER_BASE.replace('https://', '') + '…');
+    pullCatalog().then(function (result) {
+      ui.syncResult = result;
+      if (!result) {
+        flash('No pudimos conectar con el servidor');
+      } else if (result.kind === 'delta') {
+        flash('Catálogo v' + result.from + ' → v' + result.to + ': ' + result.items + ' fichas');
+      } else if (result.kind === 'current') {
+        flash('Catálogo al día · v' + result.to);
+      } else {
+        flash('Catálogo del servidor instalado · v' + result.to);
+      }
+      render();
+    });
+  }
 
   function onAction(action, id) {
     if (action === 'tab') return goTab(id);
     if (action === 'back') {
       if (id === 'trades') return goBack({ name: 'trades' });
+      if (id === 'stores') return goBack({ name: 'stores' });
+      if (id === 'catalogo') return goBack({ name: 'catalogo' });
       if (id === 'item') return goBack({ name: 'item', id: ui.route.id });
       return goBack({ name: 'feed' });
     }
     if (action === 'open') return navigate({ name: 'item', id: id });
     if (action === 'profile') return navigate({ name: 'profile', id: id });
+    if (action === 'store') return navigate({ name: 'store', id: id });
+    if (action === 'catalogo') return navigate({ name: 'catalogo' });
+    if (action === 'version') return navigate({ name: 'version', id: id });
+    if (action === 'sync') return runSync();
     if (action === 'interest') return toggleInterest(id);
     if (action === 'open-match') return openMatchWith(id);
     if (action === 'match') return openMatch(id);
@@ -1950,7 +2337,17 @@
     if (action === 'complete') return completeTrade(id);
     if (action === 'archive') return archiveTrade(id);
     if (action === 'copy-phone') return copyPhone(id);
-    if (action === 'buy') return buyListing(id);
+    if (action === 'buy') return buyCommunity(id);
+    if (action === 'buy-official') return buyOfficial(id);
+    if (action === 'report-open') return openReport('listing', id);
+    if (action === 'report-user') return openReport('user', id);
+    if (action === 'report-reason') {
+      if (ui.report) ui.report.reason = id;
+      render();
+      return;
+    }
+    if (action === 'report-send') return sendReport();
+    if (action === 'report-cancel') { ui.report = null; render(); return; }
     if (action === 'filter') { ui.filter = id; render(); return; }
     if (action === 'trades-tab') { ui.tradesTab = id; render(); return; }
     if (action === 'how') return navigate({ name: 'how' });
@@ -1967,47 +2364,19 @@
       return;
     }
     if (action === 'save-profile') return saveProfile();
-    if (action === 'retire') {
-      ui.confirmRetire = id;
-      render();
-      return;
-    }
-    if (action === 'retire-confirm') {
-      ui.confirmRetire = null;
-      return retireListing(id);
-    }
-    if (action === 'retire-cancel') {
-      ui.confirmRetire = null;
-      render();
-      return;
-    }
+    if (action === 'retire') { ui.confirmRetire = id; render(); return; }
+    if (action === 'retire-confirm') { ui.confirmRetire = null; return retireListing(id); }
+    if (action === 'retire-cancel') { ui.confirmRetire = null; render(); return; }
     if (action === 'set-emoji') { ui.form.emoji = id; render(); return; }
     if (action === 'set-cat') {
       ui.form.category = id;
-      var category = categoryById(id);
-      ui.form.emoji = category.emoji;
+      ui.form.emoji = categoryById(id).emoji;
       render();
       return;
     }
     if (action === 'set-cond') { ui.form.condition = id; render(); return; }
-    if (action === 'toggle-complete') { ui.form.complete = !ui.form.complete; render(); return; }
-    if (action === 'toggle-receipt') { ui.form.hasReceipt = !ui.form.hasReceipt; render(); return; }
-    if (action === 'toggle-barter') {
-      var value = appraise(formValue());
-      if (!value.hasValue) { flash('Primero valora el objeto para activar el trueque'); return; }
-      ui.form.barter = !ui.form.barter;
-      render();
-      return;
-    }
-    if (action === 'use-estimate') {
-      var estimated = appraise(formValue());
-      ui.form.asking = String(centsToPesos(estimated.estimatedCents));
-      render();
-      return;
-    }
-    if (action === 'close') {
-      if (window.Nahua && Nahua.close) Nahua.close();
-    }
+    if (action === 'toggle-barter') { ui.form.barter = !ui.form.barter; render(); return; }
+    if (action === 'close') { if (window.Nahua && Nahua.close) Nahua.close(); }
   }
 
   document.addEventListener('click', function (event) {
@@ -2024,7 +2393,6 @@
     }
   });
 
-  // Bloquea el zoom con doble toque de los botones y evita el "ghost click" de la barra inferior.
   document.addEventListener('gesturestart', function (event) { event.preventDefault(); });
 
   // ---------------------------------------------------------------------------------------------
@@ -2048,12 +2416,24 @@
 
     reconcileMatches();
     render();
+    // El catálogo real vive en el servidor del teléfono: se pide al abrir, sin bloquear la UI.
+    pullCatalog().then(function (result) {
+      if (result) render();
+    });
   }
 
-  // Expuesto a propósito: el candado de pruebas del bundle verifica la regla del match.
+  // Expuesto a propósito: el candado de pruebas del bundle verifica las reglas.
   window.Bazar = {
     rule: 'chat-only-on-mutual-interest',
     data: function () { return data; },
+    catalogo: catalogo,
+    source: SOURCE,
+    stores: function () { return storeList(); },
+    pullCatalog: pullCatalog,
+    server: function () { return { state: ui.server, base: SERVER_BASE, available: serverAvailable() }; },
+    catalogStatus: catalogStatus,
+    audit: function () { return catalogo.audit(); },
+    localStock: localStock,
     mutual: function (otherId) { return isMutual(otherId); },
     pending: function () { return pendingCount(); },
     formatPhone: formatPhone

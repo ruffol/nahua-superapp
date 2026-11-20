@@ -102,14 +102,14 @@ MiniAppScreen ──► MiniAppWebView ──► MiniAppAssetLoader ─┘
 - **Offline por diseño**: todo request `http(s)` a otro host se responde con un 404 vacío en
   `shouldInterceptRequest`. EmulatorJS trae un *failsafe* que cae a `cdn.emulatorjs.org` si falta
   un archivo del núcleo; con el bloqueo no hay tráfico real ni timeouts, el error es inmediato.
-- **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`, `haptic`, más `valuate`,
-  `compareBarter` y `announceBarter` para el bazar, y `pickRom`/`listRoms`/`deleteRom`
-  para el emulador.
+- **Puente mínimo**: `getSession`, `pay`, `toast`, `close`, `log`, `haptic`, `announceBarter` y
+  el catálogo de las tiendas (`catalogHead`/`catalogFull`/`catalogDelta`/`catalogOrder`/
+  `catalogReport`), más `pickRom`/`listRoms`/`deleteRom` para el emulador.
 - **Confirmación obligatoria**: ningún pago se ejecuta desde JS; siempre pasa por una hoja de
   confirmación en Compose y por `WalletRepository`.
 - **Resultado asíncrono**: el puente responde con `window.Nahua._resolve(id, payload)`, que resuelve
-  o rechaza el `Promise` del SDK. `valuate` y `compareBarter` son la excepción: devuelven JSON de
-  forma síncrona porque el formulario de publicación recalcula al escribir.
+  o rechaza el `Promise` del SDK. El catálogo usa el mismo canal: la petición HTTP corre en un hilo
+  propio (`CatalogApi`) y el resultado se entrega al volver al hilo principal.
 - **Ciclo de vida**: `ON_PAUSE`/`ON_RESUME` pausan el WebView (`onPause` + `pauseTimers`), así el
   audio del emulador no sigue sonando en segundo plano. Si el proceso de render muere, la app
   sobrevive (`onRenderProcessGone` → `true`) y el WebView se recrea (`recreateSignal`).
@@ -125,47 +125,41 @@ MiniAppScreen ──► MiniAppWebView ──► MiniAppAssetLoader ─┘
 
 Más detalle en [MINIAPP_SDK.md](MINIAPP_SDK.md).
 
-## Bazar/Trueque
+## Bazar/Trueque y tiendas oficiales
 
-El bazar no es una pantalla nativa: es una mini-app (§assets/miniapps/bazar/§) porque publica contenido,
-pero su dominio vive en Kotlin puro para que el precio no dependa del cliente.
+El bazar no es una pantalla nativa: es una mini-app (`assets/miniapps/bazar/`). Dentro viven dos
+cosas: las **organizaciones oficiales** con catálogo y stock, y el **bazar de la comunidad**.
 
-- §core/model/Barter.kt§: §BarterInput§, §ItemValuation§, §TradeBalance§ y §BarterValuator§. Sin
-  dependencias de Android y con tests propios (§BarterValuatorTest§).
-- **Valoración**: §referencia × reventa(categoría) × demanda × estado × uso × accesorios × factura§,
-  con piso por categoría y tope del 92 % del precio nuevo; se redondea a $5 y nunca baja de $20.
-  Devuelve rango, confianza y el desglose en porcentajes para que el número se pueda explicar.
-- **Comparación**: ±12 % se considera parejo; fuera de esa banda sugiere compensación en efectivo
-  redondeada a $50.
-- **Puente**: §valuate§ y §compareBarter§ devuelven JSON síncrono (el formulario recalcula al
-  escribir) y §announceBarter§ entra a §InboxRepository§ como §NoticeKind.MARKET§, así que sube el
-  contador del inicio sin que la mini-app toque la UI nativa.
-- **Regla del match**: el bundle modela §interests§ (marca de una persona por un objeto) y §matches§
-  (chat + estado del trato). Un chat sólo existe si §wantedFromMe(other)§ y §wantedByMe(other)§ tienen
-  al menos un objeto: el interés recibido se resume en conteos anónimos y el aviso con nombres se
-  emite únicamente al crear el match. Retirar una marca unilateral no avisa a nadie.
-- **Contacto**: nombre + teléfono de 10 dígitos (§formatPhone§), visible sólo dentro de un match;
-  nunca un `@usuario`.
-- **Persistencia**: publicaciones, marcas de interés, matches y mensajes viven en §localStorage§ del
-  WebView (§nahua.bazar.v3§). El día que exista backend se sustituye esa capa y el resto del bundle no
-  cambia.
-
-## Mercado
-
-Landing de tiendas oficiales (§assets/miniapps/mercado/§). A diferencia del bazar —contenido de la
-comunidad—, aquí el catálogo lo publican las tiendas y se sincroniza con versiones.
-
-- **Portada**: un banner por tienda (arte CSS con sus últimos productos y su oferta) que abre la
-  tienda; debajo, los últimos productos de todo el mercado.
-- **Tienda**: primero los productos que la tienda fijó (§pinned§) para impulsar la venta, después los
-  últimos agregados (§createdAt§ descendente).
-- **Catálogo versionado** (§catalogo.js§): guarda la foto completa una sola vez y aplica parches con
-  altas, bajas y cambios; §snapshot(version)§ reconstruye cualquier versión anterior desde la foto
-  base y los parches, así que lo retirado sigue consultable. §sync()§ devuelve §completeCatalogue:
-  false§ cuando sólo bajó deltas. Contrato HTTP y modelo en [MERCADO_API.md](MERCADO_API.md) y prueba
-  con §node scripts/test-mercado-catalogo.js§.
-- El §source§ del catálogo está aislado de la UI: hoy sirve los parches del bundle (offline), mañana un
-  §fetch§ a los endpoints documentados.
+- **Sin valoración automática**: el precio lo pone quien publica. Se retiró `BarterValuator` (y su
+  puente `valuate`/`compareBarter`) porque el número inventado por la app generaba desconfianza. El
+  SDK sube a `v1.6` sin esos métodos.
+- **Portada**: los banners de las tiendas oficiales, sin bloque de texto previo. Cada banner abre la
+  tienda; el chip de frescura dice si el catálogo está al día o sin actualizar.
+- **Tienda**: primero los productos que la tienda fijó (`pinned`) para impulsar la venta, después los
+  últimos agregados (`createdAt` descendente), con stock visible y «Agotado» cuando llega a 0.
+- **Catálogo versionado** (`catalogo.js`): foto completa una sola vez y parches con altas, bajas,
+  precios y stock; `snapshot(version)` reconstruye cualquier versión anterior, así que lo retirado
+  sigue consultable. `audit()` compara las fotos reconstruidas y devuelve la actividad con valor
+  anterior y nuevo. `applyRemote()` aplica el delta del servidor sin volver a pedir la foto.
+- **Red en el anfitrión**: la WebView responde 404 a cualquier request externo, así que el catálogo
+  llega por el puente (`Nahua.catalogHead/Full/Delta`) y `CatalogApi` hace el HTTP en un hilo propio
+  contra `https://tienda.tlalchichi.xyz`. Sin `NahuaNative` (navegador) el bazar cae al catálogo de
+  demostración del bundle y lo dice.
+- **Frescura**: `syncedAt()` + la vigencia que declara `/head` (`validUntil`) deciden el estado del
+  chip: al día, con cambios, sin actualizar o sin conexión. En los tres últimos la compra pide una
+  segunda confirmación.
+- **Órdenes**: al pagar se confirma en `/v1/orders` con el `catalogVersion` que vio el usuario; si el
+  servidor responde `price_changed` u `out_of_stock` se avisa y se vuelve a pedir el catálogo.
+- **Reportes**: artículo o usuario con motivo y nota; se guardan en `data.reports` con fecha, se
+  anuncian en la bandeja (`announceBarter`) como `NoticeKind.MARKET` y se envían a `/v1/reports`
+  cuando hay servidor.
+- **Regla del match**: `interests` + `matches`; un chat sólo existe si `wantedFromMe(other)` y
+  `wantedByMe(other)` tienen al menos un objeto. El interés recibido se resume en conteos anónimos y
+  el aviso con nombres se emite únicamente al crear el match.
+- **Contacto**: nombre + teléfono de 10 dígitos (`formatPhone`), visible sólo dentro de un match.
+- **Persistencia**: comunidad en `nahua.bazar.v4` y catálogo en `nahua.bazar.catalogo.v1`, ambos en
+  `localStorage` del WebView. Contrato en [CATALOGO_API.md](CATALOGO_API.md) y prueba con
+  `node scripts/test-bazar-catalogo.js`.
 
 ## Decisiones y alternativas
 
@@ -194,5 +188,6 @@ comunidad—, aquí el catálogo lo publican las tiendas y se sincroniza con ver
 - `MoneyTest`: formato MXN sin depender del locale del dispositivo.
 - `ServiceCatalogTest`: ids únicos y que cada mini-app tenga su bundle en assets.
 - `FormattersTest`: etiquetas relativas deterministas.
-- `BarterValuatorTest`: calibración de la valoración, pisos y topes, y veredictos del trueque.
+- `BazarCatalogoTest` (node): `scripts/test-bazar-catalogo.js` valida el delta, las versiones
+  históricas, la actividad y la foto real del servidor.
 - `InboxRepositoryTest`: los avisos del bazar entran sin leer, con id propio.

@@ -5,7 +5,6 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.JavascriptInterface
 import com.nahuanotoca.superapp.core.location.LocationFix
-import com.nahuanotoca.superapp.core.model.BarterValuator
 import org.json.JSONObject
 
 data class PayRequest(
@@ -40,6 +39,7 @@ class MiniAppBridge(
     private val onPayRequest: (PayRequest) -> Unit,
     private val onClose: () -> Unit,
     private val onToast: (String) -> Unit,
+    private val catalog: CatalogApi = CatalogApi(),
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -180,36 +180,15 @@ class MiniAppBridge(
     }
 
     /**
-     * Valora un objeto del bazar. Es síncrona a propósito: el formulario de publicación recalcula
-     * el valor en cada tecla. La aritmética vive en Kotlin ([BarterValuator]), no en la página.
+     * Deja un aviso en Avisos: la notificación de que a alguien le interesa un trueque.
      */
-    @JavascriptInterface
-    fun valuate(payloadJson: String): String {
-        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
-            ?: return BarterCodec.errorJson("invalid_payload").toString()
-        return BarterCodec.valuationJson(
-            BarterValuator.valuate(BarterCodec.input(payload)),
-        ).toString()
-    }
-
-    /** ¿Me conviene el trueque? Compara mi objeto contra el que me ofrecen. */
-    @JavascriptInterface
-    fun compareBarter(payloadJson: String): String {
-        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
-            ?: return BarterCodec.errorJson("invalid_payload").toString()
-        val mine = BarterValuator.valuate(BarterCodec.input(payload.optJSONObject("mine")))
-        val theirs = BarterValuator.valuate(BarterCodec.input(payload.optJSONObject("theirs")))
-        return BarterCodec.balanceJson(BarterValuator.compare(mine, theirs)).toString()
-    }
-
-    /** Deja un aviso en Avisos: la notificación de que a alguien le interesa un trueque. */
     @JavascriptInterface
     fun announceBarter(payloadJson: String, requestId: String) {
         val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
         val title = payload?.optString("title").orEmpty().trim().take(90)
         val body = payload?.optString("body").orEmpty().trim().take(240)
         if (payload == null || title.isEmpty() || body.isEmpty()) {
-            deliver(requestId, BarterCodec.errorJson("invalid_payload"))
+            deliver(requestId, JSONObject().put("status", "error").put("error", "invalid_payload"))
             return
         }
         mainHandler.post { onBarterNotice(BarterNotice(title = title, body = body)) }
@@ -318,6 +297,55 @@ class MiniAppBridge(
         fix.altitudeMeters?.let { result.put("altitude", it) }
         fix.provider?.let { result.put("provider", it) }
         return result
+    }
+
+    // --- Catálogo de las tiendas (la red vive en el host) ------------------------------------
+
+    @JavascriptInterface
+    fun catalogHead(payloadJson: String, requestId: String) = fetchCatalog(requestId) { catalog.head() }
+
+    @JavascriptInterface
+    fun catalogFull(payloadJson: String, requestId: String) = fetchCatalog(requestId) { catalog.full() }
+
+    @JavascriptInterface
+    fun catalogDelta(payloadJson: String, requestId: String) {
+        val since = runCatching { JSONObject(payloadJson).optLong("since", 0L) }.getOrDefault(0L)
+        fetchCatalog(requestId) { catalog.delta(since) }
+    }
+
+    @JavascriptInterface
+    fun catalogOrder(payloadJson: String, requestId: String) = postCatalog(payloadJson, requestId) {
+        catalog.order(it)
+    }
+
+    @JavascriptInterface
+    fun catalogReport(payloadJson: String, requestId: String) = postCatalog(payloadJson, requestId) {
+        catalog.report(it)
+    }
+
+    private fun postCatalog(payloadJson: String, requestId: String, call: (JSONObject) -> JSONObject) {
+        val payload = runCatching { JSONObject(payloadJson) }.getOrNull()
+        if (payload == null) {
+            deliver(requestId, JSONObject().put("status", "error").put("error", "invalid_payload"))
+            return
+        }
+        fetchCatalog(requestId) { call(payload) }
+    }
+
+    /** Fuera del hilo de la UI: la página espera la promesa y el resultado llega cuando exista. */
+    private fun fetchCatalog(requestId: String, call: () -> JSONObject) {
+        Thread {
+            val result = runCatching { call() }.getOrElse { error ->
+                JSONObject()
+                    .put("status", "error")
+                    .put("error", "offline")
+                    .put("message", error.message ?: "sin conexión")
+            }
+            mainHandler.post { deliver(requestId, result) }
+        }.apply {
+            name = "nahua-catalog"
+            isDaemon = true
+        }.start()
     }
 
     private fun emit(event: String, payload: JSONObject) {

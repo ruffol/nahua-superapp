@@ -51,20 +51,11 @@
     {
       "id": "bazar",
       "name": "Bazar/Trueque",
-      "tagline": "Compra, vende y truequea en tu colonia",
-      "version": "3.0.0",
+      "tagline": "Tiendas oficiales, trueque y comunidad",
+      "version": "4.0.0",
       "entry": "miniapps/bazar/index.html",
       "accent": "#C94F74",
       "permissions": ["wallet.pay", "user.profile", "storage.local", "inbox.notify"]
-    },
-    {
-      "id": "mercado",
-      "name": "Mercado",
-      "tagline": "Tiendas oficiales del campus",
-      "version": "1.0.0",
-      "entry": "miniapps/mercado/index.html",
-      "accent": "#2F6B4F",
-      "permissions": ["wallet.pay", "user.profile", "storage.local"]
     }
   ]
 }

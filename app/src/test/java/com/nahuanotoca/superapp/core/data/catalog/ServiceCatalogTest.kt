@@ -61,53 +61,59 @@ class ServiceCatalogTest {
     @Test
     fun remainingMiniAppsStayDeclared() {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
-        listOf("ride", "bills", "mapa", "yolcatl", "bazar", "gba", "mercado").forEach { id ->
+        listOf("ride", "bills", "mapa", "yolcatl", "bazar", "gba").forEach { id ->
             assertTrue("Falta la mini-app " + id, manifest.contains("\"" + id + "\""))
         }
+        assertFalse("El mercado suelto sigue en el manifiesto", manifest.contains("\"mercado\""))
     }
 
     /**
-     * Candado del Mercado: la portada es un landing con banners de tiendas oficiales, la tienda
-     * ordena primero lo que ella fijó y el catálogo viaja por deltas (nunca completo otra vez),
-     * conservando las versiones viejas en memoria.
+     * Candado de la integración: las tiendas oficiales viven DENTRO del bazar, con banner en la
+     * portada, stock, catálogo versionado, aviso de frescura, actividad para auditar y reportes.
+     * También fija la retirada de la valoración automática: el precio lo pone quien publica.
      */
     @Test
-    fun mercadoShipsBannersPinnedProductsAndDeltaCatalogue() {
-        val mercado = ServiceCatalog.find("mercado")
-        assertNotNull("Falta el servicio mercado", mercado)
-        assertEquals(ServiceCategory.MARKET, mercado!!.category)
-        assertEquals(ServiceTarget.MiniApp("mercado"), mercado.target)
+    fun bazarIntegratesOfficialStoresAndHasNoAutomaticValuation() {
+        val bazar = ServiceCatalog.find("bazar")
+        assertNotNull("Falta el servicio bazar", bazar)
+        assertEquals(ServiceCategory.MARKET, bazar!!.category)
+        assertNull("El mercado sigue como mini-app aparte", ServiceCatalog.find("mercado"))
+        assertFalse("El bundle del mercado sigue en assets", File("src/main/assets/miniapps/mercado").exists())
 
-        val root = File("src/main/assets/miniapps/mercado")
-        listOf("index.html", "mercado.js", "mercado.css", "catalogo.js").forEach { name ->
-            assertTrue("Falta " + name + " en el bundle del Mercado", File(root, name).isFile)
+        val root = File("src/main/assets/miniapps/bazar")
+        listOf("index.html", "bazar.js", "bazar.css", "catalogo.js").forEach { name ->
+            assertTrue("Falta " + name + " en el bundle del bazar", File(root, name).isFile)
         }
 
-        val js = File(root, "mercado.js").readText()
-        assertTrue("La portada perdió el banner de tiendas", js.contains("store-banner"))
-        assertTrue("El banner no es tocable", js.contains("data-act=\"store\""))
+        val js = File(root, "bazar.js").readText()
+        assertTrue("La portada perdió los banners de tiendas", js.contains("class=\"banner-rail\""))
+        assertTrue("Los banners no abren la tienda", js.contains("data-act=\"store\""))
         assertTrue("La tienda no ordena por fijados", js.contains("pinned.indexOf"))
-        assertTrue("La tienda no muestra los últimos agregados", js.contains("Últimos agregados"))
-        assertTrue("La portada no lista lo recién llegado", js.contains("Recién llegado"))
+        assertTrue("Falta el estado del catálogo", js.contains("function catalogStatus"))
+        assertTrue("El catálogo no expone actividad", js.contains("catalogo.audit()"))
+        assertTrue("Falta el stock", js.contains("function localStock"))
+        assertTrue("Faltan los motivos de reporte", js.contains("REPORT_REASONS"))
+        assertTrue("Falta el botón de reportar artículo", js.contains("data-act=\"report-open\""))
+        assertTrue("Falta el botón de reportar usuario", js.contains("data-act=\"report-user\""))
+
+        assertFalse("Volvió la valoración automática", js.contains("Nahua.valuate"))
+        assertFalse("Volvió el valor estimado", js.contains("valor estimado"))
+        assertFalse("Volvió el panel de valoración", js.contains("valuationPanel"))
+        assertFalse("Volvió el mínimo de trueque", js.contains("barterMinCents"))
 
         val catalogo = File(root, "catalogo.js").readText()
-        assertTrue("El catálogo no expone parches", catalogo.contains("applyDelta"))
-        assertTrue("El catálogo no sabe reconstruir versiones", catalogo.contains("function snapshot"))
-        assertTrue("El catálogo no guarda historial", catalogo.contains("function history"))
-        assertTrue("El catálogo no persiste en memoria", catalogo.contains("nahua.mercado.catalogo")
-            || catalogo.contains("settings.key"))
-
-        assertTrue("Falta el contrato de la API", File("../docs/MERCADO_API.md").isFile)
+        assertTrue("El catálogo no aplica parches", catalogo.contains("applyDelta"))
+        assertTrue("El catálogo no reconstruye versiones", catalogo.contains("function snapshot"))
+        assertTrue("El catálogo no registra actividad", catalogo.contains("function audit"))
+        assertTrue("El catálogo no guarda la fecha de sincronización", catalogo.contains("function syncedAt"))
     }
 
     /**
-     * Candado del trueque con match: el chat y el contacto sólo existen con interés mutuo. Si
-     * alguien vuelve a la propuesta unilateral («Truquear» sin reciprocidad) este test falla.
+     * Candado del trueque con match: el chat y el contacto sólo existen con interés mutuo.
      */
     @Test
     fun bazarOnlyOpensTradeChatOnMutualInterest() {
-        val root = File("src/main/assets/miniapps/bazar")
-        val js = File(root, "bazar.js").readText()
+        val js = File("src/main/assets/miniapps/bazar/bazar.js").readText()
 
         assertTrue("Falta la marca de interés", js.contains("function toggleInterest"))
         assertTrue("Falta la regla de reciprocidad", js.contains("function isMutual"))
@@ -117,12 +123,7 @@ class ServiceCatalogTest {
         assertTrue("El interés recibido debe ser anónimo", js.contains("receivedInterestStats"))
         assertTrue("Falta el teléfono como contacto", js.contains("function formatPhone"))
         assertTrue("El perfil volvió al @usuario", !js.contains("handle:"))
-        assertTrue("La versión de datos no subió", js.contains("nahua.bazar.v3"))
-
-        val barter = File("src/main/java/com/nahuanotoca/superapp/core/model/Barter.kt").readText()
-        listOf("TEXTILES", "CRAFTS", "FOOD", "PLANTS", "ART", "SCHOOL").forEach { category ->
-            assertTrue("Falta la categoría " + category + " para productos locales", barter.contains(category + "("))
-        }
+        assertTrue("La versión de datos no subió", js.contains("nahua.bazar.v4"))
     }
 
     /**

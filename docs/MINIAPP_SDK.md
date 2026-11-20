@@ -1,10 +1,10 @@
-# Nahua Mini App SDK (v1.4)
+# Nahua Mini App SDK (v1.6)
 
 Una mini app es un bundle web (HTML/CSS/JS) que vive en `app/src/main/assets/miniapps/<id>/` y se
 declara en `app/src/main/assets/miniapps/index.json`. La app anfitriona la carga en un WebView
-aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, valoración de
-objetos, avisos a la bandeja nativa, háptica, navegación y, desde la v1.3, la gestión de ROMs del
-emulador.
+aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, catálogo de las
+tiendas (HTTP en el anfitrión), avisos a la bandeja nativa, háptica, navegación y, desde la v1.3, la
+gestión de ROMs del emulador.
 
 ## Manifiesto
 
@@ -49,45 +49,32 @@ const user = Nahua.user();
 // { name, handle, phone, tier, memberSince, initials }
 ```
 
-### `Nahua.valuate(item)`
+### `Nahua.catalogHead()` · `catalogFull()` · `catalogDelta(since)`
 
-Valora un objeto del bazar. Devuelve el valor estimado, el rango, la confianza y el desglose del
-cálculo. Es **síncrona** a propósito: el formulario de publicación recalcula en cada tecla. La
-aritmética vive en el anfitrión (`BarterValuator` en Kotlin), no en la página.
-
-```js
-const valor = Nahua.valuate({
-  referenceCents: 650000,   // lo que cuesta nuevo, en centavos
-  category: 'BIKES',        // PHONES, COMPUTERS, TOOLS, FURNITURE, …
-  condition: 'GOOD',        // NEW, LIKE_NEW, GOOD, WORN, FOR_PARTS
-  ageMonths: 36,
-  complete: true,           // ¿conserva caja y accesorios?
-  hasReceipt: false
-});
-// { estimatedCents: 242500, lowCents: 213500, highCents: 271500,
-//   barterMinCents: 206000, confidence: 'alta',
-//   factors: [{ label: 'Reventa de bicis', percent: -42, tone: 'negative' }, …] }
-```
-
-Devuelve `null` cuando la página corre fuera de la app; la mini app usa entonces su estimación local
-(`bazar.js`) y sigue funcionando en el navegador.
-
-### `Nahua.compare(mine, theirs)`
-
-Compara el objeto que das con el que recibes y decide si el trueque conviene.
+Catálogo de las tiendas oficiales. **La red la hace el anfitrión**: la WebView responde 404 a
+cualquier petición externa, así que estos métodos son la única vía y el servidor nunca lo alcanza
+la página directamente.
 
 ```js
-const balance = Nahua.compare(
-  { referenceCents: 190000, category: 'SPORTS', condition: 'LIKE_NEW', ageMonths: 8 },
-  { referenceCents: 650000, category: 'BIKES', condition: 'GOOD', ageMonths: 36 }
-);
-// { verdict: 'favorable', verdictLabel: 'A tu favor', deltaCents: 139000,
-//   ratioPercent: 134, cashTopUpCents: 0,
-//   message: 'Recibes $1,390.00 más de valor (134 %). Te conviene truequear.' }
+const head = await Nahua.catalogHead();      // { version: 12, validUntil, serverTime }
+const full = await Nahua.catalogFull();      // { version, stores, products }
+const delta = await Nahua.catalogDelta(11);  // { to: 12, patches: [...] }
 ```
 
-`verdict` es `favorable`, `justo` o `desfavorable`. Cuando el trato sale corto, `cashTopUpCents`
-trae la compensación sugerida en efectivo (redondeada a $50) para emparejar el valor.
+- La foto completa se pide **una sola vez**; después sólo deltas (`{version, added, removed, updated}`).
+- `validUntil` viene en `/head`, no en la foto: es la vigencia que declara el servidor.
+- Rechaza con `{status:'error', error:'offline'}` cuando no hay red; el bazar conserva el último
+  catálogo y lo dice en pantalla.
+
+### `Nahua.catalogOrder({ storeId, productId, quantity, unitPriceCents, catalogVersion, buyer })`
+
+Confirma la compra en el servidor, que valida precio y stock de forma atómica. Resuelve
+`{ status:'ok', stockLeft, receiptUrl }` o rechaza con `code: 'price_changed' | 'out_of_stock'`.
+
+### `Nahua.catalogReport({ targetType, targetId, reason, note, reporter })`
+
+Manda el reporte al servidor (que deduplica uno por persona y objetivo cada 24 h). Si falla, la
+copia local que ya guardó el bazar sigue disponible.
 
 ### `Nahua.announce({ title, body })`
 
@@ -299,13 +286,10 @@ Reglas:
 
 ```
 JS (bazar.js)                 Host (Kotlin)                        UI / almacenamiento
- │ Publicar: cada tecla          │                                    │
- ├── Nahua.valuate(item) ───────►│ MiniAppBridge.valuate              │
- │◄── valor + desglose ──────────┤ BarterValuator.valuate             │
+ │ Publicar: el precio lo pone quien publica                          │
+ │ (sin valoración automática)                                        │
  │                               │                                    │
  │ Truquear                      │                                    │
- ├── Nahua.compare(mío, suyo) ──►│ BarterValuator.compare             │
- │◄── A tu favor / Pareja / … ───┤                                    │
  ├── Nahua.announce({...}) ─────►│ MiniAppBridge.announceBarter       │
  │                               ├──► InboxRepository.push ──────────►│ Avisos + contador
  │                               │    NoticeKind.MARKET               │
@@ -313,11 +297,25 @@ JS (bazar.js)                 Host (Kotlin)                        UI / almacena
  └── abre el trato con el perfil del interesado
 ```
 
+## Catálogo de las tiendas
+
+```
+JS (bazar.js)                 Host (Kotlin)                        Servidor
+ ├── Nahua.catalogHead() ──────►│ CatalogApi.head() ─────────────────►│ /v1/catalog/head
+ ├── Nahua.catalogFull() ──────►│ CatalogApi.full() ─────────────────►│ /v1/catalog?full=1
+ ├── Nahua.catalogDelta(n) ────►│ CatalogApi.delta(n) ───────────────►│ /v1/catalog/delta?since=n
+ ├── Nahua.catalogOrder(o) ────►│ CatalogApi.order(o) ───────────────►│ /v1/orders
+ └── Nahua.catalogReport(r) ───►│ CatalogApi.report(r) ──────────────►│ /v1/reports
+```
+
 Reglas:
 
-- La valoración y la comparación se calculan **en Kotlin**; la página sólo pinta el resultado. Sin
-  anfitrión (navegador) el bazar usa su espejo local y lo advierte.
-- El trueque sólo existe si quien publica lo habilitó **y** el objeto quedó valorado.
+- La red vive **sólo** en el anfitrión: el WebView responde 404 a cualquier petición externa, así
+  que una mini app no puede hablar con servidores por su cuenta. El resultado se entrega como
+  promesa en el hilo de la UI.
+- El bazar guarda cada versión del catálogo en `localStorage`: sin red sigue mostrando la última y
+  avisa en el chip («sin conexión · catálogo guardado hace X»).
+- El precio lo pone quien publica; la app no valora objetos ni sugiere compensaciones.
 - Avisar no cobra ni mueve saldo: sólo deja el aviso y la propuesta. El efectivo de una compensación
   se acuerda en el trato, no se cobra automáticamente.
 

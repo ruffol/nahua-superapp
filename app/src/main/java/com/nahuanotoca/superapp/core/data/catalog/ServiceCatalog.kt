@@ -13,14 +13,12 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCodeScanner
-import androidx.compose.material.icons.rounded.ShoppingBag
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Storefront
 import com.nahuanotoca.superapp.core.design.Amber
 import com.nahuanotoca.superapp.core.design.Coral
 import com.nahuanotoca.superapp.core.design.Jade
-import com.nahuanotoca.superapp.core.design.Ochre
 import com.nahuanotoca.superapp.core.design.Rose
 import com.nahuanotoca.superapp.core.design.Sky
 import com.nahuanotoca.superapp.core.design.Teal
@@ -104,19 +102,9 @@ object ServiceCatalog {
             badge = "Nuevo",
         ),
         Service(
-            id = "mercado",
-            name = "Mercado",
-            tagline = "Tiendas oficiales del campus",
-            category = ServiceCategory.MARKET,
-            icon = Icons.Rounded.ShoppingBag,
-            accent = Ochre,
-            target = ServiceTarget.MiniApp("mercado"),
-            badge = "Nuevo",
-        ),
-        Service(
             id = "bazar",
             name = "Bazar/Trueque",
-            tagline = "Compra, vende y truequea en tu colonia",
+            tagline = "Tiendas oficiales, trueque y comunidad",
             category = ServiceCategory.MARKET,
             icon = Icons.Rounded.Storefront,
             accent = Violet,

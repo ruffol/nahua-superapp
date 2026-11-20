@@ -1,14 +1,15 @@
 /*
- * Nahua Mini App SDK (v1.4)
+ * Nahua Mini App SDK (v1.5)
  * -------------------------------------------------------------
  * The host injects window.NahuaNative (addJavascriptInterface). This script turns the raw
  * bridge into a small promise-based API: session, payments, one-shot and live location,
- * external directions, clipboard, háptica, barter valuation, inbox notices, toast, close y,
- * desde v1.3, la gestion de ROMs del emulador (pickRom, listRoms, deleteRom).
+ * external directions, clipboard, háptica, avisos de bandeja, toast, close y, desde v1.3,
+ * la gestion de ROMs del emulador (pickRom, listRoms, deleteRom).
  *
  * Location in the browser (dev) falls back to navigator.geolocation, so the map can be
- * tested outside the APK. Valuation returns null without a host: callers keep their own
- * estimate and the page still renders.
+ * tested outside the APK.
+ *
+ * v1.5 retira valuate/compare: el bazar ya no valora objetos, el precio lo pone quien publica.
  */
 (function () {
   'use strict';
@@ -102,7 +103,7 @@
   }
 
   window.Nahua = {
-    version: '1.3.0',
+    version: '1.6.0',
     _resolve: resolve,
     _emit: emit,
 
@@ -269,48 +270,7 @@
     },
 
     /**
-     * Valora un objeto del bazar. La aritmética vive en el anfitrión (BarterValuator.kt) y esta
-     * llamada es síncrona: el formulario de publicación recalcula al escribir.
-     *
-     * @param {{referenceCents: number, category?: string, condition?: string, ageMonths?: number,
-     *          complete?: boolean, hasReceipt?: boolean}} item
-     * @returns {{status: string, estimatedCents: number, lowCents: number, highCents: number,
-     *            barterMinCents: number, confidence: string, factors: Array}|null}
-     */
-    valuate: function (item) {
-      try {
-        if (window.NahuaNative && window.NahuaNative.valuate) {
-          return JSON.parse(window.NahuaNative.valuate(JSON.stringify(item || {})));
-        }
-      } catch (error) {
-        if (window.console) console.log('Nahua.valuate no disponible', error);
-      }
-      return null;
-    },
-
-    /**
-     * Compara dos objetos valorados y dice si el trueque conviene, está parejo o pide compensación.
-     *
-     * @param {object} mine    objeto que doy
-     * @param {object} theirs  objeto que recibo
-     * @returns {{verdict: string, deltaCents: number, cashTopUpCents: number, message: string}|null}
-     */
-    compare: function (mine, theirs) {
-      try {
-        if (window.NahuaNative && window.NahuaNative.compareBarter) {
-          return JSON.parse(window.NahuaNative.compareBarter(JSON.stringify({
-            mine: mine || {},
-            theirs: theirs || {}
-          })));
-        }
-      } catch (error) {
-        if (window.console) console.log('Nahua.compare no disponible', error);
-      }
-      return null;
-    },
-
-    /**
-     * Deja un aviso en la bandeja nativa (Avisos): "a <usuario> le interesa truequear tu <objeto>".
+     * Deja un aviso en la bandeja nativa (Avisos): un match de trueque o un reporte registrado.
      * @param {{title: string, body: string}} options
      * @returns {Promise<{status: string}>}
      */
@@ -319,6 +279,39 @@
         title: String((options && options.title) || '').slice(0, 90),
         body: String((options && options.body) || '').slice(0, 240)
       });
+    },
+
+    /**
+     * Catálogo del Bazar/Trueque. La red la hace el host: la WebView no tiene acceso a internet,
+     * así que estos métodos son la única vía. El servidor es `tienda.tlalchichi.xyz`.
+     *
+     * @returns {Promise<{status:string, version:number, serverTime:number, validUntil:number}>}
+     */
+    catalogHead: function () {
+      return post('catalogHead', {});
+    },
+
+    /** Foto completa del catálogo (sólo la primera vez, o si se borró el almacenamiento). */
+    catalogFull: function () {
+      return post('catalogFull', {});
+    },
+
+    /** Sólo los parches con versión mayor que `since`. */
+    catalogDelta: function (since) {
+      return post('catalogDelta', { since: Number(since) || 0 });
+    },
+
+    /**
+     * Confirma una compra en el servidor: valida precio y descuenta stock de forma atómica.
+     * @rejects {status:'error', code:'price_changed'|'out_of_stock'|...}
+     */
+    catalogOrder: function (order) {
+      return post('catalogOrder', order || {});
+    },
+
+    /** Reporte de artículo o usuario contra malas prácticas. */
+    catalogReport: function (report) {
+      return post('catalogReport', report || {});
     },
 
     /**
