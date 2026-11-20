@@ -5,6 +5,8 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-11-19
+
 ### Añadido
 
 - **Mercado (mini-app nueva, `mercado`)**: landing del catálogo de las tiendas oficiales del
