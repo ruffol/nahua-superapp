@@ -22,13 +22,14 @@ class MiniAppManifestTest {
     }
 
     @Test
-    fun orientationDefaultsToAutoAndOnlyLandscapeIsHonored() {
+    fun orientationIsParsedAndPortraitIsHonored() {
         assertEquals(MiniAppOrientation.AUTO, MiniAppOrientation.from(null))
         assertEquals(MiniAppOrientation.AUTO, MiniAppOrientation.from("auto"))
         assertEquals(MiniAppOrientation.LANDSCAPE, MiniAppOrientation.from("landscape"))
         assertEquals(MiniAppOrientation.LANDSCAPE, MiniAppOrientation.from("Landscape"))
-        // "portrait" no esta pedido a proposito: girar a vertical lo decide el usuario.
-        assertEquals(MiniAppOrientation.AUTO, MiniAppOrientation.from("portrait"))
+        // El emulador es vertical fijo: un Game Boy lo es y asi el mando cabe en la pantalla.
+        assertEquals(MiniAppOrientation.PORTRAIT, MiniAppOrientation.from("portrait"))
+        assertEquals(MiniAppOrientation.PORTRAIT, MiniAppOrientation.from("Portrait"))
         assertEquals(MiniAppOrientation.AUTO, MiniAppOrientation.from("diagonal"))
     }
 

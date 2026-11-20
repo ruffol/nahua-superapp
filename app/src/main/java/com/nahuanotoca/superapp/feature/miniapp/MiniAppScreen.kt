@@ -137,17 +137,19 @@ fun MiniAppScreen(
     fun applyOrientation(mode: String) {
         val target = activity ?: return
         target.requestedOrientation = when (mode) {
-            "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            // Vertical fijo (no "sensor portrait"): girar el telefono no debe reacomodar la
+            // partida ni el mando a media jugada.
+            "portrait" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
     DisposableEffect(activity) {
-        if (manifest.display == MiniAppDisplay.IMMERSIVE &&
-            manifest.orientation == MiniAppOrientation.LANDSCAPE
-        ) {
-            applyOrientation("landscape")
+        if (manifest.display == MiniAppDisplay.IMMERSIVE) {
+            // El emulador es vertical (un Game Boy lo es); si el manifiesto pidiera horizontal,
+            // se respeta esa intencion.
+            applyOrientation(if (manifest.orientation == MiniAppOrientation.LANDSCAPE) "landscape" else "portrait")
         }
         onDispose {
             if (manifest.display == MiniAppDisplay.IMMERSIVE) {

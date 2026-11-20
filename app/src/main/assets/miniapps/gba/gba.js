@@ -578,7 +578,6 @@
     scale: 1,
     bottom: 50,
     side: 10,
-    orientation: 'auto',
     hand: 'right',
     haptic: 'on'
   };
@@ -591,9 +590,6 @@
       if (Object.prototype.hasOwnProperty.call(PAD_DEFAULTS, key)) config[key] = PAD_DEFAULTS[key];
     }
     if (stored.pad === 'joystick' || stored.pad === 'dpad') config.pad = stored.pad;
-    if (stored.orientation === 'auto' || stored.orientation === 'portrait' || stored.orientation === 'landscape') {
-      config.orientation = stored.orientation;
-    }
     if (stored.hand === 'left' || stored.hand === 'right') config.hand = stored.hand;
     if (stored.haptic === 'on' || stored.haptic === 'off') config.haptic = stored.haptic;
     config.scale = clampNumber(stored.scale, 0.7, 1.5, config.scale);
@@ -632,16 +628,22 @@
     var side = Math.round(config.side);
     var bottom = 'calc(' + Math.round(config.bottom) + 'px + env(safe-area-inset-bottom, 0px))';
     var base = 'calc(' + Math.round(config.bottom * 0.62) + 'px + env(safe-area-inset-bottom, 0px))';
+    // Zurdo: los mandos cambian de lado aqui, sin tocar el toggle de EmulatorJS (que mueve las
+    // clases y se llevaria consigo el pad propio).
+    var leftSide = config.hand === 'left' ? 'right' : 'left';
+    var rightSide = config.hand === 'left' ? 'left' : 'right';
+    var leftOrigin = config.hand === 'left' ? 'bottom right' : 'bottom left';
+    var rightOrigin = config.hand === 'left' ? 'bottom left' : 'bottom right';
     style.textContent = [
       // El padre de EmulatorJS viene con bottom:50px fijo; se anula para que la "Altura"
       // del panel sea la distancia real al borde de la pantalla.
       '.ejs_virtualGamepad_parent{bottom:0 !important;}',
-      // El mando izquierdo (joystick o cruceta) crece desde su esquina inferior izquierda.
-      '.ejs_virtualGamepad_left{transform:scale(' + scale + ');transform-origin:bottom left;',
-      'left:' + side + 'px !important;bottom:' + bottom + ' !important;}',
-      // Botones A/B desde la esquina inferior derecha.
-      '.ejs_virtualGamepad_right{transform:scale(' + scale + ');transform-origin:bottom right;',
-      'right:' + side + 'px !important;bottom:' + bottom + ' !important;}',
+      // El mando direccional (pad propio) crece desde su esquina inferior.
+      '.ejs_virtualGamepad_left{transform:scale(' + scale + ');transform-origin:' + leftOrigin + ';',
+      leftSide + ':' + side + 'px !important;right:auto !important;bottom:' + bottom + ' !important;}',
+      // Botones A/B desde la esquina inferior opuesta.
+      '.ejs_virtualGamepad_right{transform:scale(' + scale + ');transform-origin:' + rightOrigin + ';',
+      rightSide + ':' + side + 'px !important;left:auto !important;bottom:' + bottom + ' !important;}',
       // Start/Select centrados, un poco mas arriba que los mandos para no chocar.
       '.ejs_virtualGamepad_bottom{transform:scale(' + scale + ');transform-origin:bottom center;',
       'bottom:' + base + ' !important;}'
@@ -649,19 +651,292 @@
   }
 
   /**
-   * Sustituye el gamepad por defecto de EmulatorJS. Se declara ANTES de inyectar loader.js:
-   * el emulador construye los controles una sola vez al arrancar.
+   * Mando direccional propio (joystick o cruceta).
+   *
+   * Por que no el de EmulatorJS: su gamepad se dibuja con px fijos y calcula el centro del area
+   * tactil con clientWidth/clientHeight, que NO contemplan el `transform: scale()` con el que este
+   * layout ajusta el tamano. Con el mando escalado, el eje se desfasa y "arriba" cae donde el dedo
+   * espera "derecha" (justo el sintoma reportado en Super Mario Bros. Deluxe, donde avanzar es
+   * derecha).
+   *
+   * Aqui se dibuja el mando y se envian los botones del pad de RetroArch directamente con
+   * simulateInput: 4 arriba, 5 abajo, 6 izquierda, 7 derecha (los mismos ids que usa el dpad de
+   * EmulatorJS). El centro se mide con getBoundingClientRect, que SI incluye el transform, asi que
+   * cada direccion cae donde el dedo la empuja en cualquier tamano y en cualquier orientacion.
    */
-  function gamepadSettings(config, core) {
-    // "zone" es el joystick de EmulatorJS (nipplejs, modo estatico). El color sale de la paleta
-    // de Nahua; sin el, nipplejs lo pinta rojo. El tamano del contenedor lo pone gba.css, porque
-    // EmulatorJS crea el zone sin dimensiones (la cruceta, en cambio, llena con .ejs_dpad_main).
-    var stick = config.pad === 'joystick'
-      ? { type: 'zone', id: 'stick', location: 'left', left: '50%', top: '50%', joystickInput: true, color: '#58D6B8', inputValues: [4, 5, 6, 7] }
-      : { type: 'dpad', id: 'dpad', location: 'left', left: '50%', top: '50%', joystickInput: false, inputValues: [4, 5, 6, 7] };
+  var NahuaPad = (function () {
+    'use strict';
 
+    var UP = 4;
+    var DOWN = 5;
+    var LEFT = 6;
+    var RIGHT = 7;
+    // Zona muerta: 32 % del radio. Mas chica, el pulgar tiembla y el personaje se mueve solo;
+    // mas grande y hay que arrastrar demasiado para arrancar la caminata.
+    var DEAD = 0.32;
+
+    var root = null;
+    var knob = null;
+    var mode = 'joystick';
+    var active = {};
+    var pointer = null;
+    var timer = 0;
+
+    function manager() {
+      var emulator = window.EJS_emulator;
+      if (!emulator || !emulator.gameManager) return null;
+      var gm = emulator.gameManager;
+      return typeof gm.simulateInput === 'function' ? gm : null;
+    }
+
+    /** Envia un boton del pad: 1 pulsado, 0 suelto. Solo habla cuando cambia de estado. */
+    function send(id, on) {
+      var was = active[id] === true;
+      if (was === on) return;
+      if (on) active[id] = true;
+      else delete active[id];
+      var gm = manager();
+      if (!gm) return;
+      try {
+        // 32767 es para sticks analogicos (N64); un pad digital usa 1.
+        gm.simulateInput(0, id, on ? 1 : 0);
+      } catch (error) {
+        // Motor a medio arrancar: el estado se reenvia en el siguiente movimiento.
+      }
+    }
+
+    function releaseAll() {
+      send(UP, false);
+      send(DOWN, false);
+      send(LEFT, false);
+      send(RIGHT, false);
+    }
+
+    /**
+     * Direcciones activas para un vector ya normalizado (-1..1, Y crece hacia abajo).
+     * Funcion pura: es la que fija la orientacion del mando, y se puede probar sin emulador.
+     */
+    function directionsFor(dx, dy, dead) {
+      var limit = typeof dead === 'number' ? dead : DEAD;
+      var ids = [];
+      if (dy <= -limit) ids.push(UP);
+      if (dy >= limit) ids.push(DOWN);
+      if (dx <= -limit) ids.push(LEFT);
+      if (dx >= limit) ids.push(RIGHT);
+      return ids;
+    }
+
+    function apply(ids) {
+      send(UP, ids.indexOf(UP) !== -1);
+      send(DOWN, ids.indexOf(DOWN) !== -1);
+      send(LEFT, ids.indexOf(LEFT) !== -1);
+      send(RIGHT, ids.indexOf(RIGHT) !== -1);
+    }
+
+    // --- Joystick ---------------------------------------------------------
+
+    function stickMove(event, area) {
+      var box = area.getBoundingClientRect();
+      // Contenedor oculto o sin medir (gamepad apagado): no se inventa una direccion.
+      if (box.width < 8 || box.height < 8) return;
+      var radius = Math.max(1, Math.min(box.width, box.height) / 2);
+      var dx = (event.clientX - (box.left + box.width / 2)) / radius;
+      var dy = (event.clientY - (box.top + box.height / 2)) / radius;
+      var length = Math.sqrt(dx * dx + dy * dy);
+      if (length > 1) {
+        dx /= length;
+        dy /= length;
+      }
+      if (knob) {
+        var travel = radius * 0.56;
+        knob.style.transform = 'translate(' + Math.round(dx * travel) + 'px, ' + Math.round(dy * travel) + 'px)';
+      }
+      apply(directionsFor(dx, dy));
+    }
+
+    function buildStick(host) {
+      var area = document.createElement('div');
+      area.className = 'nahua-stick';
+      knob = document.createElement('span');
+      knob.className = 'nahua-stick-knob';
+      area.appendChild(knob);
+
+      area.addEventListener('pointerdown', function (event) {
+        if (pointer !== null) return;
+        pointer = event.pointerId;
+        root.classList.add('nahua-pad-on');
+        runCatching(function () { area.setPointerCapture(event.pointerId); });
+        stickMove(event, area);
+        haptic('press');
+        event.preventDefault();
+      });
+
+      area.addEventListener('pointermove', function (event) {
+        if (pointer !== event.pointerId) return;
+        stickMove(event, area);
+        event.preventDefault();
+      });
+
+      function end(event) {
+        if (pointer !== event.pointerId) return;
+        pointer = null;
+        if (knob) knob.style.transform = '';
+        root.classList.remove('nahua-pad-on');
+        releaseAll();
+      }
+
+      area.addEventListener('pointerup', end);
+      area.addEventListener('pointercancel', end);
+      area.addEventListener('lostpointercapture', end);
+
+      host.appendChild(area);
+    }
+
+    // --- Cruceta ----------------------------------------------------------
+
+    function buildDpad(host) {
+      var grid = document.createElement('div');
+      grid.className = 'nahua-dpad';
+
+      [
+        { dir: 'up', id: UP, label: '▲' },
+        { dir: 'left', id: LEFT, label: '◀' },
+        { dir: 'right', id: RIGHT, label: '▶' },
+        { dir: 'down', id: DOWN, label: '▼' }
+      ].forEach(function (key) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'nahua-key';
+        button.setAttribute('data-dir', key.dir);
+        button.setAttribute('data-input', String(key.id));
+        button.setAttribute('aria-label', key.dir);
+        button.textContent = key.label;
+
+        function press(event) {
+          button.classList.add('nahua-key-on');
+          send(key.id, true);
+          haptic('press');
+          event.preventDefault();
+        }
+
+        function release() {
+          button.classList.remove('nahua-key-on');
+          send(key.id, false);
+        }
+
+        button.addEventListener('pointerdown', press);
+        button.addEventListener('pointerup', release);
+        button.addEventListener('pointercancel', release);
+        button.addEventListener('pointerleave', release);
+        grid.appendChild(button);
+      });
+
+      var hub = document.createElement('span');
+      hub.className = 'nahua-hub';
+      grid.appendChild(hub);
+
+      host.appendChild(grid);
+    }
+
+    // --- Montaje ----------------------------------------------------------
+
+    function unmount() {
+      releaseAll();
+      pointer = null;
+      knob = null;
+      var node = document.querySelector('.nahua-pad');
+      if (node && node.parentNode) node.parentNode.removeChild(node);
+      root = null;
+    }
+
+    function mount(host, config) {
+      if (!host) return false;
+      unmount();
+      mode = config && config.pad === 'dpad' ? 'dpad' : 'joystick';
+      root = document.createElement('div');
+      root.className = 'nahua-pad';
+      root.setAttribute('data-mode', mode);
+      host.appendChild(root);
+      if (mode === 'dpad') buildDpad(root);
+      else buildStick(root);
+      return true;
+    }
+
+    /**
+     * EmulatorJS crea el gamepad en su constructor, sin evento: se busca el contenedor izquierdo
+     * y, si todavia no existe, se reintenta. 30 s de margen cubren un arranque lento del nucleo.
+     */
+    function install(config) {
+      var attempts = 0;
+      if (timer) {
+        window.clearInterval(timer);
+        timer = 0;
+      }
+
+      function attempt() {
+        var host = document.querySelector('.ejs_virtualGamepad_left');
+        if (host) {
+          if (timer) {
+            window.clearInterval(timer);
+            timer = 0;
+          }
+          // Se remonta si cambio el tipo de mando o si EmulatorJS rehizo sus contenedores.
+          var current = host.querySelector('.nahua-pad');
+          if (current && current.getAttribute('data-mode') === (config.pad === 'dpad' ? 'dpad' : 'joystick')) {
+            return;
+          }
+          mount(host, config);
+          return;
+        }
+        attempts += 1;
+        if (attempts > 120 && timer) {
+          window.clearInterval(timer);
+          timer = 0;
+        }
+      }
+
+      attempt();
+      if (!document.querySelector('.nahua-pad')) timer = window.setInterval(attempt, 250);
+    }
+
+    /** Cambia joystick <-> cruceta sin reiniciar la partida. */
+    function setMode(config) {
+      var host = document.querySelector('.ejs_virtualGamepad_left');
+      if (!host) {
+        install(config);
+        return false;
+      }
+      mount(host, config);
+      return true;
+    }
+
+    return {
+      install: install,
+      setMode: setMode,
+      releaseAll: releaseAll,
+      directionsFor: directionsFor,
+      active: function () { return Object.keys(active).map(Number); }
+    };
+  })();
+
+  function runCatching(call) {
+    try {
+      call();
+    } catch (error) {
+      // setPointerCapture puede fallar si el puntero ya se solto.
+    }
+  }
+
+  // A mano desde chrome://inspect: NahuaPad.active() dice que botones estan pulsados ahora.
+  window.NahuaPad = NahuaPad;
+
+  // --- Gamepad de EmulatorJS: solo botones --------------------------------
+  //
+  // La direccion la maneja NahuaPad, asi que aqui no se declara ningun control "left": el
+  // contenedor queda vacio y es donde se monta el pad propio. A/B/Start/Select si son de
+  // EmulatorJS, que los dibuja y los conecta como siempre.
+  function gamepadSettings(core) {
     var buttons = [
-      stick,
       { type: 'button', text: 'B', id: 'b', location: 'right', left: 10, top: 70, bold: true, input_value: 0 },
       { type: 'button', text: 'A', id: 'a', location: 'right', left: 81, top: 40, bold: true, input_value: 8 },
       { type: 'button', text: 'Start', id: 'start', location: 'center', left: 60, fontSize: 15, block: true, input_value: 3 },
@@ -960,18 +1235,19 @@
       exitEmulation: false
     };
 
-    // Gamepad propio: joystick (o cruceta) + A/B(/L/R)/Start/Select, con el tamano y la posicion
-    // que el usuario eligio. Debe fijarse antes de loader.js.
-    window.EJS_VirtualGamepadSettings = gamepadSettings(pad, core);
+    // Gamepad de EmulatorJS: solo A/B(/L/R)/Start/Select. El mando direccional es propio
+    // (NahuaPad) y se monta en el contenedor izquierdo, que queda vacio a proposito.
+    window.EJS_VirtualGamepadSettings = gamepadSettings(core);
 
     // Las opciones del motor se siembran ANTES de construirlo (rebobinar se lee en el constructor).
     seedEngineSettings(core, gameName, options);
     applyPadLayout(pad);
     applyFilter(options.filter);
-    applyOrientation(pad.orientation);
+    lockPortrait();
 
     window.EJS_onGameStart = function () {
       applyLiveOptions(readGameOptions());
+      NahuaPad.install(readPad());
     };
 
     writeJson(LAST_KEY, {
@@ -1008,6 +1284,10 @@
     };
     document.body.appendChild(script);
     loaderInjected = true;
+
+    // El gamepad lo construye EmulatorJS al cargar el motor: se intenta ya y, si no esta, se
+    // reintenta hasta que aparezca el contenedor izquierdo.
+    NahuaPad.install(readPad());
   }
 
   // --- Errores --------------------------------------------------------------
@@ -1032,10 +1312,12 @@
 
   // --- Orientacion ----------------------------------------------------------
 
-  /** Pide al anfitrion el giro elegido (auto = el sensor del telefono). */
-  function applyOrientation(mode) {
-    if (!hasSdk() || typeof window.Nahua.orientation !== 'function') return;
-    window.Nahua.orientation(mode === 'portrait' || mode === 'landscape' ? mode : 'auto');
+  /**
+   * Vertical y ya. Un Game Boy es una consola vertical, y en horizontal el mando se comia media
+   * pantalla y la geometria cambiaba a media partida. Se pide al anfitrion al entrar y al arrancar.
+   */
+  function lockPortrait() {
+    if (hasSdk() && typeof window.Nahua.orientation === 'function') window.Nahua.orientation('portrait');
   }
 
   // --- Panel de ajustes -----------------------------------------------------
@@ -1054,7 +1336,6 @@
     pad = readPad();
     options = readGameOptions();
 
-    markGroup('[data-orientation]', function (node) { return node.getAttribute('data-orientation') === pad.orientation; });
     markGroup('[data-filter]', function (node) { return node.getAttribute('data-filter') === options.filter; });
     markGroup('[data-pad]', function (node) { return node.getAttribute('data-pad') === pad.pad; });
     markGroup('[data-hand]', function (node) { return node.getAttribute('data-hand') === pad.hand; });
@@ -1122,30 +1403,21 @@
     Array.prototype.forEach.call(panel.querySelectorAll('[data-tab]'), function (tab) {
       tab.addEventListener('click', function () { switchTab(tab.getAttribute('data-tab')); });
     });
-    Array.prototype.forEach.call(panel.querySelectorAll('[data-orientation]'), function (node) {
-      node.addEventListener('click', function () {
-        var mode = node.getAttribute('data-orientation');
-        updatePad({ orientation: mode });
-        // El giro si es inmediato: no depende del emulador, solo de la Activity.
-        applyOrientation(mode);
-      });
-    });
     Array.prototype.forEach.call(panel.querySelectorAll('[data-filter]'), function (node) {
       node.addEventListener('click', function () { updateOptions({ filter: node.getAttribute('data-filter') }, false); });
     });
     Array.prototype.forEach.call(panel.querySelectorAll('[data-pad]'), function (node) {
-      node.addEventListener('click', function () { updatePad({ pad: node.getAttribute('data-pad') }); });
+      node.addEventListener('click', function () {
+        // Cambia en vivo: el pad es propio y se vuelve a montar sin reiniciar la partida.
+        updatePad({ pad: node.getAttribute('data-pad') });
+        NahuaPad.setMode(readPad());
+      });
     });
     Array.prototype.forEach.call(panel.querySelectorAll('[data-hand]'), function (node) {
       node.addEventListener('click', function () {
-        var hand = node.getAttribute('data-hand');
-        updatePad({ hand: hand });
-        var emulator = window.EJS_emulator;
-        if (emulator && typeof emulator.toggleVirtualGamepadLeftHanded === 'function') {
-          emulator.toggleVirtualGamepadLeftHanded(hand === 'left');
-        } else {
-          toast('El cambio de mano se aplica al reiniciar');
-        }
+        updatePad({ hand: node.getAttribute('data-hand') });
+        // El cambio de mano es solo CSS (que contenedor va a cada lado): se aplica al instante.
+        applyPadLayout(readPad());
       });
     });
     Array.prototype.forEach.call(panel.querySelectorAll('[data-haptic]'), function (node) {
@@ -1304,8 +1576,8 @@
     pickBtn.disabled = true;
   }
 
-  // La preferencia de pantalla se aplica ya en la portada, no solo al arrancar la partida.
-  applyOrientation(pad.orientation);
+  // La orientacion se fija ya en la portada, no solo al arrancar la partida.
+  lockPortrait();
   applyPadLayout(pad);
   applyFilter(options.filter);
   renderBuiltin();

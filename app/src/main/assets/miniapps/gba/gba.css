@@ -402,6 +402,98 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/* --- Mando propio (NahuaPad) ---------------------------------------------
+   Vive dentro del contenedor izquierdo de EmulatorJS (125x125 px, escalado por
+   applyPadLayout). Dibujarlo aqui evita depender de la geometria interna del
+   motor, que no contempla el transform:scale y desfasaba el eje. */
+
+.nahua-pad {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Joystick: aro con guias y perilla que sigue el dedo. */
+.nahua-stick {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04) 72%);
+  border: 2px solid rgba(255, 255, 255, 0.20);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.16);
+}
+
+.nahua-stick::before,
+.nahua-stick::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.nahua-stick::before { left: 16%; right: 16%; top: 50%; height: 1px; }
+.nahua-stick::after { top: 16%; bottom: 16%; left: 50%; width: 1px; }
+
+.nahua-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44%;
+  height: 44%;
+  margin: -22% 0 0 -22%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 32%, #7CEBCE, #12A184 72%);
+  border: 2px solid rgba(4, 36, 15, 0.5);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  transition: transform 110ms ease-out;
+}
+
+.nahua-pad-on .nahua-stick-knob {
+  transition: none;
+  background: radial-gradient(circle at 36% 32%, #A2F6E1, #16BFA0 72%);
+  border-color: rgba(4, 36, 15, 0.7);
+}
+
+/* Cruceta: cruz de 3x3 con botones cuadrados. */
+.nahua-dpad {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+}
+
+.nahua-key {
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  color: rgba(233, 238, 245, 0.85);
+  background: rgba(255, 255, 255, 0.09);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  touch-action: none;
+}
+
+.nahua-key-on {
+  color: #04240F;
+  background: rgba(88, 214, 184, 0.62);
+  border-color: #58D6B8;
+}
+
+.nahua-key[data-dir="up"] { grid-area: 1 / 2; }
+.nahua-key[data-dir="left"] { grid-area: 2 / 1; }
+.nahua-key[data-dir="right"] { grid-area: 2 / 3; }
+.nahua-key[data-dir="down"] { grid-area: 3 / 2; }
+
+.nahua-hub {
+  grid-area: 2 / 2;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
 /* En vertical el juego va arriba y los mandos en la franja negra de abajo; el margen
    superior aparta la imagen de la camara frontal (el WebView no expone el recorte). */
 @media (orientation: portrait) {
@@ -592,6 +684,17 @@ h1 {
   line-height: 1.45;
   border-top: 2px dashed var(--line-soft);
   padding-top: 8px;
+}
+
+.fixed-value {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--surface-alt);
+  border: 2px solid var(--line);
+  border-radius: 3px;
 }
 
 .console-actions { display: flex; gap: 8px; }

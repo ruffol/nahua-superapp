@@ -41,11 +41,11 @@
       "id": "gba",
       "name": "Emulador",
       "tagline": "Game Boy, Color y Advance, sin red",
-      "version": "2.0.0",
+      "version": "2.0.1",
       "entry": "miniapps/gba/index.html",
       "accent": "#0E7C66",
       "display": "immersive",
-      "orientation": "auto",
+      "orientation": "portrait",
       "permissions": ["storage.local", "rom.read"]
     },
     {

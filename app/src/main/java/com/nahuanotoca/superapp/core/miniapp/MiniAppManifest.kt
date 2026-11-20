@@ -46,11 +46,13 @@ enum class MiniAppDisplay {
 
 enum class MiniAppOrientation {
     AUTO,
-    LANDSCAPE;
+    LANDSCAPE,
+    PORTRAIT;
 
     companion object {
         fun from(raw: String?): MiniAppOrientation = when (raw?.lowercase()) {
             "landscape" -> LANDSCAPE
+            "portrait" -> PORTRAIT
             else -> AUTO
         }
     }

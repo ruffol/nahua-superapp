@@ -170,9 +170,9 @@ class ServiceCatalogTest {
         val manifest = File("src/main/assets/miniapps/index.json").readText()
         assertTrue("Falta la mini-app gba", manifest.contains("\"gba\""))
         assertTrue("El gba no pide modo inmersivo", manifest.contains("\"display\": \"immersive\""))
-        // El emulador ya no fuerza horizontal: la orientación la elige el usuario en el panel
-        // (Vertical incluido), y el manifiesto solo aporta el valor por defecto.
-        assertTrue("El gba no declara orientación", manifest.contains("\"orientation\": \"auto\""))
+        // Vertical fijo: un Game Boy es vertical, y girar cambiaba la geometria del mando a
+        // media partida.
+        assertTrue("El gba no declara orientación vertical", manifest.contains("\"orientation\": \"portrait\""))
         assertTrue("El gba no declara lectura de ROMs", manifest.contains("\"rom.read\""))
 
         val root = File("src/main/assets/miniapps/gba")
@@ -261,17 +261,25 @@ class ServiceCatalogTest {
     }
 
     /**
-     * El mando izquierdo es un joystick (no la cruceta por defecto de EmulatorJS) y su tamaño y
-     * posicion se configuran desde un panel propio. Si alguien vuelve al gamepad por defecto o
-     * quita el panel, el bundle no falla: simplemente el usuario pierde la configuracion.
+     * El mando direccional es propio (NahuaPad) y envia los botones del pad de RetroArch
+     * directamente. Si alguien vuelve al joystick de EmulatorJS, el eje se desfasa con el
+     * transform:scale del layout y "arriba" cae donde el dedo espera "derecha": el sintoma exacto
+     * que se reporto en Super Mario Bros. Deluxe. Estas aserciones son el candado de la
+     * orientacion: UP tiene que salir con dy negativa y RIGHT con dx positiva.
      */
     @Test
     fun gbaShipsJoystickAndConsoleSettingsPanel() {
         val gbaJs = File("src/main/assets/miniapps/gba/gba.js").readText()
-        // "zone" + joystickInput es el mecanismo de EmulatorJS para el stick analogico (N64).
-        assertTrue("El mando izquierdo no es un joystick", gbaJs.contains("type: 'zone'"))
-        assertTrue("El joystick no declara joystickInput", gbaJs.contains("joystickInput: true"))
-        assertTrue("Se perdio la opcion de cruceta", gbaJs.contains("type: 'dpad'"))
+        assertTrue("No existe el pad propio", gbaJs.contains("var NahuaPad"))
+        assertTrue("El pad no envia botones al motor", gbaJs.contains("simulateInput(0, id"))
+        assertTrue("UP no se dispara con dy negativa", gbaJs.contains("if (dy <= -limit) ids.push(UP)"))
+        assertTrue("DOWN no se dispara con dy positiva", gbaJs.contains("if (dy >= limit) ids.push(DOWN)"))
+        assertTrue("LEFT no se dispara con dx negativa", gbaJs.contains("if (dx <= -limit) ids.push(LEFT)"))
+        assertTrue("RIGHT no se dispara con dx positiva", gbaJs.contains("if (dx >= limit) ids.push(RIGHT)"))
+        assertTrue("Se perdio la cruceta propia", gbaJs.contains("nahua-dpad"))
+        assertTrue("No se centra con getBoundingClientRect", gbaJs.contains("getBoundingClientRect()"))
+        // El gamepad de EmulatorJS ya no dibuja direccion: solo botones.
+        assertFalse("EmulatorJS sigue dibujando el joystick", gbaJs.contains("type: 'zone'"))
         assertTrue("No se declara EJS_VirtualGamepadSettings", gbaJs.contains("EJS_VirtualGamepadSettings"))
         // Tamano y posicion en vivo por CSS, recalculados al girar (no px fijos de EmulatorJS).
         assertTrue("No se aplica el layout del gamepad", gbaJs.contains("applyPadLayout"))
@@ -283,12 +291,9 @@ class ServiceCatalogTest {
         listOf("consolePanel", "padJoystick", "padDpad", "ctlScale", "ctlBottom", "ctlSide").forEach { id ->
             assertTrue("Falta el control " + id + " en el panel de la consola", html.contains(id))
         }
-        // Orientación: Auto / Vertical / Horizontal, aplicada al instante.
-        listOf("oriAuto", "oriPortrait", "oriLandscape").forEach { id ->
-            assertTrue("Falta el botón de orientación " + id, html.contains(id))
-        }
-        assertTrue("El panel no persiste la orientación", gbaJs.contains("orientation: 'auto'"))
-        assertTrue("No se aplica la orientación", gbaJs.contains("applyOrientation"))
+        // Vertical fijo: el panel ya no ofrece girar la pantalla.
+        assertTrue("El panel no dice que la orientación es fija", html.contains("Vertical · fijo"))
+        assertTrue("El panel no pide la orientación vertical", gbaJs.contains("Nahua.orientation('portrait')"))
 
         val sdk = File("src/main/assets/miniapps/nahua-sdk.js").readText()
         assertTrue("El SDK no expone la orientación", sdk.contains("orientation: function"))

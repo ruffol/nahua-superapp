@@ -5,6 +5,30 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-11-20
+
+### Corregido
+
+- **El joystick enviaba la dirección girada 90°**: en Super Mario Bros. Deluxe, empujar hacia
+  arriba avanzaba a la derecha. La causa era el mando de EmulatorJS: mide el centro del área
+  táctil con `clientWidth/clientHeight`, que no contemplan el `transform: scale()` con el que el
+  layout ajusta el tamaño, así que el eje quedaba desfasado. Ahora el mando direccional es propio
+  (`NahuaPad`): dibuja el joystick o la cruceta y envía los botones del pad de RetroArch
+  directamente (`simulateInput(0, 4|5|6|7, 1|0)`), midiendo el centro con
+  `getBoundingClientRect()`, que sí incluye el transform. Verificado con eventos de puntero
+  reales: arriba → 4, derecha → 7, diagonal → 4+7, centro → nada.
+- **Cambiar joystick por cruceta ya no pide reiniciar**: el pad se vuelve a montar en vivo.
+- **El modo zurdo** ahora solo intercambia de lado los contenedores por CSS (antes delegaba en el
+  toggle de EmulatorJS, que se llevaba consigo el pad propio).
+
+### Cambiado
+
+- **Vertical fijo**: el emulador ya no gira. Un Game Boy es una consola vertical, en horizontal el
+  mando se comía media pantalla y la geometría del pad cambiaba a media partida. El manifiesto
+  declara `orientation: "portrait"`, el anfitrión bloquea la Activity en vertical
+  (`SCREEN_ORIENTATION_PORTRAIT`, sin volteo por sensor) y el panel muestra «Vertical · fijo» en
+  lugar del selector Auto/Vertical/Horizontal.
+
 ## [0.20.0] — 2026-11-20
 
 ### Añadido
