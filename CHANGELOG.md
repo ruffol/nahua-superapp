@@ -5,6 +5,15 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.20.5] — 2026-11-20
+
+### Cambiado
+
+- **El gesto de correr + saltar salta solo al final del recorrido**: antes disparaba al 34 % del
+  radio, así que un roce ya hacía saltar a Mario. Ahora corre en cuanto apoyas el dedo, y el salto
+  entra al **85 %** del recorrido (con la perilla ya en el tope, marcado con un aro punteado) y sale
+  al 62 %. El control crece a 132×72 px para que ese recorrido sea cómodo con el pulgar.
+
 ## [0.20.4] — 2026-11-20
 
 ### Corregido

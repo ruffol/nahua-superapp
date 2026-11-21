@@ -892,16 +892,17 @@
         var dy = event.clientY - cy;
         var distance = Math.sqrt(dx * dx + dy * dy);
         var radius = Math.max(1, Math.min(box.width, box.height) / 2);
-        var travel = Math.min(distance, radius * 0.62);
+        var travel = Math.min(distance, radius * 0.88);
         var angle = Math.atan2(dy, dx);
         if (sprintKnob) {
           sprintKnob.style.transform = 'translate(' + Math.round(Math.cos(angle) * travel) + 'px, ' +
             Math.round(Math.sin(angle) * travel) + 'px)';
         }
-        // Histeresis: el salto entra al 34 % del radio y sale al 20 %. Sin esa holgura el salto
-        // parpadea con el temblor del pulgar.
-        if (!sprintJumping && distance > radius * 0.34) setJump(true);
-        else if (sprintJumping && distance < radius * 0.2) setJump(false);
+        // El salto es SOLO al final del recorrido: entra al 85 % del radio (el aro punteado, que
+        // coincide con el tope de la perilla) y sale al 62 %. Asi se puede correr y ajustar el
+        // pulgar sin saltos accidentales.
+        if (!sprintJumping && distance > radius * 0.85) setJump(true);
+        else if (sprintJumping && distance < radius * 0.62) setJump(false);
       }
 
       function end(event) {

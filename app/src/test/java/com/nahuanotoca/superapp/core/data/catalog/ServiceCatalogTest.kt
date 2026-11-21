@@ -309,6 +309,9 @@ class ServiceCatalogTest {
         assertTrue("No hay gesto de correr + saltar", gbaJs.contains("nahua-sprint"))
         assertTrue("El gesto no usa A ni B", gbaJs.contains("BUTTON_A") && gbaJs.contains("BUTTON_B"))
         assertTrue("Falta el interruptor del boton de correr", html.contains("data-sprint"))
+        // El salto es solo al final del recorrido (85 % del radio), no con un roce.
+        assertTrue("El salto se dispara antes del final del recorrido", gbaJs.contains("radius * 0.85"))
+        assertTrue("La perilla no llega al tope del recorrido", gbaJs.contains("radius * 0.88"))
         // Vertical fijo: el panel ya no ofrece girar la pantalla.
         assertTrue("El panel no dice que la orientación es fija", html.contains("Vertical · fijo"))
         assertTrue("El panel no pide la orientación vertical", gbaJs.contains("Nahua.orientation('portrait')"))
