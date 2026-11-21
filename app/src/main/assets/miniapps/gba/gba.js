@@ -579,7 +579,8 @@
     bottom: 50,
     side: 10,
     hand: 'right',
-    haptic: 'on'
+    haptic: 'on',
+    sprint: 'on'
   };
 
   function readPad() {
@@ -592,6 +593,7 @@
     if (stored.pad === 'joystick' || stored.pad === 'dpad') config.pad = stored.pad;
     if (stored.hand === 'left' || stored.hand === 'right') config.hand = stored.hand;
     if (stored.haptic === 'on' || stored.haptic === 'off') config.haptic = stored.haptic;
+    if (stored.sprint === 'on' || stored.sprint === 'off') config.sprint = stored.sprint;
     config.scale = clampNumber(stored.scale, 0.7, 1.5, config.scale);
     config.bottom = clampNumber(stored.bottom, 0, 240, config.bottom);
     config.side = clampNumber(stored.side, 0, 140, config.side);
@@ -628,6 +630,10 @@
     var side = Math.round(config.side);
     var bottom = 'calc(' + Math.round(config.bottom) + 'px + env(safe-area-inset-bottom, 0px))';
     var base = 'calc(' + Math.round(config.bottom * 0.62) + 'px + env(safe-area-inset-bottom, 0px))';
+    // Alto real del mando izquierdo ya escalado: el gesto de correr se apoya justo encima del
+    // bloque de A/B para que el pulgar derecho no tenga que viajar.
+    var padBox = Math.round(125 * scale);
+    var sprintBottom = 'calc(' + (Math.round(config.bottom) + padBox + 8) + 'px + env(safe-area-inset-bottom, 0px))';
     // Zurdo: los mandos cambian de lado aqui, sin tocar el toggle de EmulatorJS (que mueve las
     // clases y se llevaria consigo el pad propio).
     var leftSide = config.hand === 'left' ? 'right' : 'left';
@@ -646,7 +652,9 @@
       rightSide + ':' + side + 'px !important;left:auto !important;bottom:' + bottom + ' !important;}',
       // Start/Select centrados, un poco mas arriba que los mandos para no chocar.
       '.ejs_virtualGamepad_bottom{transform:scale(' + scale + ');transform-origin:bottom center;',
-      'bottom:' + base + ' !important;}'
+      'bottom:' + base + ' !important;}',
+      // Correr + saltar: encima del bloque de botones, del mismo lado que A/B.
+      '.nahua-sprint{' + rightSide + ':' + side + 'px !important;left:auto !important;bottom:' + sprintBottom + ' !important;}'
     ].join('');
   }
 
@@ -671,6 +679,9 @@
     var DOWN = 5;
     var LEFT = 6;
     var RIGHT = 7;
+    // Botones de accion del pad de RetroArch: 8 = A, 0 = B (los mismos que usa EmulatorJS).
+    var BUTTON_A = 8;
+    var BUTTON_B = 0;
     // Zona muerta: 32 % del radio. Mas chica, el pulgar tiembla y el personaje se mueve solo;
     // mas grande y hay que arrastrar demasiado para arrancar la caminata.
     var DEAD = 0.32;
@@ -681,6 +692,11 @@
     var active = {};
     var pointer = null;
     var timer = 0;
+    var sprintEl = null;
+    var sprintKnob = null;
+    var sprintPointer = null;
+    var sprintRunning = false;
+    var sprintJumping = false;
 
     function manager() {
       var emulator = window.EJS_emulator;
@@ -710,6 +726,10 @@
       send(DOWN, false);
       send(LEFT, false);
       send(RIGHT, false);
+      send(BUTTON_A, false);
+      send(BUTTON_B, false);
+      sprintJumping = false;
+      sprintRunning = false;
     }
 
     /**
@@ -838,19 +858,117 @@
       host.appendChild(grid);
     }
 
+    // --- Correr + saltar en un solo gesto ---------------------------------
+
+    /**
+     * Se apoya el dedo: B (correr) queda pulsado. Se arrastra fuera del centro: A (saltar). Se
+     * regresa al centro: se suelta A y se SIGUE corriendo, sin levantar el dedo. Es el gesto que
+     * en un Game Boy se hace con el pulgar sobre B y A a la vez, pero aqui con una sola mano.
+     */
+    function buildSprint(host) {
+      sprintEl = document.createElement('div');
+      sprintEl.className = 'nahua-sprint';
+      sprintKnob = document.createElement('span');
+      sprintKnob.className = 'nahua-sprint-knob';
+      var label = document.createElement('span');
+      label.className = 'nahua-sprint-label';
+      label.textContent = 'CORRER · SALTO';
+      sprintEl.appendChild(sprintKnob);
+      sprintEl.appendChild(label);
+
+      function setJump(on) {
+        if (sprintJumping === on) return;
+        sprintJumping = on;
+        send(BUTTON_A, on);
+        sprintEl.classList.toggle('nahua-sprint-jump', on);
+      }
+
+      function move(event) {
+        var box = sprintEl.getBoundingClientRect();
+        if (box.width < 8) return;
+        var cx = box.left + box.width / 2;
+        var cy = box.top + box.height / 2;
+        var dx = event.clientX - cx;
+        var dy = event.clientY - cy;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        var radius = Math.max(1, Math.min(box.width, box.height) / 2);
+        var travel = Math.min(distance, radius * 0.62);
+        var angle = Math.atan2(dy, dx);
+        if (sprintKnob) {
+          sprintKnob.style.transform = 'translate(' + Math.round(Math.cos(angle) * travel) + 'px, ' +
+            Math.round(Math.sin(angle) * travel) + 'px)';
+        }
+        // Histeresis: el salto entra al 34 % del radio y sale al 20 %. Sin esa holgura el salto
+        // parpadea con el temblor del pulgar.
+        if (!sprintJumping && distance > radius * 0.34) setJump(true);
+        else if (sprintJumping && distance < radius * 0.2) setJump(false);
+      }
+
+      function end(event) {
+        if (sprintPointer !== event.pointerId) return;
+        sprintPointer = null;
+        sprintRunning = false;
+        setJump(false);
+        send(BUTTON_B, false);
+        sprintEl.classList.remove('nahua-sprint-on');
+        if (sprintKnob) sprintKnob.style.transform = '';
+      }
+
+      sprintEl.addEventListener('pointerdown', function (event) {
+        if (sprintPointer !== null) return;
+        sprintPointer = event.pointerId;
+        sprintRunning = true;
+        send(BUTTON_B, true);
+        sprintEl.classList.add('nahua-sprint-on');
+        runCatching(function () { sprintEl.setPointerCapture(event.pointerId); });
+        move(event);
+        haptic('press');
+        event.preventDefault();
+      });
+      sprintEl.addEventListener('pointermove', function (event) {
+        if (sprintPointer !== event.pointerId) return;
+        move(event);
+        event.preventDefault();
+      });
+      sprintEl.addEventListener('pointerup', end);
+      sprintEl.addEventListener('pointercancel', end);
+      sprintEl.addEventListener('lostpointercapture', end);
+
+      host.appendChild(sprintEl);
+    }
+
+    /**
+     * Saca la capa del mando de #display (el rectangulo del juego) y la monta en #game, que ocupa
+     * toda la pantalla. EmulatorJS la crea dentro de su propio contenedor y por eso los botones
+     * no podian bajar mas alla de la imagen.
+     */
+    function liftLayer() {
+      var emulator = window.EJS_emulator;
+      var layer = emulator && emulator.virtualGamepad;
+      var game = byId('game');
+      if (!layer || !game) return null;
+      if (layer.parentNode !== game) game.appendChild(layer);
+      return layer;
+    }
+
     // --- Montaje ----------------------------------------------------------
 
     function unmount() {
       releaseAll();
       pointer = null;
       knob = null;
+      sprintPointer = null;
       var node = document.querySelector('.nahua-pad');
       if (node && node.parentNode) node.parentNode.removeChild(node);
+      if (sprintEl && sprintEl.parentNode) sprintEl.parentNode.removeChild(sprintEl);
+      sprintEl = null;
+      sprintKnob = null;
       root = null;
     }
 
     function mount(host, config) {
       if (!host) return false;
+      var layer = liftLayer();
       unmount();
       mode = config && config.pad === 'dpad' ? 'dpad' : 'joystick';
       root = document.createElement('div');
@@ -859,6 +977,8 @@
       host.appendChild(root);
       if (mode === 'dpad') buildDpad(root);
       else buildStick(root);
+      // El gesto de correr + saltar se apaga desde el panel si molesta.
+      if (layer && (!config || config.sprint !== 'off')) buildSprint(layer);
       return true;
     }
 
@@ -874,15 +994,22 @@
       }
 
       function attempt() {
+        // La capa del mando se mueve a #game en cuanto EmulatorJS la crea: si no, los botones
+        // quedan encerrados en el rectangulo del juego.
+        liftLayer();
         var host = document.querySelector('.ejs_virtualGamepad_left');
         if (host) {
           if (timer) {
             window.clearInterval(timer);
             timer = 0;
           }
-          // Se remonta si cambio el tipo de mando o si EmulatorJS rehizo sus contenedores.
+          // Se remonta si cambio el tipo de mando, si falta el gesto de correr o si EmulatorJS
+          // rehizo sus contenedores.
           var current = host.querySelector('.nahua-pad');
-          if (current && current.getAttribute('data-mode') === (config.pad === 'dpad' ? 'dpad' : 'joystick')) {
+          var wantSprint = !config || config.sprint !== 'off';
+          var hasSprint = !!document.querySelector('.nahua-sprint');
+          if (current && current.getAttribute('data-mode') === (config.pad === 'dpad' ? 'dpad' : 'joystick') &&
+              wantSprint === hasSprint) {
             return;
           }
           mount(host, config);
@@ -1419,6 +1546,7 @@
     markGroup('[data-pad]', function (node) { return node.getAttribute('data-pad') === pad.pad; });
     markGroup('[data-hand]', function (node) { return node.getAttribute('data-hand') === pad.hand; });
     markGroup('[data-haptic]', function (node) { return node.getAttribute('data-haptic') === pad.haptic; });
+    markGroup('[data-sprint]', function (node) { return node.getAttribute('data-sprint') === pad.sprint; });
     markGroup('[data-ff]', function (node) { return node.getAttribute('data-ff') === options.ff; });
     markGroup('[data-rewind]', function (node) {
       return node.getAttribute('data-rewind') === (options.rewind ? 'on' : 'off');
@@ -1507,6 +1635,12 @@
       node.addEventListener('click', function () {
         updatePad({ haptic: node.getAttribute('data-haptic') });
         haptic('press');
+      });
+    });
+    Array.prototype.forEach.call(panel.querySelectorAll('[data-sprint]'), function (node) {
+      node.addEventListener('click', function () {
+        updatePad({ sprint: node.getAttribute('data-sprint') });
+        NahuaPad.setMode(readPad());
       });
     });
     Array.prototype.forEach.call(panel.querySelectorAll('[data-ff]'), function (node) {

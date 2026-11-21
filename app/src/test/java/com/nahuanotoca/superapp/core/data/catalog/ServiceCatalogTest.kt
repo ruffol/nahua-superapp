@@ -304,6 +304,11 @@ class ServiceCatalogTest {
         assertTrue("No hay ajuste de posicion de pantalla", gbaJs.contains("nahua.arcade.screen"))
         assertTrue("La pantalla sigue dependiendo del mando", gbaJs.contains("height - bandHeight - 12"))
         assertTrue("Falta el control de posicion de pantalla", html.contains("ctlScreenPos"))
+        // El mando vive fuera del rectangulo del juego y hay gesto de correr + saltar.
+        assertTrue("La capa del mando no se saca de #display", gbaJs.contains("liftLayer"))
+        assertTrue("No hay gesto de correr + saltar", gbaJs.contains("nahua-sprint"))
+        assertTrue("El gesto no usa A ni B", gbaJs.contains("BUTTON_A") && gbaJs.contains("BUTTON_B"))
+        assertTrue("Falta el interruptor del boton de correr", html.contains("data-sprint"))
         // Vertical fijo: el panel ya no ofrece girar la pantalla.
         assertTrue("El panel no dice que la orientación es fija", html.contains("Vertical · fijo"))
         assertTrue("El panel no pide la orientación vertical", gbaJs.contains("Nahua.orientation('portrait')"))

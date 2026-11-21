@@ -5,6 +5,25 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.20.4] — 2026-11-20
+
+### Corregido
+
+- **Los botones no podían bajar del rectángulo del juego**: EmulatorJS crea su gamepad **dentro de
+  `#display`**, así que al ajustar la pantalla a la proporción del cartucho la capa del mando quedó
+  encerrada en esa caja (y la cámara del teléfono tapaba la fila de arriba). Ahora la capa se
+  re-monta en `#game` (pantalla completa, `position: fixed`) con `pointer-events: none` en el
+  contenedor y `auto` en los controles: los mandos viven en la franja libre de abajo, fuera de la
+  imagen, y los toques siguen llegando a cada botón (verificado con `elementFromPoint`).
+
+### Añadido
+
+- **Gesto «CORRER · SALTO»** encima de A/B: apoyas el dedo y B queda pulsado (Mario corre),
+  arrastras el dedo fuera del centro y se pulsa A (salta), regresas al centro y se suelta el salto
+  **sin dejar de correr**. Funciona en cualquier dirección, con histéresis (entra al 34 % del
+  radio, sale al 20 %) para que el salto no parpadee con el temblor del pulgar. Se puede apagar
+  desde *Ajustes → Mando*.
+
 ## [0.20.3] — 2026-11-20
 
 ### Añadido
