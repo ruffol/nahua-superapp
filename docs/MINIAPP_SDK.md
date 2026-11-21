@@ -1,10 +1,10 @@
-# Nahua Mini App SDK (v1.6)
+# Nahua Mini App SDK (v1.7)
 
 Una mini app es un bundle web (HTML/CSS/JS) que vive en `app/src/main/assets/miniapps/<id>/` y se
 declara en `app/src/main/assets/miniapps/index.json`. La app anfitriona la carga en un WebView
-aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, catálogo de las
-tiendas (HTTP en el anfitrión), avisos a la bandeja nativa, háptica, navegación y, desde la v1.3, la
-gestión de ROMs del emulador.
+aislado y le expone una API pequeña para identidad, pagos, ubicación en vivo, rumbo del dispositivo,
+catálogo de las tiendas (HTTP en el anfitrión), avisos a la bandeja nativa, háptica, navegación y,
+desde la v1.3, la gestión de ROMs del emulador.
 
 ## Manifiesto
 
@@ -147,6 +147,30 @@ Nahua.stopLocation(); // detiene todos los watchers de la página
 Campos del fix: `lat`, `lng`, `accuracy` (m), `speed` (m/s), `bearing` (grados desde el norte),
 `altitude` (m), `timestamp` (ms) y `provider`. Los campos de velocidad, rumbo y altitud pueden
 faltar si el proveedor no los reporta.
+
+### `Nahua.watchHeading(handler)`
+
+Rumbo del dispositivo: hacia dónde apunta el teléfono cuando se sostiene en la mano (el borde
+superior va inclinado hacia adelante). El host lee el sensor de rotación y empuja lecturas a
+~12 Hz ya suavizadas; sin sensor avisa por `onHeadingError` en vez de inventar una dirección.
+
+```js
+const stop = Nahua.watchHeading(({ heading }) => {
+  // heading: 0 = norte, 90 = este, grados 0–360
+  console.log(heading);
+});
+
+const offError = Nahua.onHeadingError(error => {
+  // unsupported: el equipo no tiene brújula
+});
+
+stop();
+offError();
+```
+
+Es distinto de `fix.bearing`: ese es el rumbo **de movimiento** que reporta el GPS (y falta si
+estás quieto); `watchHeading` es hacia dónde **mira** el aparato. El sensor se apaga al cerrar la
+pantalla o al pausar la app.
 
 ### `Nahua.openDirections(lat, lng, label)`
 

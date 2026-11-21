@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,7 +52,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.nahuanotoca.superapp.core.design.PixelAppGlyphs
 import com.nahuanotoca.superapp.core.design.PixelBg
 import com.nahuanotoca.superapp.core.design.PixelBodyText
@@ -214,6 +218,22 @@ fun MiniAppScreen(
         locationJob.value = null
     }
 
+    // Brújula: la página pide el rumbo y el flujo se corta al salir de la pantalla o al pausar
+    // la app (el sensor de rotación gasta batería, no debe seguir girando en segundo plano).
+    var headingWanted by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(headingWanted, lifecycleOwner) {
+        if (!headingWanted) return@LaunchedEffect
+        if (!viewModel.hasHeadingSensor()) {
+            bridge.emitHeadingError("unsupported")
+            return@LaunchedEffect
+        }
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.headings().collect { degrees -> bridge.emitHeading(degrees) }
+        }
+    }
+
     // ROMs del emulador: el picker es del sistema (SAF). Muchos providers etiquetan los .gba como
     // application/octet-stream, asi que se pide */* y la validacion real de extension/tamano
     // vive en RomStore al momento de copiar.
@@ -257,6 +277,8 @@ fun MiniAppScreen(
         }
         bridge.onLocationWatchStart = { interval -> startLocationWatch(interval) }
         bridge.onLocationWatchStop = { stopLocationWatch() }
+        bridge.onHeadingWatchStart = { headingWanted = true }
+        bridge.onHeadingWatchStop = { headingWanted = false }
         bridge.onDirectionsRequest = { request -> openDirections(context, request, onMessage) }
         bridge.onCopyToClipboard = { text -> copyToClipboard(context, text, onMessage) }
         bridge.onBarterNotice = { notice ->
@@ -286,6 +308,8 @@ fun MiniAppScreen(
             locationJob.value = null
             bridge.onLocationWatchStart = {}
             bridge.onLocationWatchStop = {}
+            bridge.onHeadingWatchStart = {}
+            bridge.onHeadingWatchStop = {}
             bridge.onDirectionsRequest = {}
             bridge.onCopyToClipboard = {}
             bridge.onBarterNotice = {}

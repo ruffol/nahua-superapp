@@ -9,6 +9,7 @@ import com.nahuanotoca.superapp.core.model.Service
 import com.nahuanotoca.superapp.core.model.ServiceTarget
 import com.nahuanotoca.superapp.core.model.UserProfile
 import com.nahuanotoca.superapp.core.model.WalletState
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun hasLocationPermission(): Boolean = container.locationProvider.hasPermission()
+
+    /** La brújula del equipo, para el cono del ojo en el mapa del inicio. */
+    fun hasHeadingSensor(): Boolean = container.headingProvider.isAvailable()
+
+    fun headings(): Flow<Float> = container.headingProvider.headings()
+
+    /** GPS en vivo del mapa del inicio (la neblina se despeja caminando). */
+    fun locationUpdates(intervalMillis: Long): Flow<LocationFix> =
+        container.locationProvider.locationUpdates(intervalMillis)
 
     fun refreshLocation() {
         viewModelScope.launch {

@@ -5,6 +5,47 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-11-20
+
+### Añadido
+
+- **Neblina de exploración en el mapa** (botón 🌫 en los controles, también en el mapa del
+  inicio): al encenderla el mapa queda cubierto y sólo se despeja un radio de **4.2 m** alrededor
+  de lo caminado, así que el estado se va descubriendo a pie. El recorrido se guarda en el
+  dispositivo (`nahua.mapa.neblina.v3`) y sobrevive a cerrar la app; una pulsación larga en el
+  botón arma el borrado y un segundo toque lo confirma.
+- **La neblina no acepta falsas confirmaciones**: sólo despeja con lecturas de menos de 12 s,
+  precisión mejor que 8 m, sin saltos a más de 30 m/s y, si el GPS pega un brinco, exige tres
+  lecturas seguidas en el sitio nuevo antes de abrir nada. Una lectura dudosa nunca despeja.
+- **Brújula con ojo y cono**: el marcador de posición es un 👁 y un cono azul gira con la
+  orientación del teléfono, de modo que se ve hacia dónde estás mirando. La barra muestra el
+  rumbo (`👁 NE 45°`). El rumbo lo calcula el host con el sensor de rotación
+  (`HeadingProvider`): se toma la dirección del aparato suponiendo el teléfono con el borde
+  superior inclinado hacia adelante, corregida por la rotación de pantalla y suavizada sobre el
+  vector para que el cono no tiemble. Sin sensor, la página avisa en vez de inventar el rumbo.
+- `Nahua.watchHeading(handler)` y `Nahua.onHeadingError(handler)` en el SDK (v1.7.0), con
+  respaldo `DeviceOrientationEvent` para probar la página en el navegador.
+
+### Cambiado
+
+- **El buscador del mapa se retira**: quedan el GPS y las coordenadas, tanto en la mini app como
+  en el mapa del inicio. Sin buscador tampoco hay destinos ni tarjeta de ruta; el mapa se centra
+  en ti y la neblina se encarga de lo demás.
+- **El mapa del inicio ya tiene GPS en vivo** (antes sólo pedía un punto al tocar ◎), que es lo
+  que necesita la neblina para despejar el recorrido.
+- Al encender la neblina el mapa se acerca a z17: un despeje de 4.2 m sólo se lee con el detalle
+  urbano delante.
+- **El mapa sigue al ojo al caminar** mientras la neblina está encendida; si arrastras el mapa, el
+  seguimiento se suelta y vuelve al tocar ◎.
+
+### Corregido
+
+- **El mapa del inicio a veces dejaba de responder** después de abrir el mapa a pantalla completa
+  y volver: `pauseTimers()` del WebView es global al proceso, así que al regresar los timers
+  podían quedar congelados. Ahora el mapa del inicio hace `resumeTimers()` al crearse y en cada
+  `ON_RESUME`, avisa `triggerResize()` en cada cambio real de tamaño y al terminar de cargar, y
+  destruye su WebView al salir (antes cada visita dejaba un WebView vivo colgado con su GPS).
+
 ## [0.20.5] — 2026-11-20
 
 ### Cambiado

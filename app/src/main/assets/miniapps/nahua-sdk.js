@@ -6,8 +6,11 @@
  * external directions, clipboard, háptica, avisos de bandeja, toast, close y, desde v1.3,
  * la gestion de ROMs del emulador (pickRom, listRoms, deleteRom).
  *
- * Location in the browser (dev) falls back to navigator.geolocation, so the map can be
- * tested outside the APK.
+ * Location and heading in the browser (dev) fall back to navigator.geolocation and
+ * DeviceOrientationEvent, so the map can be tested outside the APK.
+ *
+ * v1.7 adds watchHeading/onHeadingError: the host reads the rotation sensor and pushes the
+ * compass bearing of the direction the phone is pointing at.
  *
  * v1.5 retira valuate/compare: el bazar ya no valora objetos, el precio lo pone quien publica.
  */
@@ -16,8 +19,9 @@
 
   var pending = Object.create(null);
   var sequence = 0;
-  var listeners = { location: [], locationError: [] };
+  var listeners = { location: [], locationError: [], heading: [], headingError: [] };
   var browserWatchId = null;
+  var orientationHandler = null;
 
   function post(method, payload) {
     return new Promise(function (resolve, reject) {
@@ -102,8 +106,41 @@
     browserWatchId = null;
   }
 
+  /**
+   * Rumbo del navegador (desarrollo). `webkitCompassHeading` ya viene en grados de brújula;
+   * `alpha` crece en sentido antihorario desde el norte, así que se invierte.
+   */
+  function headingFromOrientation(event) {
+    if (event == null) return null;
+    if (event.webkitCompassHeading != null) return Number(event.webkitCompassHeading);
+    if (event.alpha == null) return null;
+    return event.absolute ? (360 - Number(event.alpha)) % 360 : null;
+  }
+
+  function startBrowserHeading() {
+    if (orientationHandler) return;
+    if (typeof window.DeviceOrientationEvent === 'undefined') {
+      emit('headingError', { status: 'error', error: 'unsupported' });
+      return;
+    }
+    orientationHandler = function (event) {
+      var heading = headingFromOrientation(event);
+      if (heading == null || !isFinite(heading)) return;
+      emit('heading', { status: 'ok', heading: heading });
+    };
+    window.addEventListener('deviceorientationabsolute', orientationHandler, true);
+    window.addEventListener('deviceorientation', orientationHandler, true);
+  }
+
+  function stopBrowserHeading() {
+    if (!orientationHandler) return;
+    window.removeEventListener('deviceorientationabsolute', orientationHandler, true);
+    window.removeEventListener('deviceorientation', orientationHandler, true);
+    orientationHandler = null;
+  }
+
   window.Nahua = {
-    version: '1.6.0',
+    version: '1.7.0',
     _resolve: resolve,
     _emit: emit,
 
@@ -177,6 +214,52 @@
       return function () {
         var index = listeners.locationError.indexOf(handler);
         if (index >= 0) listeners.locationError.splice(index, 1);
+      };
+    },
+
+    /**
+     * Rumbo del dispositivo: hacia dónde apunta el teléfono cuando lo sostienes en la mano
+     * (el top va inclinado hacia adelante). La lectura la hace el anfitrión con el sensor de
+     * rotación; sin anfitrión se usa DeviceOrientationEvent.
+     *
+     * @param {(heading: {heading: number}) => void} handler grados desde el norte, 0–360
+     * @returns {() => void} función para dejar de escuchar
+     */
+    watchHeading: function (handler) {
+      if (typeof handler !== 'function') {
+        throw new TypeError('watchHeading necesita una función');
+      }
+      listeners.heading.push(handler);
+      if (listeners.heading.length === 1) {
+        if (window.NahuaNative && window.NahuaNative.startHeadingUpdates) {
+          window.NahuaNative.startHeadingUpdates();
+        } else {
+          startBrowserHeading();
+        }
+      }
+      var active = true;
+      return function stop() {
+        if (!active) return;
+        active = false;
+        var index = listeners.heading.indexOf(handler);
+        if (index >= 0) listeners.heading.splice(index, 1);
+        if (listeners.heading.length === 0) {
+          if (window.NahuaNative && window.NahuaNative.stopHeadingUpdates) {
+            window.NahuaNative.stopHeadingUpdates();
+          } else {
+            stopBrowserHeading();
+          }
+        }
+      };
+    },
+
+    /** Sin brújula en el equipo: la página avisa en vez de inventar una dirección. */
+    onHeadingError: function (handler) {
+      if (typeof handler !== 'function') return function () {};
+      listeners.headingError.push(handler);
+      return function () {
+        var index = listeners.headingError.indexOf(handler);
+        if (index >= 0) listeners.headingError.splice(index, 1);
       };
     },
 

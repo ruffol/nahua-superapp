@@ -20,7 +20,9 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 
 - **Mapa estatal de Colima** con teselas propias (z9–16, Natural Earth + OSM + cartografía
   geoestadística del INEGI), manzanas y ejes viales de las localidades, estilo de papel cálido,
-  **GPS en vivo** con coordenadas, velocidad y rumbo, ruta directa y búsqueda estatal.
+  **GPS en vivo** con coordenadas, **neblina de exploración** que sólo se despeja en un radio de
+  4.2 m alrededor de lo caminado y **brújula**: un ojo con cono muestra hacia dónde mira el
+  teléfono.
 - **Bazar/Trueque y tiendas oficiales**: un solo mercado. Arriba, los banners de las
   **organizaciones oficiales** (venden todo el año y siempre tienen stock, así que tienen lugar
   permanente); debajo, el bazar de la comunidad. Cada quien pone **su precio** —la app ya no valora

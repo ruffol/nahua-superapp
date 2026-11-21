@@ -55,6 +55,14 @@ class MiniAppBridge(
 
     var onLocationWatchStop: () -> Unit = {}
 
+    /**
+     * Brújula: la página pide el rumbo del dispositivo (hacia dónde mira el teléfono) y el
+     * anfitrión lo empuja con [emitHeading]. Sin sensor se responde con [emitHeadingError].
+     */
+    var onHeadingWatchStart: () -> Unit = {}
+
+    var onHeadingWatchStop: () -> Unit = {}
+
     /** "Ir a..." hands the destination to the platform Maps app. */
     var onDirectionsRequest: (DirectionsRequest) -> Unit = {}
 
@@ -138,6 +146,17 @@ class MiniAppBridge(
     @JavascriptInterface
     fun stopLocationUpdates() {
         mainHandler.post { onLocationWatchStop() }
+    }
+
+    /** Brújula: fuego y olvido; el rumbo llega por el canal de eventos con [emitHeading]. */
+    @JavascriptInterface
+    fun startHeadingUpdates() {
+        mainHandler.post { onHeadingWatchStart() }
+    }
+
+    @JavascriptInterface
+    fun stopHeadingUpdates() {
+        mainHandler.post { onHeadingWatchStop() }
     }
 
     @JavascriptInterface
@@ -278,6 +297,16 @@ class MiniAppBridge(
     /** Pushes a live fix to the page; the SDK dispatches it to watchLocation listeners. */
     fun emitLocation(fix: LocationFix) {
         emit("location", fixJson(fix))
+    }
+
+    /** Rumbo del dispositivo en grados (0 = norte); el SDK lo reparte a watchHeading. */
+    fun emitHeading(degrees: Float) {
+        emit("heading", JSONObject().put("status", "ok").put("heading", degrees.toDouble()))
+    }
+
+    /** Sin sensor de rotación: la página avisa en vez de inventar una dirección. */
+    fun emitHeadingError(error: String) {
+        emit("headingError", JSONObject().put("status", "error").put("error", error))
     }
 
     /** Notifies the page that the watcher could not start (permission, GPS off, no provider). */

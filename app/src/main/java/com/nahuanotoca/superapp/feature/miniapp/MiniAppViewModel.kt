@@ -42,6 +42,11 @@ class MiniAppViewModel(
     fun locationUpdates(intervalMillis: Long): Flow<LocationFix> =
         container.locationProvider.locationUpdates(intervalMillis)
 
+    /** Rumbo del dispositivo para el cono del ojo en el mapa. */
+    fun hasHeadingSensor(): Boolean = container.headingProvider.isAvailable()
+
+    fun headings(): Flow<Float> = container.headingProvider.headings()
+
     /**
      * ROMs del emulador: copia la ROM elegida con SAF a filesDir/roms y devuelve su descriptor.
      * Lanza [RomImportException] con un codigo estable que la pantalla traduce a mensaje.
