@@ -12,7 +12,6 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PhoneAndroid
-import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Storefront
@@ -62,15 +61,6 @@ object ServiceCatalog {
             icon = Icons.Rounded.AccountBalanceWallet,
             accent = Jade,
             target = ServiceTarget.Native(Routes.WALLET),
-        ),
-        Service(
-            id = "scan",
-            name = "Escanear QR",
-            tagline = "Paga al instante",
-            category = ServiceCategory.PAYMENTS,
-            icon = Icons.Rounded.QrCodeScanner,
-            accent = Teal,
-            target = ServiceTarget.Native(Routes.SCAN),
         ),
         Service(
             id = "inbox",
@@ -180,7 +170,7 @@ object ServiceCatalog {
     )
 
     val featured: List<Service> = listOf(
-        "ride", "bills", "wallet", "scan", "inbox", "profile",
+        "ride", "bills", "wallet", "inbox", "profile",
     ).mapNotNull { id -> all.firstOrNull { it.id == id } }
 
     fun byCategory(category: ServiceCategory): List<Service> = all.filter { it.category == category }

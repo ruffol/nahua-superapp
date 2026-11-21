@@ -23,7 +23,7 @@
       "id": "mapa",
       "name": "Mapas",
       "tagline": "Mapa estatal, GPS, neblina y brújula",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "entry": "miniapps/mapa/index.html",
       "accent": "#2F6BFF",
       "permissions": ["map.tiles", "location"]

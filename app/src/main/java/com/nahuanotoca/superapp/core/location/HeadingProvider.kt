@@ -15,10 +15,10 @@ import kotlinx.coroutines.flow.callbackFlow
 /**
  * Rumbo del dispositivo: hacia dónde mira el teléfono cuando se sostiene en la mano.
  *
- * El teléfono se lleva con el borde superior inclinado hacia adelante, así que la dirección de
- * la mirada es la proyección horizontal del vector (0, -1, -1) del aparato: el -Y es el top y el
- * -Z sale por detrás de la pantalla. Con el teléfono plano manda el top; con la pantalla vertical
- * manda la cámara trasera, y la mezcla cubre las dos posturas sin saltos.
+ * La referencia es la **pantalla**: acostado manda el borde superior (como un mapa) y en alto manda
+ * el eje de la cámara trasera (como una foto); [LookDirection] mezcla los dos ejes según la postura
+ * real, así que el cono no salta al pasar de una a otra. Se corrige por la rotación de pantalla
+ * porque al girar el teléfono el «arriba» de la pantalla es otro eje físico.
  *
  * Se usa el sensor de rotación (`ROTATION_VECTOR`, con norte magnético) o, si el equipo no lo
  * tiene, `GAME_ROTATION_VECTOR` (sin norte real: el cono sigue sirviendo para girar). Las
@@ -54,18 +54,9 @@ class HeadingProvider(private val context: Context) {
             override fun onSensorChanged(event: SensorEvent) {
                 SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
 
-                val vector = deviceVector()
-                val east = rotationMatrix[0] * vector[0] +
-                    rotationMatrix[1] * vector[1] +
-                    rotationMatrix[2] * vector[2]
-                val north = rotationMatrix[3] * vector[0] +
-                    rotationMatrix[4] * vector[1] +
-                    rotationMatrix[5] * vector[2]
-                val length = kotlin.math.hypot(east, north)
-                if (length < 0.05f) return
-
-                val unitX = east / length
-                val unitY = north / length
+                val direction = LookDirection.horizontal(rotationMatrix, displayRotation()) ?: return
+                val unitX = direction[0]
+                val unitY = direction[1]
                 if (!hasSmooth) {
                     smoothX = unitX
                     smoothY = unitY
@@ -81,10 +72,7 @@ class HeadingProvider(private val context: Context) {
                 if (now - lastEmitAt < EMIT_INTERVAL_MS) return
                 lastEmitAt = now
 
-                val degrees = Math.toDegrees(
-                    kotlin.math.atan2(smoothX.toDouble(), smoothY.toDouble()),
-                )
-                trySend(((degrees + 360.0) % 360.0).toFloat())
+                trySend(LookDirection.degreesOf(smoothX, smoothY))
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -101,16 +89,9 @@ class HeadingProvider(private val context: Context) {
     }
 
     /**
-     * Vector del aparato que representa la mirada, ya pasado al sistema de la pantalla actual:
-     * al girar el teléfono cambia qué eje físico es "el top".
+     * Rotación de pantalla en las constantes de `Surface.ROTATION_*`. Al girar el teléfono cambia
+     * qué eje físico es «el arriba» de la pantalla.
      */
-    private fun deviceVector(): FloatArray = when (displayRotation()) {
-        Surface.ROTATION_90 -> floatArrayOf(-1f, 0f, -1f)
-        Surface.ROTATION_180 -> floatArrayOf(0f, 1f, -1f)
-        Surface.ROTATION_270 -> floatArrayOf(1f, 0f, -1f)
-        else -> floatArrayOf(0f, -1f, -1f)
-    }
-
     @Suppress("DEPRECATION")
     private fun displayRotation(): Int {
         val manager = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager

@@ -1,6 +1,7 @@
 package com.nahuanotoca.superapp.core.miniapp
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -33,11 +34,20 @@ class MiniAppManifestTest {
         assertEquals(MiniAppOrientation.AUTO, MiniAppOrientation.from("diagonal"))
     }
 
+    /**
+     * La URL lleva la versión del manifiesto como query: el WebView cachea por URL, y sin ese
+     * cambio una actualización del APK podía seguir ejecutando el HTML anterior del bundle.
+     */
     @Test
-    fun entryUrlIsServedFromTheAssetOrigin() {
+    fun entryUrlIsServedFromTheAssetOriginWithACacheBuster() {
         val manifest = manifest(entry = "miniapps/gba/index.html")
         assertEquals(
-            "https://appassets.androidplatform.net/assets/miniapps/gba/index.html",
+            "https://appassets.androidplatform.net/assets/miniapps/gba/index.html?v=1.0.0",
+            manifest.entryUrl,
+        )
+        assertNotEquals(
+            "sin cache-buster el WebView puede seguir sirviendo el bundle viejo",
+            manifest(entry = "miniapps/gba/index.html", version = "1.1.0").entryUrl,
             manifest.entryUrl,
         )
     }

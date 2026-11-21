@@ -41,8 +41,6 @@ import com.nahuanotoca.superapp.feature.profile.ProfileScreen
 import com.nahuanotoca.superapp.feature.profile.ProfileViewModel
 import com.nahuanotoca.superapp.feature.rag.StudioScreen
 import com.nahuanotoca.superapp.feature.rag.StudioViewModel
-import com.nahuanotoca.superapp.feature.scan.ScanScreen
-import com.nahuanotoca.superapp.feature.scan.ScanViewModel
 import com.nahuanotoca.superapp.feature.search.SearchScreen
 import com.nahuanotoca.superapp.feature.services.ServicesScreen
 import com.nahuanotoca.superapp.feature.services.ServicesViewModel
@@ -62,7 +60,7 @@ fun NahuaApp(container: AppContainer) {
         scope.launch { snackbarHostState.showSnackbar(message = message) }
     }
 
-    val chromeless = currentRoute == Routes.SCAN || currentRoute?.startsWith("miniapp/") == true
+    val chromeless = currentRoute?.startsWith("miniapp/") == true
 
     // Toda la app es oscura en pixel art, así que los iconos del sistema van siempre en claro.
     val view = LocalView.current
@@ -122,9 +120,6 @@ fun NahuaApp(container: AppContainer) {
                     viewModel = viewModel,
                     onOpenService = ::openService,
                     onSeeAllServices = { navigateTab(Routes.SERVICES) },
-                    onOpenWallet = { navigateTab(Routes.WALLET) },
-                    onOpenInbox = { navController.navigate(Routes.INBOX) },
-                    onScan = { navController.navigate(Routes.SCAN) },
                     onMessage = showMessage,
                 )
             }
@@ -177,16 +172,6 @@ fun NahuaApp(container: AppContainer) {
                     viewModel = viewModel,
                     onBack = { navController.popBackStack() },
                     onOpenService = ::openService,
-                )
-            }
-
-            composable(Routes.SCAN) {
-                val viewModel = rememberAppViewModel { ScanViewModel(it) }
-                ScanScreen(
-                    viewModel = viewModel,
-                    onBack = { navController.popBackStack() },
-                    onOpenWallet = { navigateTab(Routes.WALLET) },
-                    onMessage = showMessage,
                 )
             }
 

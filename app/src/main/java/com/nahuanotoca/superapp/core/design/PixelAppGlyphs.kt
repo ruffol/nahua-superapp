@@ -57,18 +57,6 @@ object PixelAppGlyphs {
         ".........",
     )
 
-    val qr = rows(
-        "XXX...XXX",
-        "X.X...X.X",
-        "XXX...XXX",
-        ".........",
-        "..X.X.X..",
-        ".........",
-        "XXX...XXX",
-        "X.X...X.X",
-        "XXX...XXX",
-    )
-
     val bell = rows(
         "....X....",
         "...XXX...",
@@ -305,7 +293,6 @@ object PixelAppGlyphs {
         "ride" to car,
         "bills" to receipt,
         "wallet" to wallet,
-        "scan" to qr,
         "inbox" to bell,
         "profile" to person,
         "mapas" to map,

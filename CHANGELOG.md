@@ -5,6 +5,53 @@ y el proyecto usa [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-11-21
+
+### Añadido
+
+- **Panal de aplicaciones en dos filas de hexágonos**: seis accesos (Yōlcatl, RAG, Mapa, Bazar,
+  Cartera y el emulador **GBA**) repartidos cuatro arriba y cuatro abajo, sin scroll horizontal.
+  Cada hexágono es una silueta propia (`HexagonShape`) con borde, sprite y sombra desplazada.
+- **Dos celdas reservadas para futuras apps**: al final del panal quedan dos hexágonos atenuados
+  con una cruz, descritos como «Espacio libre para una futura app» para lectores de pantalla. El
+  sitio ya está hecho, así que la próxima app sólo cambia el contenido.
+- **Sprite del emulador**: `px_icon_gba.png`, una consola portátil horizontal en pixel art con la
+  paleta del proyecto (carcasa violeta, pantalla azul, cruceta y botones A/B en diagonal).
+- **La mirada se mide desde la pantalla**: `LookDirection` mezcla dos ejes según cómo se sostenga
+  el teléfono —acostado manda el borde superior de la pantalla, en alto el eje de la cámara
+  trasera— y la mezcla pesa cada uno por la inclinación real, así que el cono sigue la mirada en
+  las dos posturas y en el camino entre ellas, sin el vector fijo a 45° de antes.
+- **Brújula pequeña en el mapa**: dial bajo la tarjeta superior con la rosa (N/E/S/O y aguja roja)
+  girando con el rumbo, el ojo al centro y la muesca dorada arriba como marca de tu mirada, más el
+  rumbo escrito (`NE 38°`). Sin sensor se oculta en vez de inventar el norte.
+- **El mapa del inicio es un pergamino**: el recuadro se dibuja como un rollo de papel viejo —hoja
+  con fibras, manchas de edad y varilla de madera con sus dos perillas— y se **desenrolla al
+  tocarlo**, hasta el tercio de pantalla de siempre. Al tocar el encabezado o la varilla se vuelve a
+  enrollar. El estado abierto/cerrado sobrevive a la rotación, el rollo cerrado tapa el mapa con una
+  hoja de papel en vez de recargar el WebView, y el alto se sigue avisando a Leaflet para que los
+  toques no caigan donde no es.
+
+### Cambiado
+
+- **El inicio pierde la bienvenida y el resumen de cifras**: se retiran el saludo con el Tlalchichi
+  («¡Hola…! ¿Qué te gustaría hacer hoy?») y los tres recuadros de Saldo, Avisos y Servicios. La
+  portada queda en el pergamino del mapa y el panal de aplicaciones.
+- **Las URL de las mini-apps llevan la versión como cache-buster** (`…?v=1.4.0`): el WebView cachea
+  por URL y sin eso una actualización del APK podía seguir ejecutando el HTML anterior.
+- **La neblina ahora despeja 12 m a la redonda** (antes 4.2 m): el radio anterior era menor que la
+  precisión que se acepta (±8 m), así que una lectura podía despejar un sitio equivocado; con 12 m el
+  punto real siempre cae dentro del despeje. El recorrido además se lee mucho mejor a zoom de detalle.
+  Los filtros no cambian (menos de 12 s, precisión mejor que 8 m, sin saltos a más de 30 m/s y tres
+  lecturas seguidas tras un brinco del GPS).
+- **La lista de destacados queda en cinco** servicios (Ride, Pagar servicios, Cartera, Avisos y Mi
+  cuenta) en la barra del inicio y en el catálogo.
+
+### Eliminado
+
+- **Lector de QR**: se elimina la pantalla de escaneo, su ruta, el servicio «Escanear QR» del
+  catálogo, el glifo, su acceso en el saludo del inicio, el mensaje de la cartera que mandaba a esa
+  pantalla y la captura `docs/screens/escaner.png`. Nada queda llamando a una ruta que ya no existe.
+
 ## [0.21.0] — 2026-11-20
 
 ### Añadido

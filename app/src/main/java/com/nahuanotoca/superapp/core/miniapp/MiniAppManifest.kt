@@ -24,7 +24,11 @@ data class MiniAppManifest(
      */
     val orientation: MiniAppOrientation = MiniAppOrientation.AUTO,
 ) {
-    val entryUrl: String get() = ASSET_ORIGIN + "assets/" + entry
+    /**
+     * URL de la entrada con la versión como cache-buster: el WebView cachea por URL, así que sin
+     * esto una actualización del APK puede seguir ejecutando el HTML anterior.
+     */
+    val entryUrl: String get() = ASSET_ORIGIN + "assets/" + entry + "?v=" + version
 
     companion object {
         const val ASSET_ORIGIN: String = "https://appassets.androidplatform.net/"

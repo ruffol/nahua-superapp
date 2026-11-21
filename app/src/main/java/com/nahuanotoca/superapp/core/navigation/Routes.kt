@@ -5,7 +5,6 @@ object Routes {
     const val SERVICES = "services"
     const val WALLET = "wallet"
     const val PROFILE = "profile"
-    const val SCAN = "scan"
     const val INBOX = "inbox"
     const val SEARCH = "search"
     const val SETTINGS = "settings"

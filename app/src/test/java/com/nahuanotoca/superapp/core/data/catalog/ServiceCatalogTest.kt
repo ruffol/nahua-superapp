@@ -20,7 +20,7 @@ class ServiceCatalogTest {
 
     @Test
     fun featuredServicesExistInCatalog() {
-        assertEquals(6, ServiceCatalog.featured.size)
+        assertEquals(5, ServiceCatalog.featured.size)
         ServiceCatalog.featured.forEach { service ->
             assertNotNull(ServiceCatalog.find(service.id))
         }
@@ -35,7 +35,7 @@ class ServiceCatalogTest {
 
     @Test
     fun removedServicesAreNoLongerOffered() {
-        listOf("food", "cinema", "pharmacy", "insurance").forEach { id ->
+        listOf("food", "cinema", "pharmacy", "insurance", "scan").forEach { id ->
             assertNull("El servicio " + id + " sigue en el catálogo", ServiceCatalog.find(id))
         }
     }

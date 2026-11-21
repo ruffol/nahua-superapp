@@ -21,7 +21,7 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 - **Mapa estatal de Colima** con teselas propias (z9–16, Natural Earth + OSM + cartografía
   geoestadística del INEGI), manzanas y ejes viales de las localidades, estilo de papel cálido,
   **GPS en vivo** con coordenadas, **neblina de exploración** que sólo se despeja en un radio de
-  4.2 m alrededor de lo caminado y **brújula**: un ojo con cono muestra hacia dónde mira el
+  12 m alrededor de lo caminado y **brújula**: un ojo con cono muestra hacia dónde mira el
   teléfono.
 - **Bazar/Trueque y tiendas oficiales**: un solo mercado. Arriba, los banners de las
   **organizaciones oficiales** (venden todo el año y siempre tienen stock, así que tienen lugar
@@ -37,12 +37,19 @@ figuras y un PDF listo para exponer. Todo en un solo binario, con un **runtime d
 - **Búsqueda híbrida opcional** (BM25 + vectores con RRF) si configuras un endpoint `/embeddings`.
 - **Actualizaciones OTA**: desde *Perfil → Versión* la app busca la última release en GitHub, la
   descarga y la instala sin volver a pasar un APK.
-- **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, escáner QR, avisos, perfil y
-  tema claro/oscuro.
+- **Hub de servicios**, cartera con DataStore, pagos entre mini-apps, avisos, perfil y tema
+  claro/oscuro.
+- **Inicio en pergamino y panal**: el mapa offline del inicio es un rollo de papel que se desenrolla
+  al tocarlo, y debajo las seis aplicaciones —Yōlcatl, RAG, Mapa, Bazar, Cartera y el emulador
+  GBA— van en dos filas de cuatro hexágonos, con dos celdas libres reservadas al final. Sin
+  saludo, sin resumen de cifras y sin lector de QR.
+- **Brújula de mirada**: el mapa mide hacia dónde miras desde la pantalla —acostado el borde
+  superior, en alto la cámara trasera, mezclados por la inclinación real— y lo muestra con un cono
+  sobre el ojo y una brújula pequeña (rosa N/E/S/O, aguja y rumbo escrito) bajo la tarjeta.
 - **Emulador de Game Boy, Color y Advance**: mini-app inmersiva con EmulatorJS 4.2.3 (núcleos
   mGBA y gambatte en WebAssembly), Super Mario Bros. Deluxe incluido, 100 % offline, controles
   táctiles que se recalculan al girar y partidas que sobreviven al cierre.
-- **156 tests unitarios** y CI en GitHub Actions.
+- **158 tests unitarios** y CI en GitHub Actions.
 
 ### Mini-apps y features
 
@@ -357,7 +364,6 @@ El APK queda en `app/build/outputs/apk/debug/app-debug.apk`.
 - [ ] Embeddings on-device para búsqueda semántica en Nahuanotoka.
 - [ ] OCR on-device para los PDFs escaneados de las mesas.
 - [ ] Firma de mini-apps y permisos granulares.
-- [ ] CameraX + ML Kit para QR real.
 - [ ] Módulos Gradle y Hilt.
 
 ## Contribuir

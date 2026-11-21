@@ -110,7 +110,7 @@ fun WalletScreen(
                     balanceCents = state.balanceCents,
                     onTopUp = { showTopUp = true },
                     onSend = { onMessage("Transferencias llegan en la próxima versión") },
-                    onCollect = { onMessage("Cobros con QR disponibles desde Escanear") },
+                    onCollect = { onMessage("Los cobros llegan en la próxima versión") },
                 )
             }
 

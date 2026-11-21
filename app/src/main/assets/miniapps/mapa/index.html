@@ -80,9 +80,13 @@
     100% { opacity: 1; }
   }
 
+  .under {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;
+    margin-top: 6px;
+  }
   .fogChip {
     display: flex; align-items: center; gap: 6px;
-    margin-top: 6px; padding: 5px 10px;
+    margin-top: 0; padding: 5px 10px;
     border-radius: 9px; background: var(--card-soft);
     border: 1.5px solid var(--line);
     font-size: 10px; font-weight: 600; color: var(--muted);
@@ -90,6 +94,53 @@
     pointer-events: none;
   }
   .fogChip .fogGlyph { font-size: 12px; }
+
+  /* Brújula pequeña: el arriba del dial es hacia dónde miras (tu pantalla), y la rosa gira
+     con el rumbo para que la N siempre señale el norte del mapa. */
+  .compass {
+    flex: none; margin-left: auto;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    pointer-events: none;
+  }
+  .dial {
+    position: relative; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--card); border: 1.5px solid rgba(201, 139, 75, 0.7);
+    box-shadow: 0 6px 16px rgba(15, 8, 5, 0.3);
+  }
+  .rose { position: absolute; inset: 0; transition: transform 0.14s linear; }
+  .compass .cardinal {
+    position: absolute; z-index: 2; font-size: 8px; font-weight: 800; letter-spacing: 0.4px;
+    color: var(--muted); text-shadow: 0 0 3px rgba(58, 33, 23, 0.95);
+  }
+  .compass .cardinal.n { top: 1px; left: 50%; transform: translateX(-50%); color: var(--gold-soft); }
+  .compass .cardinal.e { right: 4px; top: 50%; transform: translateY(-50%); }
+  .compass .cardinal.s { bottom: 2px; left: 50%; transform: translateX(-50%); }
+  .compass .cardinal.o { left: 4px; top: 50%; transform: translateY(-50%); }
+  .compass .needle {
+    position: absolute; z-index: 1; left: 50%; top: 50%; width: 2px; height: 16px;
+    margin: -16px 0 0 -1px; border-radius: 1px;
+    background: linear-gradient(180deg, var(--red) 0%, var(--red) 70%, rgba(196, 106, 74, 0.1) 100%);
+  }
+  .compass .needle::after {
+    content: ''; position: absolute; left: -3px; top: -4px;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-bottom: 5px solid var(--red);
+  }
+  .compass .eyeMark {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 11px; line-height: 1;
+  }
+  .compass .indexMark {
+    position: absolute; left: 50%; top: -3px; transform: translateX(-50%);
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 5px solid var(--gold-soft);
+  }
+  .compassRead {
+    display: flex; gap: 4px; align-items: baseline;
+    font-size: 9px; font-weight: 700; color: var(--gold-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .compassRead .dir { color: var(--cream); }
 
   .controls {
     position: fixed; z-index: 820; right: 9px;
@@ -197,9 +248,26 @@
       <span class="liveCoords" id="liveCoords"></span>
     </div>
   </div>
-  <div class="fogChip hidden" id="fogChip">
-    <span class="fogGlyph">🌫</span>
-    <span id="fogText">Neblina activa</span>
+  <div class="under">
+    <div class="fogChip hidden" id="fogChip">
+      <span class="fogGlyph">🌫</span>
+      <span id="fogText">Neblina activa</span>
+    </div>
+
+    <div class="compass hidden" id="compass">
+      <div class="dial">
+        <div class="rose" id="rose">
+          <span class="cardinal n">N</span>
+          <span class="cardinal e">E</span>
+          <span class="cardinal s">S</span>
+          <span class="cardinal o">O</span>
+          <span class="needle"></span>
+        </div>
+        <span class="eyeMark">👁</span>
+        <span class="indexMark"></span>
+      </div>
+      <div class="compassRead"><span class="dir" id="compassCard">—</span><span id="compassDeg">0°</span></div>
+    </div>
   </div>
 </div>
 
@@ -222,9 +290,10 @@
   var STATE_BOUNDS = L.latLngBounds([18.42, -104.98], [19.62, -103.20]);
   var COLIMA_CENTER = [19.2433, -103.7250];
 
-  // La neblina sólo se despeja con lecturas que el GPS puede sostener: abrir 4.2 m de
-  // radio con una precisión de 40 m sería una confirmación falsa.
-  var REVEAL_RADIUS_M = 4.2;
+  // La neblina sólo se despeja con lecturas que el GPS puede sostener. El radio de 12 m cubre
+  // la incertidumbre aceptada (8 m), así que el punto real cae dentro del despeje; con 4.2 m
+  // no era así: una lectura de ±8 m podía despejar un sitio equivocado.
+  var REVEAL_RADIUS_M = 12;
   var REVEAL_MAX_ACCURACY_M = 8;
   var REVEAL_MAX_FIX_AGE_MS = 12000;
   var REVEAL_MAX_SPEED_MPS = 30;
@@ -490,14 +559,38 @@
     if (state.heading == null) {
       if (cone) cone.style.display = 'none';
       label.classList.add('hidden');
+      updateCompassUi();
       return;
     }
     if (cone) {
       cone.style.display = 'block';
       cone.style.transform = 'rotate(' + state.headingContinuous.toFixed(1) + 'deg)';
     }
-    label.textContent = '👁 ' + cardinal(state.heading) + ' ' + Math.round(state.heading) + '°';
+    label.textContent = '👁 ' + cardinal(state.heading) + ' ' + degreesLabel();
     label.classList.remove('hidden');
+    updateCompassUi();
+  }
+
+  /** Redondeo del rumbo sin imprimir 360°: el norte es 0°, también a 359.7°. */
+  function degreesLabel() {
+    return (Math.round(state.heading) % 360) + '°';
+  }
+
+  /**
+   * Brújula pequeña: el arriba del dial es tu mirada —el borde superior de la pantalla, que es lo
+   * que el anfitrión mide— y la rosa gira con el rumbo para que la N siga señalando el norte del
+   * mapa. El ojo marca el centro y la muesca dorada, tu mirada.
+   */
+  function updateCompassUi() {
+    var compass = el('compass');
+    if (state.heading == null) {
+      compass.classList.add('hidden');
+      return;
+    }
+    compass.classList.remove('hidden');
+    el('rose').style.transform = 'rotate(' + (-state.headingContinuous).toFixed(1) + 'deg)';
+    el('compassCard').textContent = cardinal(state.heading);
+    el('compassDeg').textContent = degreesLabel();
   }
 
   function startHeading() {
@@ -550,7 +643,7 @@
     cellDeg: 0.00004,             // ~4.45 m de norte a sur
     maxCells: 8000,
     // Niebla translúcida: la silueta del terreno se intuye, pero sólo lo caminado se lee
-    // nítido. Con 0.965 el despeje de 4.2 m quedaba invisible a zoom de detalle.
+    // nítido. Con 0.965 el despeje quedaba invisible a zoom de detalle.
     fill: 'rgba(28, 16, 10, 0.9)'
   };
 
@@ -768,8 +861,8 @@
       FOG.layer.addTo(map);
       if (!state.stopWatch) startTracking();
       if (state.fix) revealFromFix(state.fix);
-      // El despeje es de 4.2 m: sólo se lee con el detalle urbano delante, así que al encender
-      // la neblina el mapa se acerca al punto donde estás.
+      // El despeje se lee con el detalle urbano delante, así que al encender la neblina el mapa
+      // se acerca al punto donde estás.
       if (state.fix && map.getZoom() < 17) {
         map.flyTo([state.fix.lat, state.fix.lng], 17, { duration: 0.8 });
       }
